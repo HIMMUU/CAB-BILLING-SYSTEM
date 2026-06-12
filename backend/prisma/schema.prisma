@@ -1,0 +1,474 @@
+// Prisma Schema for Cab Billing & Fleet Management SaaS MVP
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// =========================================================================
+// ENUMS
+// =========================================================================
+
+enum UserRole {
+  SUPER_ADMIN
+  OPERATOR_ADMIN
+  DISPATCHER
+  BILLING_EXECUTIVE
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum CustomerType {
+  CORPORATE
+  INDIVIDUAL
+}
+
+enum DriverStatus {
+  AVAILABLE
+  ON_TRIP
+  INACTIVE
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  ON_TRIP
+  MAINTENANCE
+  INACTIVE
+}
+
+enum TripType {
+  LOCAL
+  AIRPORT_TRANSFER
+  OUTSTATION
+  HOURLY_RENTAL
+}
+
+enum BookingStatus {
+  PENDING
+  ASSIGNED
+  STARTED
+  COMPLETED
+  CANCELLED
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum DutySlipStatus {
+  DRAFT
+  FILLED
+  CLOSED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  PARTIALLY_PAID
+  UNPAID
+  VOID
+}
+
+enum PaymentMode {
+  BANK_TRANSFER
+  UPI
+  CASH
+  CHEQUE
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+// =========================================================================
+// MODELS
+// =========================================================================
+
+model Tenant {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @db.VarChar(255)
+  domain    String?  @unique @db.VarChar(255)
+  logoUrl   String?  @map("logo_url") @db.VarChar(512)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  users       User[]
+  customers   Customer[]
+  rateCards   RateCard[]
+  drivers     Driver[]
+  driverDocs  DriverDocument[]
+  vehicles    Vehicle[]
+  bookings    Booking[]
+  assignments Assignment[]
+  dutySlips   DutySlip[]
+  trips       Trip[]
+  invoices    Invoice[]
+  payments    Payment[]
+  auditLogs   AuditLog[]
+  invoiceItems InvoiceItem[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String?    @map("tenant_id") @db.Uuid
+  email        String     @db.VarChar(255)
+  passwordHash String     @map("password_hash") @db.VarChar(255)
+  firstName    String     @map("first_name") @db.VarChar(100)
+  lastName     String     @map("last_name") @db.VarChar(100)
+  role         UserRole
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant      Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignments Assignment[]
+  closedTrips Trip[]
+  auditLogs   AuditLog[]
+
+  @@unique([tenantId, email], name: "tenantEmail")
+  @@index([tenantId])
+  @@map("users")
+}
+
+model Customer {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  name           String       @db.VarChar(255)
+  companyName    String?      @map("company_name") @db.VarChar(255)
+  type           CustomerType @default(INDIVIDUAL)
+  gstNumber      String?      @map("gst_number") @db.VarChar(15)
+  email          String?      @db.VarChar(255)
+  phone          String       @db.VarChar(20)
+  billingAddress String       @map("billing_address") @db.Text
+  creditLimit    Decimal      @default(0.00) @map("credit_limit") @db.Decimal(12, 2)
+  paymentTerms   String?      @map("payment_terms") @db.VarChar(100)
+  status         String       @default("ACTIVE") @db.VarChar(50)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rateCards RateCard[]
+  bookings  Booking[]
+  invoices  Invoice[]
+
+  @@unique([tenantId, phone], name: "tenantPhone")
+  @@index([tenantId])
+  @@map("customers")
+}
+
+model RateCard {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId              String   @map("tenant_id") @db.Uuid
+  customerId            String?  @map("customer_id") @db.Uuid
+  vehicleType           String   @map("vehicle_type") @db.VarChar(100)
+  tripType              TripType @map("trip_type")
+  baseFare              Decimal  @default(0.00) @map("base_fare") @db.Decimal(10, 2)
+  baseKm                Decimal  @default(0.00) @map("base_km") @db.Decimal(10, 2)
+  baseHours             Decimal  @default(0.00) @map("base_hours") @db.Decimal(10, 2)
+  extraKmRate           Decimal  @default(0.00) @map("extra_km_rate") @db.Decimal(10, 2)
+  extraHourRate         Decimal  @default(0.00) @map("extra_hour_rate") @db.Decimal(10, 2)
+  driverAllowancePerDay Decimal  @default(0.00) @map("driver_allowance_per_day") @db.Decimal(10, 2)
+  nightCharges          Decimal  @default(0.00) @map("night_charges") @db.Decimal(10, 2)
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, customerId, vehicleType, tripType], name: "tenantCustomerRate")
+  @@map("rate_cards")
+}
+
+model Driver {
+  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String       @map("tenant_id") @db.Uuid
+  name             String       @db.VarChar(255)
+  mobile           String       @db.VarChar(20)
+  licenseNumber    String       @map("license_number") @db.VarChar(100)
+  licenseExpiry    DateTime     @map("license_expiry") @db.Date
+  address          String       @db.Text
+  emergencyContact String       @map("emergency_contact") @db.VarChar(255)
+  status           DriverStatus @default(AVAILABLE)
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  documents   DriverDocument[]
+  assignments Assignment[]
+  dutySlips   DutySlip[]
+
+  @@unique([tenantId, mobile], name: "tenantDriverMobile")
+  @@unique([tenantId, licenseNumber], name: "tenantLicense")
+  @@index([tenantId])
+  @@map("drivers")
+}
+
+model DriverDocument {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  driverId       String    @map("driver_id") @db.Uuid
+  documentType   String    @map("document_type") @db.VarChar(100)
+  documentNumber String    @map("document_number") @db.VarChar(100)
+  expiryDate     DateTime? @map("expiry_date") @db.Date
+  s3Url          String    @map("s3_url") @db.VarChar(512)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("driver_documents")
+}
+
+model Vehicle {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String        @map("tenant_id") @db.Uuid
+  vehicleNumber   String        @map("vehicle_number") @db.VarChar(50)
+  vehicleType     String        @map("vehicle_type") @db.VarChar(100)
+  model           String        @db.VarChar(255)
+  seatingCapacity Int           @map("seating_capacity")
+  registrationDate DateTime      @map("registration_date") @db.Date
+  insuranceExpiry DateTime      @map("insurance_expiry") @db.Date
+  fitnessExpiry   DateTime      @map("fitness_expiry") @db.Date
+  permitExpiry    DateTime      @map("permit_expiry") @db.Date
+  status          VehicleStatus @default(AVAILABLE)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignments Assignment[]
+  dutySlips   DutySlip[]
+
+  @@unique([tenantId, vehicleNumber], name: "tenantVehicleNumber")
+  @@index([tenantId])
+  @@map("vehicles")
+}
+
+model Booking {
+  id                  String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId            String        @map("tenant_id") @db.Uuid
+  bookingNumber       String        @map("booking_number") @db.VarChar(100)
+  customerId          String        @map("customer_id") @db.Uuid
+  pickupLocation      String        @map("pickup_location") @db.Text
+  dropLocation        String        @map("drop_location") @db.Text
+  pickupDate          DateTime      @map("pickup_date") @db.Date
+  pickupTime          String        @map("pickup_time") @db.VarChar(50) // Store time as HH:mm or HH:mm:ss
+  tripType            TripType      @map("trip_type")
+  vehicleTypeRequired String        @map("vehicle_type_required") @db.VarChar(100)
+  status              BookingStatus @default(PENDING)
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer    Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  assignments Assignment[]
+  dutySlip    DutySlip?
+  trip        Trip?
+
+  @@unique([tenantId, bookingNumber], name: "tenantBookingNumber")
+  @@index([tenantId])
+  @@index([pickupDate])
+  @@index([status])
+  @@map("bookings")
+}
+
+model Assignment {
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String           @map("tenant_id") @db.Uuid
+  bookingId    String           @map("booking_id") @db.Uuid
+  vehicleId    String           @map("vehicle_id") @db.Uuid
+  driverId     String           @map("driver_id") @db.Uuid
+  assignedAt   DateTime         @default(now()) @map("assigned_at") @db.Timestamptz
+  assignedById String?          @map("assigned_by_id") @db.Uuid
+  status       AssignmentStatus @default(ACTIVE)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  driver     Driver   @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  assignedBy User?    @relation(fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([vehicleId])
+  @@index([driverId])
+  @@map("assignments")
+}
+
+model DutySlip {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String         @map("tenant_id") @db.Uuid
+  dutySlipNumber String         @map("duty_slip_number") @db.VarChar(100)
+  bookingId      String         @unique @map("booking_id") @db.Uuid
+  driverId       String         @map("driver_id") @db.Uuid
+  vehicleId      String         @map("vehicle_id") @db.Uuid
+  reportingTime  DateTime       @map("reporting_time") @db.Timestamptz
+  startKm        Decimal        @map("start_km") @db.Decimal(10, 2)
+  endKm          Decimal?       @map("end_km") @db.Decimal(10, 2)
+  toll           Decimal        @default(0.00) @db.Decimal(10, 2)
+  parking        Decimal        @default(0.00) @db.Decimal(10, 2)
+  nightCharges   Decimal        @default(0.00) @map("night_charges") @db.Decimal(10, 2)
+  driverAllowance Decimal       @default(0.00) @map("driver_allowance") @db.Decimal(10, 2)
+  extraCharges   Decimal        @default(0.00) @map("extra_charges") @db.Decimal(10, 2)
+  status         DutySlipStatus @default(DRAFT)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  driver  Driver  @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  trip    Trip?
+
+  @@unique([tenantId, dutySlipNumber], name: "tenantDutySlipNumber")
+  @@index([tenantId])
+  @@index([status])
+  @@map("duty_slips")
+}
+
+model Trip {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId            String   @map("tenant_id") @db.Uuid
+  dutySlipId          String   @unique @map("duty_slip_id") @db.Uuid
+  bookingId           String   @unique @map("booking_id") @db.Uuid
+  startKm             Decimal  @map("start_km") @db.Decimal(10, 2)
+  endKm               Decimal  @map("end_km") @db.Decimal(10, 2)
+  totalKm             Decimal  @map("total_km") @db.Decimal(10, 2)
+  toll                Decimal  @default(0.00) @db.Decimal(10, 2)
+  parking             Decimal  @default(0.00) @db.Decimal(10, 2)
+  driverAllowance     Decimal  @default(0.00) @map("driver_allowance") @db.Decimal(10, 2)
+  extraCharges        Decimal  @default(0.00) @map("extra_charges") @db.Decimal(10, 2)
+  baseFareCharged     Decimal  @map("base_fare_charged") @db.Decimal(10, 2)
+  extraKmCharged      Decimal  @default(0.00) @map("extra_km_charged") @db.Decimal(10, 2)
+  extraHoursCharged   Decimal  @default(0.00) @map("extra_hours_charged") @db.Decimal(10, 2)
+  nightChargesCharged  Decimal  @default(0.00) @map("night_charges_charged") @db.Decimal(10, 2)
+  miscChargesCharged  Decimal  @default(0.00) @map("misc_charges_charged") @db.Decimal(10, 2)
+  totalAmount         Decimal  @map("total_amount") @db.Decimal(12, 2)
+  closedAt            DateTime @default(now()) @map("closed_at") @db.Timestamptz
+  closedById          String?  @map("closed_by_id") @db.Uuid
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dutySlip    DutySlip      @relation(fields: [dutySlipId], references: [id], onDelete: Restrict)
+  booking     Booking       @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  closedBy    User?         @relation(fields: [closedById], references: [id], onDelete: SetNull)
+  invoiceItems InvoiceItem[]
+
+  @@index([tenantId])
+  @@map("trips")
+}
+
+model Invoice {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  invoiceNumber  String        @map("invoice_number") @db.VarChar(100)
+  customerId     String        @map("customer_id") @db.Uuid
+  invoiceDate    DateTime      @map("invoice_date") @db.Date
+  dueDate        DateTime      @map("due_date") @db.Date
+  status         InvoiceStatus @default(DRAFT)
+  baseFare       Decimal       @default(0.00) @map("base_fare") @db.Decimal(12, 2)
+  extraKmCharges Decimal       @default(0.00) @map("extra_km_charges") @db.Decimal(12, 2)
+  toll           Decimal       @default(0.00) @db.Decimal(12, 2)
+  parking        Decimal       @default(0.00) @db.Decimal(12, 2)
+  nightCharges   Decimal       @default(0.00) @map("night_charges") @db.Decimal(12, 2)
+  miscCharges    Decimal       @default(0.00) @map("misc_charges") @db.Decimal(12, 2)
+  subtotal       Decimal       @map("subtotal") @db.Decimal(12, 2)
+  cgstRate       Decimal       @default(0.00) @map("cgst_rate") @db.Decimal(5, 2)
+  cgstAmount     Decimal       @default(0.00) @map("cgst_amount") @db.Decimal(12, 2)
+  sgstRate       Decimal       @default(0.00) @map("sgst_rate") @db.Decimal(5, 2)
+  sgstAmount     Decimal       @default(0.00) @map("sgst_amount") @db.Decimal(12, 2)
+  igstRate       Decimal       @default(0.00) @map("igst_rate") @db.Decimal(5, 2)
+  igstAmount     Decimal       @default(0.00) @map("igst_amount") @db.Decimal(12, 2)
+  totalTax       Decimal       @map("total_tax") @db.Decimal(12, 2)
+  totalAmount    Decimal       @map("total_amount") @db.Decimal(12, 2)
+  paidAmount     Decimal       @default(0.00) @map("paid_amount") @db.Decimal(12, 2)
+  dueAmount      Decimal       @map("due_amount") @db.Decimal(12, 2)
+  s3Url          String?       @map("s3_url") @db.VarChar(512)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  items    InvoiceItem[]
+  payments Payment[]
+
+  @@unique([tenantId, invoiceNumber], name: "tenantInvoiceNumber")
+  @@index([tenantId])
+  @@index([status])
+  @@index([invoiceDate])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  invoiceId   String   @map("invoice_id") @db.Uuid
+  tripId      String   @map("trip_id") @db.Uuid
+  description String   @db.Text
+  amount      Decimal  @db.Decimal(12, 2)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  trip    Trip    @relation(fields: [tripId], references: [id], onDelete: Restrict)
+
+  @@map("invoice_items")
+}
+
+model Payment {
+  id                   String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId             String      @map("tenant_id") @db.Uuid
+  invoiceId            String      @map("invoice_id") @db.Uuid
+  amount               Decimal     @db.Decimal(12, 2)
+  paymentDate          DateTime    @map("payment_date") @db.Timestamptz
+  paymentMode          PaymentMode @map("payment_mode")
+  transactionReference String?     @map("transaction_reference") @db.VarChar(255)
+  status               PaymentStatus @default(PENDING)
+  createdAt            DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@map("payments")
+}
+
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  action     String   @db.VarChar(255)
+  entityName String   @map("entity_name") @db.VarChar(100)
+  entityId   String   @map("entity_id") @db.Uuid
+  oldValues  Json?    @map("old_values")
+  newValues  Json?    @map("new_values")
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityName, entityId])
+  @@map("audit_logs")
+}
