@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Database Service
+  postgres:
+    image: postgres:15-alpine
+    container_name: cabbs_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_secure_pass_123
+      POSTGRES_DB: cab_billing_system
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/1-schema.sql # Automatically seed schema on init
+    networks:
+      - cabbs_network
+
+  # 2. PgAdmin Service for Database Administration
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: cabbs_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@cabbs.local
+      PGADMIN_DEFAULT_PASSWORD: admin_secure_pass_123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - cabbs_network
+
+  # 3. NestJS Backend Application (SaaS Backend API)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cabbs_backend
+    restart: always
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:postgres_secure_pass_123@postgres:5432/cab_billing_system?schema=public
+      JWT_SECRET: super_secret_jwt_sign_key_987654321
+      JWT_EXPIRATION: 15m
+      AWS_ACCESS_KEY_ID: mock_aws_access_key
+      AWS_SECRET_ACCESS_KEY: mock_aws_secret_key
+      AWS_S3_BUCKET: cabbs-documents-bucket
+      AWS_REGION: us-east-1
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres
+    networks:
+      - cabbs_network
+
+  # 4. Next.js Frontend Application (SaaS Dashboard UI)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cabbs_frontend
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - cabbs_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  cabbs_network:
+    driver: bridge
