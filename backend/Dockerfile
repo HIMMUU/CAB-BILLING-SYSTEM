@@ -1,17 +1,19 @@
-FROM node:20-alpine
+FROM node:20-slim
 WORKDIR /app
+
+# Install OpenSSL (required by Prisma engine on Debian/slim)
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
 COPY package*.json ./
 
 # Force NODE_ENV=development so npm ci installs ALL deps including devDependencies
-# (Railway sets NODE_ENV=production in build env which skips devDeps — we override it here)
 RUN NODE_ENV=development npm ci
 
 # Copy full source
 COPY . .
 
-# Generate Prisma client
+# Generate Prisma client (targets linux-openssl-3.0.x for Debian)
 RUN NODE_ENV=development npx prisma generate
 
 # Build NestJS → produces dist/
