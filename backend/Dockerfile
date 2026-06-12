@@ -1,39 +1,27 @@
-FROM node:20-alpine AS builder
-WORKDIR /app
-
-# Install dependencies
-COPY package*.json ./
-RUN npm ci
-
-# Copy source
-COPY . .
-
-# Generate Prisma client (required before build)
-RUN npx prisma generate
-
-# Build NestJS app
-RUN npm run build
-
-# Copy static assets (logos etc.)
-RUN mkdir -p /app/assets && cp -R src/assets /app/dist/assets 2>/dev/null || true
-
-# ─── Production image ─────────────────────────────────────────────────────────
 FROM node:20-alpine
 WORKDIR /app
 
-# Copy compiled output
-COPY --from=builder /app/dist ./dist
-
-# Copy prisma schema (needed for PrismaClient at runtime)
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-
-# Install production-only npm deps
+# Install all deps (dev included — needed for nest build)
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
-# Copy assets
-COPY --from=builder /app/src/assets ./assets
+# Copy full source
+COPY . .
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Build NestJS → produces dist/
+RUN npm run build
+
+# Verify dist/main.js was actually created (fail loudly if not)
+RUN ls -la dist/ && echo "✅ Build output verified"
+
+# Copy assets for PDF generation
+RUN mkdir -p assets && cp -R src/assets/* assets/ 2>/dev/null || true
+
+# Remove dev dependencies to slim down image
+RUN npm prune --omit=dev
 
 ENV NODE_ENV=production
 EXPOSE 4000
