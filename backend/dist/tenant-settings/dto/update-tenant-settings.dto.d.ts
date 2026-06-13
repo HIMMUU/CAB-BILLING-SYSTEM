@@ -1,0 +1,26 @@
+export declare class UpdateTenantSettingsDto {
+    name?: string;
+    logoUrl?: string;
+    companyAddress?: string;
+    companyPhone?: string;
+    companyEmail?: string;
+    companyGst?: string;
+    companyPan?: string;
+    sacNo?: string;
+    serviceCategory?: string;
+    bankName?: string;
+    bankBranch?: string;
+    bankAccountNo?: string;
+    bankIfsc?: string;
+    bankAccountHolder?: string;
+    invoiceTitle?: string;
+    dutySlipTitle?: string;
+    hideLogoOnPdf?: boolean;
+    termsAndConditions?: string;
+    pdfTheme?: string;
+    pdfColorPrimary?: string;
+    pdfFontFamily?: string;
+    pdfShowBank?: boolean;
+    pdfShowTerms?: boolean;
+    pdfHeaderLayout?: string;
+}

@@ -1,0 +1,155 @@
+import { TripsService } from './trips.service';
+import { CloseTripDto } from './dto/close-trip.dto';
+export declare class TripsController {
+    private readonly tripsService;
+    constructor(tripsService: TripsService);
+    closeTrip(closeTripDto: CloseTripDto): Promise<any>;
+    calculate(dutySlipId: string, endKm: number, startDateTime?: string, endDateTime?: string): Promise<{
+        baseFareCharged: number;
+        extraKmCharged: number;
+        extraHoursCharged: number;
+        toll: number;
+        parking: number;
+        stateTax: number;
+        mcd: number;
+        driverAllowance: number;
+        nightCharges: number;
+        extraCharges: number;
+        totalDistance: number;
+        totalAmount: number;
+        totalHours: number;
+        totalDays: number;
+    }>;
+    findAll(page?: number, limit?: number): Promise<{
+        data: ({
+            booking: {
+                customer: {
+                    id: string;
+                    name: string;
+                    status: string;
+                    createdAt: Date;
+                    updatedAt: Date;
+                    tenantId: string;
+                    email: string | null;
+                    companyName: string | null;
+                    type: import(".prisma/client").$Enums.CustomerType;
+                    gstNumber: string | null;
+                    phone: string;
+                    billingAddress: string;
+                    creditLimit: import("@prisma/client/runtime/library").Decimal;
+                    paymentTerms: string | null;
+                    clientType: string;
+                    cgstRate: import("@prisma/client/runtime/library").Decimal;
+                    sgstRate: import("@prisma/client/runtime/library").Decimal;
+                    igstRate: import("@prisma/client/runtime/library").Decimal;
+                };
+            } & {
+                id: string;
+                status: import(".prisma/client").$Enums.BookingStatus;
+                createdAt: Date;
+                updatedAt: Date;
+                tenantId: string;
+                customerId: string;
+                bookingNumber: string;
+                pickupLocation: string;
+                dropLocation: string;
+                pickupDate: Date;
+                pickupTime: string;
+                tripType: import(".prisma/client").$Enums.TripType;
+                vehicleTypeRequired: string;
+                employeeId: string | null;
+                guestName: string | null;
+                guestSalutation: string | null;
+                bookingBy: string | null;
+                remarks: string | null;
+            };
+            dutySlip: {
+                driver: {
+                    id: string;
+                    name: string;
+                    status: import(".prisma/client").$Enums.DriverStatus;
+                    createdAt: Date;
+                    updatedAt: Date;
+                    tenantId: string;
+                    mobile: string;
+                    licenseNumber: string;
+                    licenseExpiry: Date;
+                    address: string;
+                    emergencyContact: string;
+                };
+                vehicle: {
+                    model: string;
+                    id: string;
+                    status: import(".prisma/client").$Enums.VehicleStatus;
+                    createdAt: Date;
+                    updatedAt: Date;
+                    tenantId: string;
+                    vehicleNumber: string;
+                    vehicleType: string;
+                    seatingCapacity: number;
+                    registrationDate: Date;
+                    insuranceExpiry: Date;
+                    fitnessExpiry: Date;
+                    permitExpiry: Date;
+                };
+            } & {
+                id: string;
+                status: import(".prisma/client").$Enums.DutySlipStatus;
+                createdAt: Date;
+                updatedAt: Date;
+                tenantId: string;
+                driverAllowance: import("@prisma/client/runtime/library").Decimal;
+                driverId: string;
+                employeeId: string | null;
+                bookingId: string;
+                vehicleId: string;
+                dutySlipNumber: string;
+                reportingTime: Date;
+                startKm: import("@prisma/client/runtime/library").Decimal;
+                endKm: import("@prisma/client/runtime/library").Decimal | null;
+                toll: import("@prisma/client/runtime/library").Decimal;
+                parking: import("@prisma/client/runtime/library").Decimal;
+                nightCharges: import("@prisma/client/runtime/library").Decimal;
+                extraCharges: import("@prisma/client/runtime/library").Decimal;
+                startDateTime: Date | null;
+                endDateTime: Date | null;
+                stateTax: import("@prisma/client/runtime/library").Decimal;
+                mcd: import("@prisma/client/runtime/library").Decimal;
+            };
+        } & {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            tenantId: string;
+            driverAllowance: import("@prisma/client/runtime/library").Decimal;
+            bookingId: string;
+            startKm: import("@prisma/client/runtime/library").Decimal;
+            endKm: import("@prisma/client/runtime/library").Decimal;
+            toll: import("@prisma/client/runtime/library").Decimal;
+            parking: import("@prisma/client/runtime/library").Decimal;
+            extraCharges: import("@prisma/client/runtime/library").Decimal;
+            startDateTime: Date | null;
+            endDateTime: Date | null;
+            dutySlipId: string;
+            totalKm: import("@prisma/client/runtime/library").Decimal;
+            baseFareCharged: import("@prisma/client/runtime/library").Decimal;
+            extraKmCharged: import("@prisma/client/runtime/library").Decimal;
+            extraHoursCharged: import("@prisma/client/runtime/library").Decimal;
+            nightChargesCharged: import("@prisma/client/runtime/library").Decimal;
+            miscChargesCharged: import("@prisma/client/runtime/library").Decimal;
+            totalAmount: import("@prisma/client/runtime/library").Decimal;
+            totalHours: import("@prisma/client/runtime/library").Decimal;
+            totalDays: number;
+            stateTaxCharged: import("@prisma/client/runtime/library").Decimal;
+            mcdCharged: import("@prisma/client/runtime/library").Decimal;
+            closedAt: Date;
+            closedById: string | null;
+        })[];
+        meta: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+        };
+    }>;
+}
