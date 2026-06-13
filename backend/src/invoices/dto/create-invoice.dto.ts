@@ -7,8 +7,12 @@ export enum GstType {
 
 export class CreateInvoiceDto {
   @IsUUID(4, { message: 'Trip ID must be a valid UUID' })
-  @IsNotEmpty({ message: 'Trip ID is required' })
-  tripId: string;
+  @IsOptional()
+  tripId?: string;
+
+  @IsUUID(4, { each: true, message: 'Each Trip ID must be a valid UUID' })
+  @IsOptional()
+  tripIds?: string[];
 
   @IsDateString({}, { message: 'Invoice date must be a valid ISO date string' })
   @IsOptional()

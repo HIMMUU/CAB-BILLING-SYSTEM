@@ -40,4 +40,20 @@ export class UpdateCustomerDto {
   @IsString()
   @IsOptional()
   paymentTerms?: string;
+
+  @IsString()
+  @IsOptional()
+  clientType?: string;
+
+  @IsOptional()
+  cgstRate?: number;
+
+  @IsOptional()
+  sgstRate?: number;
+
+  @IsOptional()
+  igstRate?: number;
+
+  @IsOptional()
+  rateCards?: any[];
 }

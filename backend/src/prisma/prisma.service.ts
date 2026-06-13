@@ -28,6 +28,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
               'Payment',
               'AuditLog',
               'User',
+              'TaxConfiguration',
             ];
 
             const anyArgs = args as any;

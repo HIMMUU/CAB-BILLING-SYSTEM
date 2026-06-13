@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import * as path from 'path';
+import * as fs from 'fs';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDutySlipDto } from './dto/create-duty-slip.dto';
 import { UpdateDutySlipDto } from './dto/update-duty-slip.dto';
@@ -11,9 +12,150 @@ export class DutySlipsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateDutySlipDto) {
+    let bookingId = dto.bookingId;
+    let employeeId = dto.employeeId;
+
+    if (!bookingId) {
+      // Create Duty Slip WITHOUT booking
+      if (!dto.customerId || !dto.driverId || !dto.vehicleId) {
+        throw new BadRequestException('Customer ID, Driver ID, and Vehicle ID are required to create a duty slip without an existing booking');
+      }
+
+      // 1. Verify customer, driver, vehicle exist
+      const customer = await this.prisma.customer.findUnique({
+        where: { id: dto.customerId },
+      });
+      if (!customer) {
+        throw new NotFoundException('Customer not found');
+      }
+
+      const driver = await this.prisma.driver.findUnique({
+        where: { id: dto.driverId },
+      });
+      if (!driver) {
+        throw new NotFoundException('Driver not found');
+      }
+
+      const vehicle = await this.prisma.vehicle.findUnique({
+        where: { id: dto.vehicleId },
+      });
+      if (!vehicle) {
+        throw new NotFoundException('Vehicle not found');
+      }
+
+      // 2. Generate a unique booking number
+      let bookingNumber = '';
+      let isUnique = false;
+      let attempts = 0;
+      while (!isUnique && attempts < 10) {
+        attempts++;
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const randomDigits = Math.floor(1000 + Math.random() * 9000);
+        bookingNumber = `BK-${dateStr}-${randomDigits}`;
+
+        const existing = await this.prisma.booking.findFirst({
+          where: { bookingNumber },
+        });
+        if (!existing) {
+          isUnique = true;
+        }
+      }
+
+      const rTime = new Date(dto.reportingTime);
+      const pickupTime = `${String(rTime.getHours()).padStart(2, '0')}:${String(rTime.getMinutes()).padStart(2, '0')}`;
+
+      // Create Booking + Assignment + DutySlip inside a single transaction
+      const result = await this.prisma.$transaction(async (tx) => {
+        const newBooking = await tx.booking.create({
+          data: {
+            tenantId: customer.tenantId,
+            bookingNumber,
+            customerId: dto.customerId,
+            pickupLocation: dto.pickupLocation || 'Direct Duty Slip Pickup',
+            dropLocation: dto.dropLocation || 'Direct Duty Slip Drop',
+            pickupDate: new Date(dto.reportingTime),
+            pickupTime,
+            tripType: (dto.tripType as any) || 'LOCAL',
+            vehicleTypeRequired: vehicle.vehicleType,
+            status: BookingStatus.ASSIGNED,
+            employeeId: dto.employeeId,
+            guestName: dto.guestName,
+            guestSalutation: dto.guestSalutation,
+            bookingBy: dto.bookingBy,
+            remarks: dto.remarks,
+          } as any,
+        });
+
+        const newAssignment = await tx.assignment.create({
+          data: {
+            tenantId: customer.tenantId,
+            bookingId: newBooking.id,
+            driverId: dto.driverId,
+            vehicleId: dto.vehicleId,
+            status: 'ACTIVE',
+          } as any,
+        });
+
+        // Set driver and vehicle as ON_TRIP
+        await tx.driver.update({
+          where: { id: dto.driverId },
+          data: { status: 'ON_TRIP' as any },
+        });
+
+        await tx.vehicle.update({
+          where: { id: dto.vehicleId },
+          data: { status: 'ON_TRIP' as any },
+        });
+
+        // Generate unique duty slip number
+        let dutySlipNumber = '';
+        let isUniqueSlip = false;
+        let attemptsSlip = 0;
+        while (!isUniqueSlip && attemptsSlip < 10) {
+          attemptsSlip++;
+          const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+          const randomDigits = Math.floor(1000 + Math.random() * 9000);
+          dutySlipNumber = `DS-${dateStr}-${randomDigits}`;
+
+          const existing = await tx.dutySlip.findFirst({
+            where: { dutySlipNumber },
+          });
+          if (!existing) {
+            isUniqueSlip = true;
+          }
+        }
+
+        const newSlip = await tx.dutySlip.create({
+          data: {
+            tenantId: customer.tenantId,
+            dutySlipNumber,
+            bookingId: newBooking.id,
+            driverId: dto.driverId,
+            vehicleId: dto.vehicleId,
+            reportingTime: new Date(dto.reportingTime),
+            startKm: dto.startKm,
+            status: DutySlipStatus.DRAFT,
+            employeeId: dto.employeeId,
+          } as any,
+        });
+
+        return newSlip;
+      });
+
+      // Refetch with relations
+      return this.prisma.dutySlip.findUnique({
+        where: { id: result.id },
+        include: {
+          booking: { include: { customer: true } },
+          driver: true,
+          vehicle: true,
+        },
+      });
+    }
+
     // 1. Fetch target booking
     const booking = await this.prisma.booking.findUnique({
-      where: { id: dto.bookingId },
+      where: { id: bookingId },
     });
     if (!booking) {
       throw new NotFoundException('Booking not found');
@@ -26,7 +168,7 @@ export class DutySlipsService {
 
     // 3. Check if duty slip already exists for this booking
     const existingSlip = await this.prisma.dutySlip.findUnique({
-      where: { bookingId: dto.bookingId },
+      where: { bookingId },
     });
     if (existingSlip) {
       throw new ConflictException('A duty slip has already been generated for this booking');
@@ -35,7 +177,7 @@ export class DutySlipsService {
     // 4. Fetch the active assignment for this booking to pre-populate driver and vehicle
     const assignment = await this.prisma.assignment.findFirst({
       where: {
-        bookingId: dto.bookingId,
+        bookingId,
         status: 'ACTIVE',
       },
     });
@@ -65,12 +207,13 @@ export class DutySlipsService {
     return this.prisma.dutySlip.create({
       data: {
         dutySlipNumber,
-        bookingId: dto.bookingId,
+        bookingId,
         driverId: assignment.driverId,
         vehicleId: assignment.vehicleId,
         reportingTime: new Date(dto.reportingTime),
         startKm: dto.startKm,
         status: DutySlipStatus.DRAFT,
+        employeeId: employeeId || booking.employeeId,
       } as any,
       include: {
         booking: { include: { customer: true } },
@@ -179,6 +322,19 @@ export class DutySlipsService {
       targetStatus = DutySlipStatus.FILLED;
     }
 
+    // Update guest fields on Booking if any are provided
+    if (dto.guestName !== undefined || dto.guestSalutation !== undefined || dto.bookingBy !== undefined || dto.remarks !== undefined) {
+      await this.prisma.booking.update({
+        where: { id: slip.bookingId },
+        data: {
+          guestName: dto.guestName,
+          guestSalutation: dto.guestSalutation,
+          bookingBy: dto.bookingBy,
+          remarks: dto.remarks,
+        },
+      });
+    }
+
     return this.prisma.dutySlip.update({
       where: { id },
       data: {
@@ -190,7 +346,14 @@ export class DutySlipsService {
         nightCharges: dto.nightCharges,
         driverAllowance: dto.driverAllowance,
         extraCharges: dto.extraCharges,
+        startDateTime: dto.startDateTime ? new Date(dto.startDateTime) : undefined,
+        endDateTime: dto.endDateTime ? new Date(dto.endDateTime) : undefined,
+        stateTax: dto.stateTax,
+        mcd: dto.mcd,
         status: targetStatus,
+        employeeId: dto.employeeId,
+        driverId: dto.driverId,
+        vehicleId: dto.vehicleId,
       },
       include: {
         booking: { include: { customer: true } },
@@ -209,6 +372,58 @@ export class DutySlipsService {
 
   async generatePdf(id: string): Promise<Buffer> {
     const slip = await this.findOne(id);
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: slip.tenantId },
+    });
+
+    const companyName = tenant?.name || 'TRAVEL DREAM';
+    const slipTitle = tenant?.dutySlipTitle || 'TRIP OPERATIONAL DUTY SLIP';
+
+    const primaryColor = tenant?.pdfColorPrimary || '#1E3A8A';
+    const isRefined = tenant?.pdfTheme === 'REFINED';
+    
+    // Font mapping
+    let fontRegular = 'Helvetica';
+    let fontBold = 'Helvetica-Bold';
+    if (tenant?.pdfFontFamily === 'Times-Roman') {
+      fontRegular = 'Times-Roman';
+      fontBold = 'Times-Bold';
+    } else if (tenant?.pdfFontFamily === 'Courier') {
+      fontRegular = 'Courier';
+      fontBold = 'Courier-Bold';
+    }
+
+    const logoBuffer = await (async () => {
+      if (!tenant?.logoUrl) return null;
+      if (tenant.logoUrl.startsWith('http://') || tenant.logoUrl.startsWith('https://')) {
+        try {
+          const res = await fetch(tenant.logoUrl, { signal: AbortSignal.timeout(2000) });
+          if (res.ok) {
+            return Buffer.from(await res.arrayBuffer());
+          }
+        } catch (e: any) {
+          console.warn('Failed to fetch logo from URL:', tenant.logoUrl, e.message);
+        }
+      } else {
+        try {
+          const fs = require('fs');
+          const cleanPath = tenant.logoUrl.replace(/^\//, '');
+          const pathsToTry = [
+            path.resolve(__dirname, '..', 'assets', cleanPath),
+            path.resolve(__dirname, '..', '..', 'frontend', 'public', cleanPath),
+            path.resolve(tenant.logoUrl),
+          ];
+          for (const p of pathsToTry) {
+            if (fs.existsSync(p)) {
+              return fs.readFileSync(p);
+            }
+          }
+        } catch (e: any) {
+          console.warn('Failed to read logo from local path:', tenant.logoUrl, e.message);
+        }
+      }
+      return null;
+    })();
 
     return new Promise<Buffer>((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50, size: 'A4' });
@@ -218,136 +433,179 @@ export class DutySlipsService {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', (err) => reject(err));
 
-      // Title & Header Banner
-      doc.rect(0, 0, 595.28, 110).fill('#2563EB'); // Primary Blue header background
-const LOGO_PATH = path.resolve(__dirname, '..', 'assets', 'logo.png');
-doc.image(LOGO_PATH, 460, 20, { width: 80 });
-      doc.fillColor('#FFFFFF').fontSize(22).font('Helvetica-Bold').text('CABBS LOGISTICS', 50, 30);
-      doc.fillColor('#FFFFFF').fontSize(10).font('Helvetica').text('Corporate Fleet & Trip Operations Management Portal', 50, 55);
-      doc.fillColor('#FFFFFF').fontSize(14).font('Helvetica-Bold').text('TRIP OPERATIONAL DUTY SLIP', 50, 75);
+      // Title & Header layout
+      const layout = tenant?.pdfHeaderLayout || 'SINGLE_LINE';
+      const titleStr = slipTitle.toUpperCase();
+
+      if (layout === 'SPLIT' && logoBuffer && !tenant?.hideLogoOnPdf) {
+        doc.fillColor(primaryColor).fontSize(16).font(fontBold).text(companyName.toUpperCase(), 50, 30);
+        doc.fillColor('#475569').fontSize(10).font(fontBold).text(titleStr, 50, 52);
+        try {
+          doc.image(logoBuffer, 460, 25, { width: 85, height: 35, fit: [85, 35] });
+        } catch (e) {
+          doc.fillColor('#64748B').fontSize(10).font(fontBold).text('LOGO', 460, 30, { align: 'right', width: 85 });
+        }
+      } else if (layout === 'STACKED') {
+        doc.fillColor(primaryColor).fontSize(20).font(fontBold).text(companyName.toUpperCase(), 50, 25);
+        doc.fillColor('#475569').fontSize(11).font(fontBold).text(titleStr, 50, 50);
+      } else {
+        // SINGLE_LINE
+        doc.fillColor(primaryColor).fontSize(18).font(fontBold).text(companyName.toUpperCase(), 50, 30);
+        doc.fillColor('#475569').fontSize(11).font(fontBold).text(titleStr, 350, 35, { align: 'right', width: 195 });
+      }
+
+      // Draw double lines for REFINED theme
+      if (isRefined) {
+        doc.moveTo(50, 63).lineTo(545, 63).lineWidth(1).stroke(primaryColor);
+        doc.moveTo(50, 65.5).lineTo(545, 65.5).lineWidth(0.5).stroke(primaryColor);
+        doc.lineWidth(1); // reset line width
+      }
 
       // Reset text settings
       doc.fillColor('#0F172A').fontSize(10);
 
-      // Section 1: Slip and Booking Info Metadata Table
-      doc.rect(50, 130, 495, 60).stroke('#E2E8F0');
-      doc.moveTo(50, 160).lineTo(545, 160).stroke('#E2E8F0');
-      doc.moveTo(297, 130).lineTo(297, 190).stroke('#E2E8F0');
-
-      // Row 1 Columns
-      doc.font('Helvetica-Bold').text('Duty Slip No:', 60, 140);
-      doc.font('Helvetica').text(slip.dutySlipNumber, 150, 140);
-
-      doc.font('Helvetica-Bold').text('Booking Code:', 307, 140);
-      doc.font('Helvetica').text(slip.booking.bookingNumber, 400, 140);
-
-      // Row 2 Columns
-      doc.font('Helvetica-Bold').text('Slip Status:', 60, 170);
-      doc.font('Helvetica').text(slip.status, 150, 170);
-
-      doc.font('Helvetica-Bold').text('Trip Date & Time:', 307, 170);
-      doc.font('Helvetica').text(`${new Date(slip.reportingTime).toLocaleDateString()} ${new Date(slip.reportingTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, 400, 170);
-
-      // Section 2: Customer & Route Information Card
-      doc.fontSize(12).font('Helvetica-Bold').text('Customer & Route Details', 50, 210);
-      doc.rect(50, 225, 495, 80).stroke('#E2E8F0');
-      
-      doc.fontSize(10).font('Helvetica-Bold').text('Customer Name:', 60, 235);
-      doc.font('Helvetica').text(slip.booking.customer.name, 150, 235);
-
-      if (slip.booking.customer.companyName) {
-        doc.font('Helvetica-Bold').text('Company:', 307, 235);
-        doc.font('Helvetica').text(slip.booking.customer.companyName, 400, 235);
+      // Section 1: Slip and Booking Info Metadata Table (shifted up to y=85)
+      doc.rect(50, 85, 495, 60).stroke('#E2E8F0');
+      doc.moveTo(50, 115).lineTo(545, 115).stroke('#E2E8F0');
+      if (!isRefined) {
+        doc.moveTo(297, 85).lineTo(297, 145).stroke('#E2E8F0');
       }
 
-      doc.font('Helvetica-Bold').text('Pickup Address:', 60, 255);
-      doc.font('Helvetica').text(slip.booking.pickupLocation, 150, 255, { width: 380, height: 18 });
+      // Row 1 Columns
+      doc.font(fontBold).text('Duty Slip No:', 60, 95);
+      doc.font(fontRegular).text(slip.dutySlipNumber, 150, 95);
 
-      doc.font('Helvetica-Bold').text('Drop Address:', 60, 275);
-      doc.font('Helvetica').text(slip.booking.dropLocation, 150, 275, { width: 380, height: 18 });
+      doc.font(fontBold).text('Booking Code:', 307, 95);
+      doc.font(fontRegular).text(slip.booking.bookingNumber, 400, 95);
 
-      // Section 3: Driver & Vehicle Allocation Details
-      doc.fontSize(12).font('Helvetica-Bold').text('Allocated Resources', 50, 325);
-      doc.rect(50, 340, 495, 60).stroke('#E2E8F0');
-      doc.moveTo(297, 340).lineTo(297, 400).stroke('#E2E8F0');
+      // Row 2 Columns
+      doc.font(fontBold).text('Slip Status:', 60, 125);
+      doc.font(fontRegular).text(slip.status, 150, 125);
+
+      doc.font(fontBold).text('Trip Date & Time:', 307, 125);
+      doc.font(fontRegular).text(`${new Date(slip.reportingTime).toLocaleDateString()} ${new Date(slip.reportingTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, 400, 125);
+
+      // Section 2: Customer & Route Information Card (shifted up to y=165)
+      doc.fontSize(12).font(fontBold).text('Customer & Route Details', 50, 165);
+      doc.rect(50, 180, 495, 95).stroke('#E2E8F0');
+      
+      doc.fontSize(10).font(fontBold).text('Customer Name:', 60, 188);
+      doc.font(fontRegular).text(slip.booking.customer.name + (slip.booking.customer.companyName ? ` (${slip.booking.customer.companyName})` : ''), 150, 188);
+
+      const guestDisplay = (slip.booking.guestSalutation ? slip.booking.guestSalutation + ' ' : '') + (slip.booking.guestName || '---');
+      doc.font(fontBold).text('Guest Name:', 307, 188);
+      doc.font(fontRegular).text(guestDisplay, 400, 188);
+
+      const empId = slip.employeeId || slip.booking.employeeId;
+      doc.font(fontBold).text('Employee ID:', 60, 203);
+      doc.font(fontRegular).text(empId || '---', 150, 203);
+
+      doc.font(fontBold).text('Booked By:', 307, 203);
+      doc.font(fontRegular).text(slip.booking.bookingBy || '---', 400, 203);
+
+      doc.font(fontBold).text('Pickup Address:', 60, 220);
+      doc.font(fontRegular).text(slip.booking.pickupLocation, 150, 220, { width: 380, height: 15 });
+
+      doc.font(fontBold).text('Drop Address:', 60, 237);
+      doc.font(fontRegular).text(slip.booking.dropLocation, 150, 237, { width: 380, height: 15 });
+
+      // Section 3: Driver & Vehicle Allocation Details (shifted up to y=292)
+      doc.fontSize(12).font(fontBold).text('Allocated Resources', 50, 292);
+      doc.rect(50, 307, 495, 60).stroke('#E2E8F0');
+      if (!isRefined) {
+        doc.moveTo(297, 307).lineTo(297, 367).stroke('#E2E8F0');
+      }
 
       // Left Column (Driver)
-      doc.fontSize(10).font('Helvetica-Bold').text('Driver Name:', 60, 350);
-      doc.font('Helvetica').text(slip.driver.name, 150, 350);
-      doc.font('Helvetica-Bold').text('License No:', 60, 375);
-      doc.font('Helvetica').text(slip.driver.licenseNumber, 150, 375);
+      doc.fontSize(10).font(fontBold).text('Driver Name:', 60, 317);
+      doc.font(fontRegular).text(slip.driver.name, 150, 317);
+      doc.font(fontBold).text('License No:', 60, 342);
+      doc.font(fontRegular).text(slip.driver.licenseNumber, 150, 342);
 
       // Right Column (Vehicle)
-      doc.font('Helvetica-Bold').text('Vehicle Plate:', 307, 350);
-      doc.font('Helvetica').text(slip.vehicle.vehicleNumber, 400, 350);
-      doc.font('Helvetica-Bold').text('Model / Type:', 307, 375);
-      doc.font('Helvetica').text(`${slip.vehicle.model} (${slip.vehicle.vehicleType})`, 400, 375);
+      doc.font(fontBold).text('Vehicle Plate:', 307, 317);
+      doc.font(fontRegular).text(slip.vehicle.vehicleNumber, 400, 317);
+      doc.font(fontBold).text('Model / Type:', 307, 342);
+      doc.font(fontRegular).text(`${slip.vehicle.model} (${slip.vehicle.vehicleType})`, 400, 342);
 
-      // Section 4: Operational Log Table (KMs and Times)
-      doc.fontSize(12).font('Helvetica-Bold').text('Operational Trip Logs', 50, 420);
+      // Section 4: Operational Log Table (shifted up to y=382)
+      doc.fontSize(12).font(fontBold).text('Operational Trip Logs', 50, 382);
       
-      doc.rect(50, 435, 495, 60).stroke('#E2E8F0');
-      doc.moveTo(50, 465).lineTo(545, 465).stroke('#E2E8F0');
-      doc.moveTo(215, 435).lineTo(215, 495).stroke('#E2E8F0');
-      doc.moveTo(380, 435).lineTo(380, 495).stroke('#E2E8F0');
+      doc.rect(50, 397, 495, 80).stroke('#E2E8F0');
+      doc.moveTo(50, 427).lineTo(545, 427).stroke('#E2E8F0');
+      if (!isRefined) {
+        doc.moveTo(165, 397).lineTo(165, 477).stroke('#E2E8F0');
+        doc.moveTo(280, 397).lineTo(280, 477).stroke('#E2E8F0');
+        doc.moveTo(395, 397).lineTo(395, 477).stroke('#E2E8F0');
+      }
 
       // Table Header Row
-      doc.fontSize(9).font('Helvetica-Bold');
-      doc.text('START ODOMETER', 60, 445);
-      doc.text('END ODOMETER', 225, 445);
-      doc.text('TOTAL DISTANCE RUN', 390, 445);
+      doc.fontSize(8).font(fontBold);
+      doc.text('START KM', 55, 407);
+      doc.text('END KM', 170, 407);
+      doc.text('START DATE & TIME', 285, 407);
+      doc.text('END DATE & TIME', 400, 407);
 
       // Table Data Row
-      doc.fontSize(12).font('Helvetica-Bold');
-      doc.text(`${slip.startKm} KM`, 60, 475);
-      doc.text(slip.endKm !== null ? `${slip.endKm} KM` : '--- KM', 225, 475);
-      doc.text(slip.endKm !== null ? `${Number(slip.endKm) - Number(slip.startKm)} KM` : '--- KM', 390, 475);
+      doc.fontSize(9).font(fontBold);
+      doc.text(`${slip.startKm} KM`, 55, 442);
+      doc.text(slip.endKm !== null ? `${slip.endKm} KM` : '--- KM', 170, 442);
+      doc.text(slip.startDateTime ? `${new Date(slip.startDateTime).toLocaleDateString()} ${new Date(slip.startDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '---', 285, 442);
+      doc.text(slip.endDateTime ? `${new Date(slip.endDateTime).toLocaleDateString()} ${new Date(slip.endDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '---', 400, 442);
 
-      // Section 5: Tolls & Charges Receipt Table
-      doc.fontSize(12).font('Helvetica-Bold').text('Tolls & Incidentals Breakdown', 50, 515);
+      // Section 5: Tolls & Charges Receipt Table (shifted up to y=492)
+      doc.fontSize(12).font(fontBold).text('Tolls & Incidentals Breakdown', 50, 492);
       
-      doc.rect(50, 530, 495, 120).stroke('#E2E8F0');
-      doc.moveTo(50, 560).lineTo(545, 560).stroke('#E2E8F0');
-      doc.moveTo(50, 590).lineTo(545, 590).stroke('#E2E8F0');
-      doc.moveTo(50, 620).lineTo(545, 620).stroke('#E2E8F0');
-      doc.moveTo(297, 530).lineTo(297, 650).stroke('#E2E8F0');
+      doc.rect(50, 507, 495, 140).stroke('#E2E8F0');
+      doc.moveTo(50, 542).lineTo(545, 542).stroke('#E2E8F0');
+      doc.moveTo(50, 577).lineTo(545, 577).stroke('#E2E8F0');
+      doc.moveTo(50, 612).lineTo(545, 612).stroke('#E2E8F0');
+      if (!isRefined) {
+        doc.moveTo(297, 507).lineTo(297, 647).stroke('#E2E8F0');
+      }
 
-      doc.fontSize(10).font('Helvetica-Bold');
-      doc.text('Toll Charges:', 60, 542);
-      doc.font('Helvetica').text(`INR ${slip.toll}`, 180, 542);
+      doc.fontSize(10).font(fontBold);
+      doc.text('Toll Charges:', 60, 519);
+      doc.font(fontRegular).text(`INR ${slip.toll}`, 180, 519);
 
-      doc.font('Helvetica-Bold').text('Parking Charges:', 307, 542);
-      doc.font('Helvetica').text(`INR ${slip.parking}`, 420, 542);
+      doc.font(fontBold).text('Parking Charges:', 307, 519);
+      doc.font(fontRegular).text(`INR ${slip.parking}`, 420, 519);
 
-      doc.font('Helvetica-Bold').text('Night Surcharge:', 60, 572);
-      doc.font('Helvetica').text(`INR ${slip.nightCharges}`, 180, 572);
+      doc.font(fontBold).text('State Tax:', 60, 554);
+      doc.font(fontRegular).text(`INR ${slip.stateTax}`, 180, 554);
 
-      doc.font('Helvetica-Bold').text('Driver Allowance:', 307, 572);
-      doc.font('Helvetica').text(`INR ${slip.driverAllowance}`, 420, 572);
+      doc.font(fontBold).text('MCD Toll:', 307, 554);
+      doc.font(fontRegular).text(`INR ${slip.mcd}`, 420, 554);
 
-      doc.font('Helvetica-Bold').text('Extra / Misc Charges:', 60, 602);
-      doc.font('Helvetica').text(`INR ${slip.extraCharges}`, 180, 602);
+      doc.font(fontBold).text('Night Surcharge:', 60, 589);
+      doc.font(fontRegular).text(`INR ${slip.nightCharges}`, 180, 589);
 
-      const totalTolls = Number(slip.toll) + Number(slip.parking) + Number(slip.nightCharges) + Number(slip.driverAllowance) + Number(slip.extraCharges);
-      doc.font('Helvetica-Bold').text('Total Incidentals:', 307, 602);
-      doc.font('Helvetica-Bold').fillColor('#2563EB').text(`INR ${totalTolls.toFixed(2)}`, 420, 602);
+      doc.font(fontBold).text('Driver Allowance:', 307, 589);
+      doc.font(fontRegular).text(`INR ${slip.driverAllowance}`, 420, 589);
+
+      doc.font(fontBold).text('Extra / Misc Charges:', 60, 624);
+      doc.font(fontRegular).text(`INR ${slip.extraCharges}`, 180, 624);
+
+      const totalTolls = Number(slip.toll) + Number(slip.parking) + Number(slip.stateTax) + Number(slip.mcd) + Number(slip.nightCharges) + Number(slip.driverAllowance) + Number(slip.extraCharges);
+      doc.font(fontBold).text('Total Incidentals:', 307, 624);
+      doc.font(fontBold).fillColor(primaryColor).text(`INR ${totalTolls.toFixed(2)}`, 420, 624);
 
       // Reset color
       doc.fillColor('#0F172A');
 
-      // Footer Signatures
-      doc.fontSize(8).font('Helvetica-Bold');
-      doc.text('DRIVER SIGNATURE', 60, 720);
-      doc.text('CUSTOMER SIGNATURE', 225, 720);
-      doc.text('DISPATCH AUTHORIZED', 390, 720);
+      // Footer Signatures (shifted up to y=675 / 690)
+      doc.fontSize(8).font(fontBold);
+      doc.text('DRIVER SIGNATURE', 60, 690);
+      doc.text('CUSTOMER SIGNATURE', 225, 690);
+      doc.text('DISPATCH AUTHORIZED', 390, 690);
 
-      doc.font('Helvetica');
-      doc.text('-------------------------', 60, 705);
-      doc.text('-------------------------', 225, 705);
-      doc.text('-------------------------', 390, 705);
+      doc.font(fontRegular);
+      doc.text('-------------------------', 60, 675);
+      doc.text('-------------------------', 225, 675);
+      doc.text('-------------------------', 390, 675);
 
-      // Print footer metadata
-      doc.fontSize(8).fillColor('#64748B').text('Document digitally generated by CABBS. Valid without seal.', 50, 755, { align: 'center' });
+      // Print footer metadata (shifted to y=725)
+      doc.fontSize(8).fillColor('#64748B').text('Document digitally generated by CABBS. Valid without seal.', 50, 725, { align: 'center' });
 
       // End PDF stream
       doc.end();

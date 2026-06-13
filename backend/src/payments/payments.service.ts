@@ -27,6 +27,7 @@ export class PaymentsService {
       // 2. Create payment record
       const payment = await tx.payment.create({
         data: {
+          tenantId: invoice.tenantId,
           invoiceId: dto.invoiceId,
           amount: dto.amount,
           paymentDate: dto.paymentDate ? new Date(dto.paymentDate) : new Date(),

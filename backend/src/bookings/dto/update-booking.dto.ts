@@ -33,4 +33,24 @@ export class UpdateBookingDto {
   @IsEnum(BookingStatus, { message: 'Status must be PENDING, ASSIGNED, STARTED, COMPLETED, or CANCELLED' })
   @IsOptional()
   status?: BookingStatus;
+
+  @IsString()
+  @IsOptional()
+  employeeId?: string;
+
+  @IsString()
+  @IsOptional()
+  guestName?: string;
+
+  @IsString()
+  @IsOptional()
+  guestSalutation?: string;
+
+  @IsString()
+  @IsOptional()
+  bookingBy?: string;
+
+  @IsString()
+  @IsOptional()
+  remarks?: string;
 }

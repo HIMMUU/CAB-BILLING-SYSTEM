@@ -48,6 +48,11 @@ export class BookingsService {
         tripType: dto.tripType,
         vehicleTypeRequired: dto.vehicleTypeRequired,
         status: dto.status ?? BookingStatus.PENDING,
+        employeeId: dto.employeeId,
+        guestName: dto.guestName,
+        guestSalutation: dto.guestSalutation,
+        bookingBy: dto.bookingBy,
+        remarks: dto.remarks,
       } as any,
       include: {
         customer: true,
@@ -149,6 +154,11 @@ export class BookingsService {
         tripType: dto.tripType,
         vehicleTypeRequired: dto.vehicleTypeRequired,
         status: dto.status,
+        employeeId: dto.employeeId,
+        guestName: dto.guestName,
+        guestSalutation: dto.guestSalutation,
+        bookingBy: dto.bookingBy,
+        remarks: dto.remarks,
       },
       include: {
         customer: true,

@@ -16,10 +16,13 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ReportsModule } from './reports/reports.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { RateManagementModule } from './rate-management/rate-management.module';
+import { TenantSettingsModule } from './tenant-settings/tenant-settings.module';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
 import { TenantGuard } from './common/guards/tenant.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
+import { SuperAdminModule } from './super-admin/super-admin.module';
 
 @Module({
   imports: [
@@ -37,6 +40,9 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
     PaymentsModule,
     ReportsModule,
     DashboardModule,
+    RateManagementModule,
+    TenantSettingsModule,
+    SuperAdminModule,
   ],
   controllers: [AppController],
   providers: [

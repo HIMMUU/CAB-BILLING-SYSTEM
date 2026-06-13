@@ -19,9 +19,12 @@ export class TripsController {
   calculate(
     @Query('dutySlipId') dutySlipId: string,
     @Query('endKm') endKm: number,
-    @Query('extraHours') extraHours?: number,
+    @Query('startDateTime') startDateTime?: string,
+    @Query('endDateTime') endDateTime?: string,
   ) {
-    return this.tripsService.calculateTripCharges(dutySlipId, Number(endKm), Number(extraHours || 0));
+    const start = startDateTime ? new Date(startDateTime) : undefined;
+    const end = endDateTime ? new Date(endDateTime) : undefined;
+    return this.tripsService.calculateTripCharges(dutySlipId, Number(endKm), start, end);
   }
 
   @Get()

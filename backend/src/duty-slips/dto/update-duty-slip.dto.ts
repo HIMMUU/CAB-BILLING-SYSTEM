@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { DutySlipStatus } from '@prisma/client';
 
 export class UpdateDutySlipDto {
@@ -44,4 +44,50 @@ export class UpdateDutySlipDto {
   @IsEnum(DutySlipStatus, { message: 'Status must be DRAFT, FILLED, or CLOSED' })
   @IsOptional()
   status?: DutySlipStatus;
+
+  @IsDateString({}, { message: 'Start date time must be a valid ISO date string' })
+  @IsOptional()
+  startDateTime?: string;
+
+  @IsDateString({}, { message: 'End date time must be a valid ISO date string' })
+  @IsOptional()
+  endDateTime?: string;
+
+  @IsNumber({}, { message: 'State Tax must be a number' })
+  @Min(0, { message: 'State Tax must be at least 0' })
+  @IsOptional()
+  stateTax?: number;
+
+  @IsNumber({}, { message: 'MCD must be a number' })
+  @Min(0, { message: 'MCD must be at least 0' })
+  @IsOptional()
+  mcd?: number;
+
+  @IsString({ message: 'Employee ID must be a string' })
+  @IsOptional()
+  employeeId?: string;
+
+  @IsString({ message: 'Driver ID must be a string' })
+  @IsOptional()
+  driverId?: string;
+
+  @IsString({ message: 'Vehicle ID must be a string' })
+  @IsOptional()
+  vehicleId?: string;
+
+  @IsString()
+  @IsOptional()
+  guestName?: string;
+
+  @IsString()
+  @IsOptional()
+  guestSalutation?: string;
+
+  @IsString()
+  @IsOptional()
+  bookingBy?: string;
+
+  @IsString()
+  @IsOptional()
+  remarks?: string;
 }

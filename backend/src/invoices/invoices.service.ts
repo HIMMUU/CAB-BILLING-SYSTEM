@@ -1,54 +1,87 @@
 import { ConflictException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import * as path from 'path';
+import * as fs from 'fs';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInvoiceDto, GstType } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
-import { InvoiceStatus } from '@prisma/client';
+import { InvoiceStatus, TripType } from '@prisma/client';
+import { TripsService } from '../trips/trips.service';
 import PDFDocument from 'pdfkit';
 
 @Injectable()
 export class InvoicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tripsService: TripsService,
+  ) {}
 
   async create(dto: CreateInvoiceDto) {
-    // 1. Check if trip is already invoiced
-    const existingItem = await this.prisma.invoiceItem.findFirst({
-      where: { tripId: dto.tripId },
-    });
-    if (existingItem) {
-      throw new ConflictException('This trip has already been invoiced');
+    const tripIds = dto.tripIds && dto.tripIds.length > 0 
+      ? dto.tripIds 
+      : (dto.tripId ? [dto.tripId] : []);
+
+    if (tripIds.length === 0) {
+      throw new BadRequestException('At least one Trip ID is required');
     }
 
-    // 2. Fetch the target closed trip
-    const trip = await this.prisma.trip.findUnique({
-      where: { id: dto.tripId },
+    // 1. Check if any trip is already invoiced
+    const existingItems = await this.prisma.invoiceItem.findMany({
+      where: { tripId: { in: tripIds } },
+    });
+    if (existingItems.length > 0) {
+      const alreadyInvoiced = existingItems.map(item => item.tripId).join(', ');
+      throw new ConflictException(`The following trip(s) have already been invoiced: ${alreadyInvoiced}`);
+    }
+
+    // 2. Fetch the target closed trips
+    const trips = await this.prisma.trip.findMany({
+      where: { id: { in: tripIds } },
       include: {
         booking: { include: { customer: true } },
         dutySlip: true,
       },
     });
 
-    if (!trip) {
-      throw new NotFoundException('Trip not found');
+    if (trips.length !== tripIds.length) {
+      throw new NotFoundException('One or more trips not found');
     }
 
-    // 3. Extract charges from the Trip record
-    const baseFare = Number(trip.baseFareCharged);
-    const extraKm = Number(trip.extraKmCharged);
-    const toll = Number(trip.toll);
-    const parking = Number(trip.parking);
-    const nightCharges = Number(trip.nightChargesCharged);
-    
-    // Aggregate miscellaneous charges
-    const miscCharges =
-      Number(trip.extraHoursCharged) +
-      Number(trip.driverAllowance) +
-      Number(trip.miscChargesCharged);
+    // Verify all trips belong to the same customer!
+    const customerIds = Array.from(new Set(trips.map(t => t.booking.customerId)));
+    if (customerIds.length > 1) {
+      throw new BadRequestException('All selected trips must belong to the same customer');
+    }
 
-    const subtotal = baseFare + extraKm + toll + parking + nightCharges + miscCharges;
+    const customerId = customerIds[0];
+    const customer = trips[0].booking.customer;
+
+    // 3. Aggregate charges from all Trip records
+    let baseFare = 0;
+    let extraKm = 0;
+    let toll = 0;
+    let parking = 0;
+    let stateTax = 0;
+    let mcd = 0;
+    let nightCharges = 0;
+    let miscCharges = 0;
+
+    for (const trip of trips) {
+      baseFare += Number(trip.baseFareCharged);
+      extraKm += Number(trip.extraKmCharged);
+      toll += Number(trip.toll);
+      parking += Number(trip.parking);
+      stateTax += Number(trip.stateTaxCharged || 0);
+      mcd += Number(trip.mcdCharged || 0);
+      nightCharges += Number(trip.nightChargesCharged);
+      miscCharges +=
+        Number(trip.extraHoursCharged) +
+        Number(trip.driverAllowance) +
+        Number(trip.miscChargesCharged);
+    }
+
+    const subtotal = baseFare + extraKm + toll + parking + stateTax + mcd + nightCharges + miscCharges;
 
     // 4. Calculate Taxes based on GST Type
-    const gstRate = dto.gstRate ?? 5; // default 5%
     let cgstRate = 0;
     let cgstAmount = 0;
     let sgstRate = 0;
@@ -56,18 +89,33 @@ export class InvoicesService {
     let igstRate = 0;
     let igstAmount = 0;
 
-    if (dto.gstType === GstType.INTRASTATE) {
-      cgstRate = gstRate / 2;
+    const hasCustGst = Number(customer.cgstRate || 0) > 0 || Number(customer.sgstRate || 0) > 0 || Number(customer.igstRate || 0) > 0;
+
+    if (hasCustGst) {
+      cgstRate = Number(customer.cgstRate || 0);
       cgstAmount = (subtotal * cgstRate) / 100;
-      sgstRate = gstRate / 2;
+      sgstRate = Number(customer.sgstRate || 0);
       sgstAmount = (subtotal * sgstRate) / 100;
-    } else {
-      igstRate = gstRate;
+      igstRate = Number(customer.igstRate || 0);
       igstAmount = (subtotal * igstRate) / 100;
+    } else {
+      const gstRate = dto.gstRate ?? 5; // default 5%
+      if (dto.gstType === GstType.INTRASTATE) {
+        cgstRate = gstRate / 2;
+        cgstAmount = (subtotal * cgstRate) / 100;
+        sgstRate = gstRate / 2;
+        sgstAmount = (subtotal * sgstRate) / 100;
+      } else {
+        igstRate = gstRate;
+        igstAmount = (subtotal * igstRate) / 100;
+      }
     }
 
     const totalTax = cgstAmount + sgstAmount + igstAmount;
-    const totalAmount = subtotal + totalTax;
+    const isCorporate = customer.type === 'CORPORATE';
+    const totalGstRate = cgstRate + sgstRate + igstRate;
+    const isRcm = isCorporate && Math.abs(totalGstRate - 5) < 0.01;
+    const totalAmount = isRcm ? subtotal : (subtotal + totalTax);
     const dueAmount = totalAmount;
 
     // 5. Generate unique invoice number
@@ -92,8 +140,9 @@ export class InvoicesService {
     return this.prisma.$transaction(async (tx) => {
       const invoice = await tx.invoice.create({
         data: {
+          tenantId: trips[0].tenantId,
           invoiceNumber,
-          customerId: trip.booking.customerId,
+          customerId,
           invoiceDate: dto.invoiceDate ? new Date(dto.invoiceDate) : new Date(),
           dueDate: dto.dueDate ? new Date(dto.dueDate) : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // Default 15 days due
           status: InvoiceStatus.UNPAID,
@@ -101,6 +150,8 @@ export class InvoicesService {
           extraKmCharges: extraKm,
           toll,
           parking,
+          stateTax,
+          mcd,
           nightCharges,
           miscCharges,
           subtotal,
@@ -117,21 +168,70 @@ export class InvoicesService {
         } as any,
       });
 
-      const description = `Duty Slip: ${trip.dutySlip.dutySlipNumber}, Route: ${trip.booking.pickupLocation} to ${trip.booking.dropLocation}`;
-      await tx.invoiceItem.create({
-        data: {
-          invoiceId: invoice.id,
-          tripId: trip.id,
-          description,
-          amount: subtotal,
-        } as any,
-      });
+      // Create an InvoiceItem for each trip
+      for (const trip of trips) {
+        const tripSubtotal = Number(trip.baseFareCharged) + 
+                             Number(trip.extraKmCharged) + 
+                             Number(trip.toll) + 
+                             Number(trip.parking) + 
+                             Number(trip.stateTaxCharged || 0) + 
+                             Number(trip.mcdCharged || 0) + 
+                             Number(trip.nightChargesCharged) + 
+                             Number(trip.extraHoursCharged) + 
+                             Number(trip.driverAllowance) + 
+                             Number(trip.miscChargesCharged);
+
+        const description = `Duty Slip: ${trip.dutySlip.dutySlipNumber}, Route: ${trip.booking.pickupLocation} to ${trip.booking.dropLocation}`;
+        await tx.invoiceItem.create({
+          data: {
+            tenantId: trips[0].tenantId,
+            invoiceId: invoice.id,
+            tripId: trip.id,
+            description,
+            amount: tripSubtotal,
+          } as any,
+        });
+      }
 
       return invoice;
     });
   }
 
   async findUninvoicedTrips() {
+    // Auto-heal: Find any CLOSED duty slips that do not have a Trip record
+    const closedSlipsWithoutTrips = await this.prisma.dutySlip.findMany({
+      where: {
+        status: 'CLOSED',
+        trip: null,
+      },
+    });
+
+    if (closedSlipsWithoutTrips.length > 0) {
+      for (const slip of closedSlipsWithoutTrips) {
+        try {
+          const startDateTime = slip.startDateTime ? new Date(slip.startDateTime).toISOString() : undefined;
+          const endDateTime = slip.endDateTime ? new Date(slip.endDateTime).toISOString() : undefined;
+          const endKm = Number(slip.endKm) || Number(slip.startKm) || 0;
+
+          await this.tripsService.closeTrip({
+            dutySlipId: slip.id,
+            endKm,
+            startDateTime,
+            endDateTime,
+            toll: Number(slip.toll) || undefined,
+            parking: Number(slip.parking) || undefined,
+            driverAllowance: Number(slip.driverAllowance) || undefined,
+            nightCharges: Number(slip.nightCharges) || undefined,
+            extraCharges: Number(slip.extraCharges) || undefined,
+            stateTax: Number(slip.stateTax) || undefined,
+            mcd: Number(slip.mcd) || undefined,
+          });
+        } catch (err) {
+          console.error(`Failed to auto-heal trip for closed duty slip ${slip.dutySlipNumber}:`, err);
+        }
+      }
+    }
+
     return this.prisma.trip.findMany({
       where: {
         invoiceItems: {
@@ -150,6 +250,76 @@ export class InvoicesService {
         closedAt: 'desc',
       },
     });
+  }
+
+  recalculateInvoiceFields(invoice: any) {
+    if (!invoice || !invoice.items || invoice.items.length === 0) {
+      return invoice;
+    }
+
+    let baseFare = 0;
+    let extraKmCharges = 0;
+    let toll = 0;
+    let parking = 0;
+    let nightCharges = 0;
+    let miscCharges = 0;
+    let stateTax = 0;
+    let mcd = 0;
+
+    for (const item of invoice.items) {
+      const trip = item.trip;
+      if (!trip) continue;
+
+      baseFare += Number(trip.baseFareCharged || 0);
+      extraKmCharges += Number(trip.extraKmCharged || 0);
+      toll += Number(trip.toll || 0);
+      parking += Number(trip.parking || 0);
+      stateTax += Number(trip.stateTaxCharged || 0);
+      mcd += Number(trip.mcdCharged || 0);
+      nightCharges += Number(trip.nightChargesCharged || 0);
+      miscCharges +=
+        Number(trip.extraHoursCharged || 0) +
+        Number(trip.driverAllowance || 0) +
+        Number(trip.miscChargesCharged || trip.extraCharges || 0);
+    }
+
+    const subtotal = baseFare + extraKmCharges + toll + parking + stateTax + mcd + nightCharges + miscCharges;
+
+    const cgstRate = Number(invoice.cgstRate || 0);
+    const sgstRate = Number(invoice.sgstRate || 0);
+    const igstRate = Number(invoice.igstRate || 0);
+
+    const cgstAmount = (subtotal * cgstRate) / 100;
+    const sgstAmount = (subtotal * sgstRate) / 100;
+    const igstAmount = (subtotal * igstRate) / 100;
+    const totalTax = cgstAmount + sgstAmount + igstAmount;
+    const isCorporate = invoice.customer?.type === 'CORPORATE';
+    const totalGstRate = cgstRate + sgstRate + igstRate;
+    const isRcm = isCorporate && Math.abs(totalGstRate - 5) < 0.01;
+    const totalAmount = isRcm ? subtotal : (subtotal + totalTax);
+    const dueAmount = Math.max(0, totalAmount - Number(invoice.paidAmount || 0));
+
+    return {
+      ...invoice,
+      baseFare,
+      extraKmCharges,
+      toll,
+      parking,
+      stateTax,
+      mcd,
+      nightCharges,
+      miscCharges,
+      subtotal,
+      cgstRate,
+      cgstAmount,
+      sgstRate,
+      sgstAmount,
+      igstRate,
+      igstAmount,
+      totalTax,
+      totalAmount,
+      dueAmount,
+    };
   }
 
   async findAll(query: { page?: number; limit?: number; search?: string; status?: InvoiceStatus }) {
@@ -186,7 +356,17 @@ export class InvoicesService {
             include: {
               trip: {
                 include: {
-                  dutySlip: true,
+                  booking: {
+                    include: {
+                      customer: true,
+                    },
+                  },
+                  dutySlip: {
+                    include: {
+                      driver: true,
+                      vehicle: true,
+                    },
+                  },
                 },
               },
             },
@@ -195,8 +375,10 @@ export class InvoicesService {
       }),
     ]);
 
+    const mappedData = data.map((inv) => this.recalculateInvoiceFields(inv));
+
     return {
-      data,
+      data: mappedData,
       meta: {
         total,
         page,
@@ -215,7 +397,17 @@ export class InvoicesService {
           include: {
             trip: {
               include: {
-                dutySlip: true,
+                booking: {
+                  include: {
+                    customer: true,
+                  },
+                },
+                dutySlip: {
+                  include: {
+                    driver: true,
+                    vehicle: true,
+                  },
+                },
               },
             },
           },
@@ -227,7 +419,7 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
 
-    return invoice;
+    return this.recalculateInvoiceFields(invoice);
   }
 
   async update(id: string, dto: UpdateInvoiceDto) {
@@ -278,6 +470,7 @@ export class InvoicesService {
       if (diff > 0) {
         await tx.payment.create({
           data: {
+            tenantId: updated.tenantId,
             invoiceId: id,
             amount: diff,
             paymentDate: new Date(),
@@ -307,6 +500,11 @@ export class InvoicesService {
           include: {
             trip: {
               include: {
+                booking: {
+                  include: {
+                    customer: true,
+                  },
+                },
                 dutySlip: {
                   include: {
                     driver: true,
@@ -324,6 +522,74 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
 
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: invoice.tenantId },
+    });
+
+    const companyName = tenant?.name || 'TRAVEL DREAM';
+    const companyAddress = tenant?.companyAddress || 'E57/A,HARI NAGAR EXTN-PART-II\nBADARPUR,NEW DELHI-110044 NEW\nDELHI 110044';
+    const companyPhone = tenant?.companyPhone || '9310632440\n9560352484';
+    const companyEmail = tenant?.companyEmail || 'traveldream1812@gmail.com';
+    const companyGst = tenant?.companyGst || '07CICPS3802E2ZH';
+    const companyPan = tenant?.companyPan || 'CICPS3802E';
+    const sacNo = tenant?.sacNo || '9966';
+    const serviceCategory = tenant?.serviceCategory || 'Rent-A-Cab';
+
+    const bankName = tenant?.bankName || 'HDFC BANK';
+    const bankBranch = tenant?.bankBranch || 'BADARPUR BRANCH';
+    const bankAccountNo = tenant?.bankAccountNo || '50100234567890';
+    const bankIfsc = tenant?.bankIfsc || 'HDFC0001234';
+    const bankAccountHolder = tenant?.bankAccountHolder || 'TRAVEL DREAM';
+
+    // Theme values
+    const primaryColor = tenant?.pdfColorPrimary || '#1E3A8A';
+    const isRefined = tenant?.pdfTheme === 'REFINED';
+    
+    // Font mapping
+    let fontRegular = 'Helvetica';
+    let fontBold = 'Helvetica-Bold';
+    if (tenant?.pdfFontFamily === 'Times-Roman') {
+      fontRegular = 'Times-Roman';
+      fontBold = 'Times-Bold';
+    } else if (tenant?.pdfFontFamily === 'Courier') {
+      fontRegular = 'Courier';
+      fontBold = 'Courier-Bold';
+    }
+
+    const logoBuffer = await (async () => {
+      if (!tenant?.logoUrl) return null;
+      if (tenant.logoUrl.startsWith('http://') || tenant.logoUrl.startsWith('https://')) {
+        try {
+          const res = await fetch(tenant.logoUrl, { signal: AbortSignal.timeout(2000) });
+          if (res.ok) {
+            return Buffer.from(await res.arrayBuffer());
+          }
+        } catch (e: any) {
+          console.warn('Failed to fetch logo from URL:', tenant.logoUrl, e.message);
+        }
+      } else {
+        try {
+          const fs = require('fs');
+          const cleanPath = tenant.logoUrl.replace(/^\//, '');
+          const pathsToTry = [
+            path.resolve(__dirname, '..', 'assets', cleanPath),
+            path.resolve(__dirname, '..', '..', 'frontend', 'public', cleanPath),
+            path.resolve(tenant.logoUrl),
+          ];
+          for (const p of pathsToTry) {
+            if (fs.existsSync(p)) {
+              return fs.readFileSync(p);
+            }
+          }
+        } catch (e: any) {
+          console.warn('Failed to read logo from local path:', tenant.logoUrl, e.message);
+        }
+      }
+      return null;
+    })();
+
+    const parsedInvoice = this.recalculateInvoiceFields(invoice);
+
     return new Promise<Buffer>((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50, size: 'A4' });
       const chunks: Buffer[] = [];
@@ -332,117 +598,515 @@ export class InvoicesService {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', (err) => reject(err));
 
-      // Header Banner - Sleek Dark Slate style
-      doc.rect(0, 0, 595.28, 110).fill('#2563EB'); // Primary Blue header background
-      const LOGO_PATH = path.resolve(__dirname, '..', 'assets', 'logo.png');
-      doc.image(LOGO_PATH, 460, 20, { width: 80 });
-      doc.fillColor('#FFFFFF').fontSize(22).font('Helvetica-Bold').text('CABBS BILLING SYSTEM', 50, 35);
-      doc.fillColor('#94A3B8').fontSize(9).font('Helvetica').text('Corporate Transportation & Logistics Invoice', 50, 62);
-      
-      // Invoice tag in header
-      doc.fillColor('#3B82F6').fontSize(16).font('Helvetica-Bold').text('TAX INVOICE', 400, 35, { align: 'right', width: 145 });
-      doc.fillColor('#FFFFFF').fontSize(10).font('Helvetica-Bold').text(invoice.invoiceNumber, 400, 58, { align: 'right', width: 145 });
+      let pageNum = 1;
 
-      // Reset fillColor
-      doc.fillColor('#0F172A');
+      const drawHeader = (pNum: number) => {
+        // Page Number
+        doc.fillColor('#64748B').fontSize(8).font(fontBold).text(`Page No.`, 480, 20, { width: 50, align: 'right' });
+        doc.text(`${pNum}`, 535, 20, { width: 15, align: 'right' });
 
-      // Row layout for Customer / Invoice Details
-      // Bill To details
-      doc.fontSize(10).font('Helvetica-Bold').fillColor('#64748B').text('BILL TO:', 50, 150);
-      doc.fontSize(11).font('Helvetica-Bold').fillColor('#0F172A').text(invoice.customer.name, 50, 165);
-      
-      if (invoice.customer.companyName) {
-        doc.fontSize(10).font('Helvetica').fillColor('#475569').text(invoice.customer.companyName, 50, 180);
-      }
-      doc.fontSize(9).font('Helvetica').fillColor('#475569').text(`Email: ${invoice.customer.email || 'N/A'}`, 50, 195);
-      doc.fontSize(9).font('Helvetica').fillColor('#475569').text(`Phone: ${invoice.customer.phone || 'N/A'}`, 50, 210);
-      if (invoice.customer.gstNumber) {
-        doc.fontSize(9).font('Helvetica-Bold').fillColor('#0F172A').text(`GSTIN: ${invoice.customer.gstNumber}`, 50, 225);
-      }
+        // Header layouts
+        const layout = tenant?.pdfHeaderLayout || 'SINGLE_LINE';
+        const titleStr = (tenant?.invoiceTitle || 'TAX INVOICE').toUpperCase();
 
-      // Invoice metadata (Right column)
-      let metaY = 150;
-      const drawMetaRow = (label: string, value: string) => {
-        doc.fontSize(9).font('Helvetica-Bold').fillColor('#64748B').text(label, 320, metaY);
-        doc.fontSize(9).font('Helvetica').fillColor('#0F172A').text(value, 420, metaY, { align: 'right', width: 125 });
-        metaY += 18;
-      };
-
-      drawMetaRow('Invoice Date:', new Date(invoice.invoiceDate).toLocaleDateString('en-IN'));
-      drawMetaRow('Due Date:', new Date(invoice.dueDate).toLocaleDateString('en-IN'));
-      drawMetaRow('Payment Status:', invoice.status);
-      drawMetaRow('GST Mode:', Number(invoice.cgstRate) > 0 ? 'Intrastate (CGST+SGST)' : 'Interstate (IGST)');
-
-      // Table Header for items
-      const tableY = 270;
-      doc.rect(50, tableY, 495, 25).fill('#F8FAFC');
-      doc.fillColor('#475569').fontSize(9).font('Helvetica-Bold');
-      doc.text('DESCRIPTION', 60, tableY + 8);
-      doc.text('AMOUNT', 480, tableY + 8, { align: 'right', width: 60 });
-
-      // Table Row
-      let rowY = tableY + 25;
-      doc.rect(50, rowY, 495, 80).stroke('#E2E8F0');
-      
-      doc.fillColor('#0F172A').fontSize(9).font('Helvetica-Bold');
-      
-      // Let's list details of the trip
-      let itemDesc = '';
-      if (invoice.items && invoice.items.length > 0) {
-        const item = invoice.items[0];
-        itemDesc = item.description;
-        const trip = item.trip;
-        if (trip) {
-          const ds = trip.dutySlip;
-          itemDesc += `\nVehicle: ${ds.vehicle.vehicleNumber} (${ds.vehicle.model})\nDriver: ${ds.driver.name}\nDistance: ${trip.totalKm} KM (Odometer: ${trip.startKm} - ${trip.endKm})`;
+        if (layout === 'SPLIT' && logoBuffer && !tenant?.hideLogoOnPdf) {
+          // SPLIT with Logo
+          doc.fillColor(primaryColor).fontSize(16).font(fontBold).text(companyName.toUpperCase(), 50, 30);
+          doc.fillColor('#475569').fontSize(10).font(fontBold).text(titleStr, 50, 52);
+          try {
+            doc.image(logoBuffer, 460, 25, { width: 85, height: 35, fit: [85, 35] });
+          } catch (e) {
+            // fallback text logo
+            doc.fillColor('#64748B').fontSize(10).font(fontBold).text('LOGO', 460, 30, { align: 'right', width: 85 });
+          }
+        } else if (layout === 'STACKED') {
+          // STACKED layout
+          doc.fillColor(primaryColor).fontSize(20).font(fontBold).text(companyName.toUpperCase(), 50, 25);
+          doc.fillColor('#475569').fontSize(11).font(fontBold).text(titleStr, 50, 50);
+        } else {
+          // SINGLE_LINE (default)
+          doc.fillColor(primaryColor).fontSize(18).font(fontBold).text(companyName.toUpperCase(), 50, 30);
+          doc.fillColor('#475569').fontSize(11).font(fontBold).text(titleStr, 350, 35, { align: 'right', width: 195 });
         }
-      } else {
-        itemDesc = 'Transportation Service Charges';
-      }
 
-      doc.text(itemDesc, 60, rowY + 12, { width: 380, lineGap: 3 });
-      doc.font('Helvetica').text(`INR ${Number(invoice.subtotal).toFixed(2)}`, 450, rowY + 12, { align: 'right', width: 90 });
+        // Draw double lines for REFINED theme
+        if (isRefined) {
+          doc.moveTo(50, 63).lineTo(545, 63).lineWidth(1).stroke(primaryColor);
+          doc.moveTo(50, 65.5).lineTo(545, 65.5).lineWidth(0.5).stroke(primaryColor);
+          doc.lineWidth(1); // reset line width
+        }
 
-      // Calculations block (Right aligned)
-      let calcY = rowY + 95;
-      const drawCalcRow = (label: string, value: string, isBold = false) => {
-        doc.fontSize(9).font(isBold ? 'Helvetica-Bold' : 'Helvetica').fillColor(isBold ? '#0F172A' : '#475569').text(label, 320, calcY);
-        doc.text(value, 440, calcY, { align: 'right', width: 105 });
-        calcY += 18;
+        // Top Company Info Table / Box
+        const gridY = 70;
+        doc.rect(50, gridY, 495, 55).stroke('#CBD5E1');
+        doc.moveTo(175, gridY).lineTo(175, gridY + 55).stroke('#CBD5E1');
+        doc.moveTo(380, gridY).lineTo(380, gridY + 55).stroke('#CBD5E1');
+
+        // Column 1: GST Details
+        doc.fillColor(primaryColor).fontSize(7.5).font(fontBold);
+        doc.text('GSTIN.:', 55, gridY + 5);
+        doc.text('SAC NO.:', 55, gridY + 15);
+        doc.text('PAN NO.:', 55, gridY + 25);
+        doc.text('STATE CODE:', 55, gridY + 35);
+        doc.text('S.T.Ctgry:', 55, gridY + 45);
+
+        doc.fillColor('#334155').font(fontRegular);
+        doc.text(companyGst, 105, gridY + 5);
+        doc.text(sacNo, 105, gridY + 15);
+        doc.text(companyPan, 105, gridY + 25);
+        doc.text(companyGst.substring(0, 2) || '07', 115, gridY + 35);
+        doc.text(serviceCategory, 105, gridY + 45);
+
+        // Column 2: Address
+        doc.fillColor('#334155').font(fontRegular).fontSize(7.5);
+        const addrLines = companyAddress.split('\n');
+        let addrY = gridY + 5;
+        for (const line of addrLines) {
+          doc.text(line, 180, addrY);
+          addrY += 9;
+        }
+        doc.fillColor(primaryColor).font(fontBold).text('Email ID:', 180, gridY + 42);
+        doc.fillColor('#334155').font(fontRegular).text(companyEmail, 220, gridY + 42);
+
+        // Column 3: Contact
+        doc.fillColor(primaryColor).font(fontBold).text('Contact No.:', 385, gridY + 5);
+        doc.fillColor('#334155').font(fontRegular);
+        const contactLines = companyPhone.split('\n');
+        let contactY = gridY + 15;
+        for (const line of contactLines) {
+          doc.text(line, 435, contactY);
+          contactY += 10;
+        }
+
+        // Bill to and Invoice details box
+        const billY = 130;
+        doc.rect(50, billY, 495, 65).stroke('#CBD5E1');
+        doc.moveTo(350, billY).lineTo(350, billY + 65).stroke('#CBD5E1');
+
+        // Left Column: Client Details
+        doc.fillColor(primaryColor).font(fontBold).fontSize(8);
+        doc.text('Client Name :', 55, billY + 5);
+        doc.text('Address :', 55, billY + 15);
+        doc.text('G.S.T. IN :', 55, billY + 40);
+        doc.text('PAN No :', 55, billY + 49);
+        doc.text('State Code :', 55, billY + 57);
+
+        doc.fillColor('#334155').font(fontRegular);
+        doc.text(parsedInvoice.customer.name, 115, billY + 5);
+        doc.text(parsedInvoice.customer.billingAddress, 115, billY + 15, { width: 230, height: 22 });
+        doc.text(parsedInvoice.customer.gstNumber || 'N/A', 115, billY + 40);
+        doc.text(parsedInvoice.customer.gstNumber ? parsedInvoice.customer.gstNumber.substring(2, 12) : 'N/A', 115, billY + 49);
+        doc.text(parsedInvoice.customer.gstNumber ? parsedInvoice.customer.gstNumber.substring(0, 2) : 'N/A', 115, billY + 57);
+
+        // Right Column: Invoice Details
+        doc.fillColor(primaryColor).font(fontBold);
+        doc.text('Bill No. :', 355, billY + 5);
+        doc.text('Bill Date :', 355, billY + 18);
+
+        doc.fillColor('#334155').font(fontRegular);
+        doc.text(parsedInvoice.invoiceNumber, 405, billY + 5);
+        doc.text(new Date(parsedInvoice.invoiceDate).toLocaleDateString('en-GB'), 405, billY + 18);
+
+        // Table Header (Styled Navy with white text)
+        const tableHeaderY = 200;
+        doc.rect(50, tableHeaderY, 495, 20).fill(primaryColor);
+        
+        doc.fillColor('#FFFFFF').fontSize(8.5).font(fontBold);
+        doc.text('Date/D.S. No.', 52, tableHeaderY + 6, { width: 61, align: 'center' });
+        doc.text('Vehicle Detail', 117, tableHeaderY + 6, { width: 56, align: 'center' });
+        doc.text('Duty Description / Particulars', 178, tableHeaderY + 6);
+        doc.text('Rate', 437, tableHeaderY + 6, { width: 51, align: 'center' });
+        doc.text('Amount', 492, tableHeaderY + 6, { width: 51, align: 'center' });
+        doc.fillColor('#000000');
       };
 
-      drawCalcRow('Subtotal:', `INR ${Number(invoice.subtotal).toFixed(2)}`);
-      
-      if (Number(invoice.cgstAmount) > 0) {
-        drawCalcRow(`CGST (${Number(invoice.cgstRate)}%):`, `INR ${Number(invoice.cgstAmount).toFixed(2)}`);
-        drawCalcRow(`SGST (${Number(invoice.sgstRate)}%):`, `INR ${Number(invoice.sgstAmount).toFixed(2)}`);
-      } else if (Number(invoice.igstAmount) > 0) {
-        drawCalcRow(`IGST (${Number(invoice.igstRate)}%):`, `INR ${Number(invoice.igstAmount).toFixed(2)}`);
+      drawHeader(pageNum);
+
+      let currentY = 220;
+      const bottomLimit = 730;
+
+      // Draw table contents
+      if (parsedInvoice.items && parsedInvoice.items.length > 0) {
+        for (let idx = 0; idx < parsedInvoice.items.length; idx++) {
+          const item = parsedInvoice.items[idx];
+          const trip = item.trip;
+          if (!trip) continue;
+
+          const ds = trip.dutySlip;
+          const booking = trip.booking;
+
+          const dateStr = new Date(booking.pickupDate).toLocaleDateString('en-GB');
+          const dsNo = ds.dutySlipNumber.replace('DS-', '');
+          const vehicleModel = ds.vehicle.model.split(' ')[0] || ds.vehicle.vehicleType;
+          const vehicleNo = ds.vehicle.vehicleNumber.slice(-4);
+
+          // Build Particulars Sub-rows
+          const particularsRows: { label: string; rate?: string; amount?: string }[] = [];
+          
+          const empId = booking.employeeId || ds.employeeId;
+          if (empId) {
+            particularsRows.push({ label: `Emp Id - ${empId}` });
+          }
+
+          const guestVal = (booking.guestSalutation ? booking.guestSalutation + ' ' : '') + (booking.guestName || booking.customer.name);
+          particularsRows.push({ label: `Guest - ${guestVal}` });
+
+          if (booking.tripType === TripType.OUTSTATION) {
+            particularsRows.push({ label: `OUTSTATION : ${trip.totalKm} KM` });
+            particularsRows.push({ label: `${booking.pickupLocation.toUpperCase()} TO ${booking.dropLocation.toUpperCase()}` });
+            particularsRows.push({ label: `( As Per 250 Km per Day min.running limit )` });
+          } else {
+            particularsRows.push({ label: `${booking.tripType} : ${trip.totalKm} Kms & ${Number(trip.totalHours || 0).toFixed(2)} Hrs. Duty` });
+          }
+
+          // Base Fare Row
+          const baseKm = booking.tripType === TripType.OUTSTATION ? Number(trip.totalDays) * 250 : (booking.tripType === TripType.AIRPORT_TRANSFER ? 40 : 80);
+          const baseHr = booking.tripType === TripType.OUTSTATION ? 24 : 8;
+          particularsRows.push({
+            label: booking.tripType === TripType.OUTSTATION 
+              ? `UPTO ${baseKm} Kms. & ${trip.totalDays} Days Duty` 
+              : `UPTO ${baseKm} Kms. & ${baseHr} Hrs Duty`,
+            rate: Number(trip.baseFareCharged).toFixed(2),
+            amount: Number(trip.baseFareCharged).toFixed(2),
+          });
+
+          // Extra KM Row
+          if (Number(trip.extraKmCharged) > 0) {
+            const extraKmQty = Math.max(0, Number(trip.totalKm) - baseKm);
+            const extraKmRate = extraKmQty > 0 ? Number(trip.extraKmCharged) / extraKmQty : 14;
+            particularsRows.push({
+              label: `Extra Km ${extraKmQty.toFixed(2)} @`,
+              rate: extraKmRate.toFixed(2),
+              amount: Number(trip.extraKmCharged).toFixed(2),
+            });
+          }
+
+          // Extra Hours Row
+          if (Number(trip.extraHoursCharged) > 0) {
+            const extraHrsQty = Math.max(0, Number(trip.totalHours || 0) - baseHr);
+            const extraHrsRate = extraHrsQty > 0 ? Number(trip.extraHoursCharged) / extraHrsQty : 100;
+            particularsRows.push({
+              label: `Extra Hrs ${extraHrsQty.toFixed(2)} @`,
+              rate: extraHrsRate.toFixed(2),
+              amount: Number(trip.extraHoursCharged).toFixed(2),
+            });
+          }
+
+          // Driver Allowance Row
+          if (Number(trip.driverAllowance) > 0) {
+            particularsRows.push({
+              label: `DRIVER ALLOWANCE 1 @`,
+              rate: Number(trip.driverAllowance).toFixed(2),
+              amount: Number(trip.driverAllowance).toFixed(2),
+            });
+          }
+
+          // Night Surcharge Row
+          if (Number(trip.nightChargesCharged) > 0) {
+            particularsRows.push({
+              label: `NIGHT SURCHARGE`,
+              amount: Number(trip.nightChargesCharged).toFixed(2),
+            });
+          }
+
+          // Incidentals: tolls, parking, state tax, MCD, extra charges
+          if (Number(trip.parking) > 0) {
+            particularsRows.push({
+              label: 'Parking Charges',
+              amount: Number(trip.parking).toFixed(2),
+            });
+          }
+          if (Number(trip.toll) > 0) {
+            particularsRows.push({
+              label: 'Toll Charges',
+              amount: Number(trip.toll).toFixed(2),
+            });
+          }
+          if (Number(trip.stateTaxCharged) > 0) {
+            particularsRows.push({
+              label: 'State Tax',
+              amount: Number(trip.stateTaxCharged).toFixed(2),
+            });
+          }
+          if (Number(trip.mcdCharged) > 0) {
+            particularsRows.push({
+              label: 'MCD Toll',
+              amount: Number(trip.mcdCharged).toFixed(2),
+            });
+          }
+          if (Number(trip.miscChargesCharged) > 0) {
+            particularsRows.push({
+              label: 'Other/Misc Charges',
+              amount: Number(trip.miscChargesCharged).toFixed(2),
+            });
+          }
+
+          // Calculate consolidated Duty Slip subtotal
+          const tripSubtotal = Number(trip.baseFareCharged) + 
+                               Number(trip.extraKmCharged) + 
+                               Number(trip.toll) + 
+                               Number(trip.parking) + 
+                               Number(trip.stateTaxCharged || 0) + 
+                               Number(trip.mcdCharged || 0) + 
+                               Number(trip.nightChargesCharged) + 
+                               Number(trip.extraHoursCharged) + 
+                               Number(trip.driverAllowance) + 
+                               Number(trip.miscChargesCharged);
+
+          // Duty Slip Total Row
+          particularsRows.push({
+            label: 'DUTY SLIP TOTAL',
+            amount: tripSubtotal.toFixed(2),
+          });
+
+          // Estimate height of this entire block
+          const rowHeight = particularsRows.length * 11 + 10;
+
+          // Determine the bottom limit for this row
+          const isLastItem = (idx === parsedInvoice.items.length - 1);
+          const limit = isLastItem ? 550 : bottomLimit;
+
+          // Check Page Overflow
+          if (currentY > 220 && currentY + rowHeight > limit) {
+            // Draw bottom divider line and page text
+            doc.moveTo(50, currentY).lineTo(545, currentY).stroke('#CBD5E1');
+            doc.fillColor('#64748B').font(fontBold).fontSize(8).text('Continued........', 450, currentY + 10);
+            
+            // Add page
+            doc.addPage();
+            pageNum++;
+            drawHeader(pageNum);
+            currentY = 220;
+          }
+
+          // Draw Row Contents (Styled Slate outlines and light internal dividers)
+          doc.rect(50, currentY, 495, rowHeight).stroke('#CBD5E1');
+          
+          if (!isRefined) {
+            doc.moveTo(115, currentY).lineTo(115, currentY + rowHeight).stroke('#F1F5F9');
+            doc.moveTo(175, currentY).lineTo(175, currentY + rowHeight).stroke('#F1F5F9');
+            doc.moveTo(435, currentY).lineTo(435, currentY + rowHeight).stroke('#F1F5F9');
+            doc.moveTo(490, currentY).lineTo(490, currentY + rowHeight).stroke('#F1F5F9');
+          }
+
+          // Date / DS No
+          doc.fillColor('#0F172A').font(fontBold).fontSize(8.5);
+          doc.text(dateStr, 52, currentY + 5, { width: 61, align: 'center' });
+          doc.text(dsNo, 52, currentY + 16, { width: 61, align: 'center' });
+
+          // Vehicle Detail
+          doc.text(vehicleModel.toUpperCase(), 117, currentY + 5, { width: 56, align: 'center' });
+          doc.text(vehicleNo, 117, currentY + 16, { width: 56, align: 'center' });
+
+          // Particulars
+          let particularsY = currentY + 5;
+          for (const subRow of particularsRows) {
+            if (subRow.label === 'DUTY SLIP TOTAL') {
+              doc.moveTo(175, particularsY - 2).lineTo(545, particularsY - 2).lineWidth(0.5).stroke('#CBD5E1');
+            }
+
+            doc.fillColor(subRow.label === 'DUTY SLIP TOTAL' ? primaryColor : '#334155');
+            doc.font(subRow.rate || subRow.amount || subRow.label === 'DUTY SLIP TOTAL' ? fontBold : fontRegular).fontSize(8);
+            doc.text(subRow.label, 180, particularsY);
+
+            if (subRow.rate) {
+              doc.text(subRow.rate, 437, particularsY, { width: 51, align: 'right' });
+            }
+            if (subRow.amount) {
+              doc.text(subRow.amount, 492, particularsY, { width: 51, align: 'right' });
+            }
+
+            particularsY += 11;
+          }
+
+          currentY += rowHeight;
+        }
       }
 
-      drawCalcRow('Total Tax:', `INR ${Number(invoice.totalTax).toFixed(2)}`);
+      // Fill remaining space with standard grid till y=550 to keep a neat look
+      if (currentY < 550) {
+        const remainingH = 550 - currentY;
+        doc.rect(50, currentY, 495, remainingH).stroke('#CBD5E1');
+        if (!isRefined) {
+          doc.moveTo(115, currentY).lineTo(115, 550).stroke('#F1F5F9');
+          doc.moveTo(175, currentY).lineTo(175, 550).stroke('#F1F5F9');
+          doc.moveTo(435, currentY).lineTo(435, 550).stroke('#F1F5F9');
+          doc.moveTo(490, currentY).lineTo(490, 550).stroke('#F1F5F9');
+        }
+        currentY = 550;
+      }
+
+      // Calculations Footer Summary Section (Starts at currentY)
+      const footerY = currentY;
+      const totalSlipsEnclosed = parsedInvoice.items.length;
+      let amountColSum = 0;
+      let tollParkingTaxSum = 0;
+      for (const item of parsedInvoice.items) {
+        const trip = item.trip;
+        if (!trip) continue;
+        amountColSum += Number(trip.baseFareCharged || 0) + 
+                         Number(trip.extraKmCharged || 0) + 
+                         Number(trip.extraHoursCharged || 0) + 
+                         Number(trip.driverAllowance || 0) + 
+                         Number(trip.nightChargesCharged || 0);
+                         
+        tollParkingTaxSum += Number(trip.toll || 0) + 
+                             Number(trip.parking || 0) + 
+                             Number(trip.stateTaxCharged || 0) + 
+                             Number(trip.mcdCharged || 0) + 
+                             Number(trip.miscChargesCharged || 0);
+      }
+
+      // Summary lines
+      doc.rect(50, footerY, 495, 60).stroke('#CBD5E1');
+      doc.moveTo(350, footerY).lineTo(350, footerY + 60).stroke('#CBD5E1');
+
+      doc.fillColor(primaryColor).font(fontBold).fontSize(8.5);
+      doc.text('TOTAL DUTY SLIP ENCLOSE', 55, footerY + 6);
+      doc.fillColor('#0F172A').text(`${totalSlipsEnclosed}`, 210, footerY + 6);
+
+      doc.fillColor(primaryColor).text('TOTAL AMOUNT', 355, footerY + 6);
+      doc.fillColor('#0F172A').text(amountColSum.toFixed(2), 480, footerY + 6, { width: 60, align: 'right' });
+
+      const totalGstRate = Number(parsedInvoice.cgstRate || 0) + Number(parsedInvoice.sgstRate || 0) + Number(parsedInvoice.igstRate || 0);
+      const isCorporate = parsedInvoice.customer?.type === 'CORPORATE';
+      const isRcm = isCorporate && Math.abs(totalGstRate - 5) < 0.01;
+      if (isRcm) {
+        doc.fillColor('#475569').fontSize(7).text('As per the Notification No.22/2019.Tax(rate)dated30.09.19 Service receiver is liable to pay', 55, footerY + 25, { width: 280 });
+      }
+
+      doc.fillColor(primaryColor).fontSize(8.5).text('Parking/TollTax Detail', 355, footerY + 20);
+      doc.fillColor('#0F172A').text(tollParkingTaxSum.toFixed(2), 480, footerY + 20, { width: 60, align: 'right' });
+
+      // GST rows
+      let gstLineY = footerY + 34;
+      if (Number(parsedInvoice.cgstAmount) > 0) {
+        doc.fillColor(primaryColor).text(`CGST( @ ${Number(parsedInvoice.cgstRate)} % )`, 355, gstLineY);
+        doc.fillColor('#0F172A').text(Number(parsedInvoice.cgstAmount).toFixed(2), 480, gstLineY, { width: 60, align: 'right' });
+        gstLineY += 12;
+
+        doc.fillColor(primaryColor).text(`SGST( @ ${Number(parsedInvoice.sgstRate)} % )`, 355, gstLineY);
+        doc.fillColor('#0F172A').text(Number(parsedInvoice.sgstAmount).toFixed(2), 480, gstLineY, { width: 60, align: 'right' });
+      } else if (Number(parsedInvoice.igstAmount) > 0) {
+        doc.fillColor(primaryColor).text(`IGST( @ ${Number(parsedInvoice.igstRate)} % )`, 355, gstLineY);
+        doc.fillColor('#0F172A').text(Number(parsedInvoice.igstAmount).toFixed(2), 480, gstLineY, { width: 60, align: 'right' });
+      }
+
+      // Grand Total Box
+      const totalBoxY = footerY + 60;
+      doc.rect(50, totalBoxY, 495, 30).stroke('#CBD5E1');
+      doc.moveTo(350, totalBoxY).lineTo(350, totalBoxY + 30).stroke('#CBD5E1');
+
+      // Amount in words
+      const grandTotal = Number(parsedInvoice.totalAmount);
+      const amountInWords = numberToWords(grandTotal);
+      doc.fillColor('#475569').font(fontBold).fontSize(7.5);
+      doc.text(amountInWords, 55, totalBoxY + 10, { width: 280 });
+
+      if (isRefined) {
+        doc.rect(350, totalBoxY, 195, 30).fill(primaryColor);
+        doc.fillColor('#FFFFFF').fontSize(9).font(fontBold).text('NET AMOUNT', 355, totalBoxY + 10);
+        doc.text(grandTotal.toFixed(2), 480, totalBoxY + 10, { width: 60, align: 'right' });
+      } else {
+        doc.fillColor(primaryColor).fontSize(9).font(fontBold).text('NET AMOUNT', 355, totalBoxY + 10);
+        doc.text(grandTotal.toFixed(2), 480, totalBoxY + 10, { width: 60, align: 'right' });
+      }
+
+      // Terms & Conditions and Signature
+      const termsY = totalBoxY + 35;
       
-      // Thick line before grand total
-      doc.moveTo(320, calcY).lineTo(545, calcY).stroke('#E2E8F0');
-      calcY += 5;
+      const showTerms = tenant?.pdfShowTerms !== false;
+      const showBank = tenant?.pdfShowBank !== false;
 
-      drawCalcRow('Grand Total:', `INR ${Number(invoice.totalAmount).toFixed(2)}`, true);
-      drawCalcRow('Amount Paid:', `INR ${Number(invoice.paidAmount).toFixed(2)}`);
-      
-      doc.rect(320, calcY, 225, 22).fill('#EFF6FF');
-      doc.fontSize(10).font('Helvetica-Bold').fillColor('#1E40AF').text('Balance Due:', 330, calcY + 6);
-      doc.text(`INR ${Number(invoice.dueAmount).toFixed(2)}`, 440, calcY + 6, { align: 'right', width: 95 });
+      if (showTerms) {
+        const customTerms = tenant?.termsAndConditions || (
+          'E. & O.E. Subject to Delhi Jurisdiction.\n' +
+          'Our Responsibility of the signed duty slip resets till we handover them to you with the bill.\n' +
+          'Interest chargable on bills not paid on presentation @ 18% p.a.\n' +
+          'Passengers Tax, Toll tax, Interstate taxes, Car parking Etc. will be charged on actual basis on production of receipts.\n' +
+          'GST, if Applicable will be charged extra. A subsequent bill will be issued for the same.\n' +
+          'In case of discrepancy , Kindly return the bill for necessary correction within 10 days or it shall be treated as O.K. and you shall be liable to pay the full amount.'
+        );
+        doc.fillColor(primaryColor).font(fontBold).fontSize(8.5).text('Terms & Condition', 55, termsY);
+        doc.fillColor('#475569').font(fontRegular).fontSize(7).text(
+          customTerms,
+          55, termsY + 12, { width: 330, lineGap: 1.5 }
+        );
+      }
 
-      // Left-aligned Notes section
-      let notesY = rowY + 95;
-      doc.fontSize(9).font('Helvetica-Bold').fillColor('#0F172A').text('Terms & Conditions:', 50, notesY);
-      doc.fontSize(8).font('Helvetica').fillColor('#64748B').text('1. Payment is due within 15 days of invoice date.\n2. Please mention the invoice number in all your payments.\n3. Goods & Services Tax (GST) is charged as per applicable laws.', 50, notesY + 15, { width: 250, lineGap: 3 });
+      // Signature section on the right
+      doc.font(fontBold).fontSize(9).fillColor(primaryColor).text(companyName.toUpperCase(), 390, termsY + 5, { align: 'center', width: 150 });
+      doc.fillColor('#000000');
 
-      // Footer
-      doc.moveTo(50, 740).lineTo(545, 740).stroke('#E2E8F0');
-      doc.fontSize(8).fillColor('#94A3B8').text('Thank you for your business! For any billing queries, contact accounts@cabbs.com.', 50, 755, { align: 'center' });
+      // Bank Details box
+      if (showBank) {
+        doc.rect(390, termsY + 20, 150, 48).stroke('#CBD5E1');
+        doc.fillColor(primaryColor).fontSize(6.5).font(fontBold);
+        doc.text('BANK DETAILS:', 393, termsY + 23);
+        doc.fillColor('#334155').font(fontRegular);
+        doc.text(`Bank Name: ${bankName}`, 393, termsY + 31, { width: 144, height: 8 });
+        doc.text(`A/c No: ${bankAccountNo}`, 393, termsY + 39, { width: 144, height: 8 });
+        doc.text(`IFSC: ${bankIfsc}`, 393, termsY + 47, { width: 144, height: 8 });
+        doc.text(`Branch: ${bankBranch}`, 393, termsY + 55, { width: 144, height: 8 });
+      }
+
+      doc.fillColor(primaryColor).font(fontBold).fontSize(8.5).text('Authorized Signatory', 390, termsY + 75, { align: 'center', width: 150 });
 
       doc.end();
     });
   }
 }
+function numberToWords(num: number): string {
+  const a = [
+    '', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine ', 'ten ',
+    'eleven ', 'twelve ', 'thirteen ', 'fourteen ', 'fifteen ', 'sixteen ', 'seventeen ', 'eighteen ', 'nineteen '
+  ];
+  const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
+  if (num === 0) return 'zero';
+  
+  let str = '';
+  const crore = Math.floor(num / 10000000);
+  num %= 10000000;
+  const lakh = Math.floor(num / 100000);
+  num %= 100000;
+  const thousand = Math.floor(num / 1000);
+  num %= 1000;
+  const hundred = Math.floor(num / 100);
+  num %= 100;
+  
+  const tens = Math.floor(num);
+  const paise = Math.round((num - tens) * 100);
+
+  const convertTens = (n: number) => {
+    if (n < 20) return a[n];
+    return b[Math.floor(n / 10)] + ' ' + a[n % 10];
+  };
+
+  if (crore > 0) {
+    str += convertTens(crore) + 'crore ';
+  }
+  if (lakh > 0) {
+    str += convertTens(lakh) + 'lakh ';
+  }
+  if (thousand > 0) {
+    str += convertTens(thousand) + 'thousand ';
+  }
+  if (hundred > 0) {
+    str += convertTens(hundred) + 'hundred ';
+  }
+  if (tens > 0) {
+    if (str !== '') str += 'and ';
+    str += convertTens(tens);
+  }
+  
+  str = str.trim();
+  
+  let result = 'RUPEES ' + str.toUpperCase();
+  if (paise > 0) {
+    result += ' AND ' + convertTens(paise).trim().toUpperCase() + ' PAISE';
+  }
+  result += ' ONLY';
+  return result;
+}
+

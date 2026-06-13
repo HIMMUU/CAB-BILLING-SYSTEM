@@ -17,6 +17,8 @@ export enum Permission {
   RECORD_PAYMENT = 'RECORD_PAYMENT',
   FINANCIAL_REPORTS = 'FINANCIAL_REPORTS',
   OPERATIONS_REPORTS = 'OPERATIONS_REPORTS',
+  RATE_CRUD = 'RATE_CRUD',
+  RATE_VIEW = 'RATE_VIEW',
 }
 
 export const RolePermissions: Record<UserRole, Permission[]> = {
@@ -37,6 +39,8 @@ export const RolePermissions: Record<UserRole, Permission[]> = {
     Permission.RECORD_PAYMENT,
     Permission.FINANCIAL_REPORTS,
     Permission.OPERATIONS_REPORTS,
+    Permission.RATE_CRUD,
+    Permission.RATE_VIEW,
   ],
   DISPATCHER: [
     Permission.CUSTOMER_VIEW,
@@ -49,6 +53,7 @@ export const RolePermissions: Record<UserRole, Permission[]> = {
     Permission.GENERATE_DUTY_SLIP,
     Permission.CLOSE_TRIP,
     Permission.OPERATIONS_REPORTS,
+    Permission.RATE_VIEW,
   ],
   BILLING_EXECUTIVE: [
     Permission.CUSTOMER_VIEW,
@@ -58,5 +63,6 @@ export const RolePermissions: Record<UserRole, Permission[]> = {
     Permission.INVOICE_CRUD,
     Permission.RECORD_PAYMENT,
     Permission.FINANCIAL_REPORTS,
+    Permission.RATE_VIEW,
   ],
 };

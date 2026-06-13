@@ -125,6 +125,18 @@ class ApiClient {
     return data;
   }
 
+  async register(formData: any) {
+    const data = await this.request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(formData),
+    });
+    this.setToken(data.accessToken);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('user', JSON.stringify(data.user));
+    }
+    return data;
+  }
+
   async logout() {
     try {
       await this.request('/auth/logout', { 

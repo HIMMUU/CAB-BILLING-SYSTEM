@@ -23,6 +23,7 @@ interface Booking {
   tripType: 'LOCAL' | 'AIRPORT_TRANSFER' | 'OUTSTATION' | 'HOURLY_RENTAL';
   vehicleTypeRequired: string;
   status: 'PENDING' | 'ASSIGNED' | 'STARTED' | 'COMPLETED' | 'CANCELLED';
+  employeeId?: string;
   customer: Customer;
 }
 
@@ -56,6 +57,7 @@ export default function BookingsPage() {
     tripType: 'LOCAL' as 'LOCAL' | 'AIRPORT_TRANSFER' | 'OUTSTATION' | 'HOURLY_RENTAL',
     vehicleTypeRequired: '',
     status: 'PENDING' as 'PENDING' | 'ASSIGNED' | 'STARTED' | 'COMPLETED' | 'CANCELLED',
+    employeeId: '',
   });
 
   useEffect(() => {
@@ -119,6 +121,7 @@ export default function BookingsPage() {
       tripType: 'LOCAL',
       vehicleTypeRequired: 'Sedan',
       status: 'PENDING',
+      employeeId: '',
     });
     setFormError(null);
     setIsFormOpen(true);
@@ -135,6 +138,7 @@ export default function BookingsPage() {
       tripType: booking.tripType,
       vehicleTypeRequired: booking.vehicleTypeRequired,
       status: booking.status,
+      employeeId: booking.employeeId || '',
     });
     setFormError(null);
     setIsFormOpen(true);
@@ -271,6 +275,7 @@ export default function BookingsPage() {
               <thead>
                 <tr className="border-b border-[#E2E8F0] text-xs font-semibold text-[#64748B] uppercase tracking-wider bg-[#F8FAFC]">
                   <th className="py-3 px-6">Booking Code</th>
+                  <th className="py-3 px-6">Employee ID</th>
                   <th className="py-3 px-6">Customer</th>
                   <th className="py-3 px-6">Trip & Vehicle</th>
                   <th className="py-3 px-6">Locations (Pickup &rarr; Drop)</th>
@@ -287,6 +292,9 @@ export default function BookingsPage() {
                         <div className="font-bold text-[#0F172A] tracking-wider font-mono text-xs bg-gray-50 border border-[#E2E8F0] px-2 py-1 rounded inline-block">
                           {booking.bookingNumber}
                         </div>
+                      </td>
+                      <td className="py-4 px-6 font-mono text-xs text-[#0F172A]">
+                        {booking.employeeId || '---'}
                       </td>
                       <td className="py-4 px-6">
                         <div className="font-medium text-[#0F172A]">
@@ -546,6 +554,19 @@ export default function BookingsPage() {
                       className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition text-xs"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
+                    Employee ID
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.employeeId}
+                    onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+                    placeholder="Enter Employee ID (optional)"
+                    className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
+                  />
                 </div>
               </form>
             </div>
