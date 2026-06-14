@@ -635,8 +635,8 @@ export default function InvoicesPage() {
                       <div className="font-semibold">{invoice.customer.name}</div>
                       <div className="text-xs text-[#64748B]">{invoice.customer.companyName || 'Individual'}</div>
                     </td>
-                    <td className="py-4 px-6 text-[#64748B]">{new Date(invoice.invoiceDate).toLocaleDateString()}</td>
-                    <td className="py-4 px-6 text-[#64748B]">{new Date(invoice.dueDate).toLocaleDateString()}</td>
+                    <td className="py-4 px-6 text-[#64748B]">{new Date(invoice.invoiceDate).toLocaleDateString('en-GB')}</td>
+                    <td className="py-4 px-6 text-[#64748B]">{new Date(invoice.dueDate).toLocaleDateString('en-GB')}</td>
                     <td className="py-4 px-6 font-semibold">INR {Number(invoice.totalAmount).toFixed(2)}</td>
                     <td className="py-4 px-6">
                       <span className={`font-semibold ${Number(invoice.dueAmount) > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
@@ -898,7 +898,7 @@ export default function InvoicesPage() {
                                     {t.dutySlip.dutySlipNumber}
                                   </td>
                                   <td className="py-3 px-3 text-[#64748B]">
-                                    {new Date(t.booking.pickupDate).toLocaleDateString()}
+                                    {new Date(t.booking.pickupDate).toLocaleDateString('en-GB')}
                                   </td>
                                   <td className="py-3 px-3 font-semibold">
                                     {t.booking.customer.name}
@@ -910,10 +910,10 @@ export default function InvoicesPage() {
                                     {t.booking.tripType}
                                   </td>
                                   <td className="py-3 px-3 text-[#64748B]">
-                                    {t.startDateTime ? new Date(t.startDateTime).toLocaleDateString() : 'N/A'}
+                                    {t.startDateTime ? new Date(t.startDateTime).toLocaleDateString('en-GB') : 'N/A'}
                                   </td>
                                   <td className="py-3 px-3 text-[#64748B]">
-                                    {t.endDateTime ? new Date(t.endDateTime).toLocaleDateString() : 'N/A'}
+                                    {t.endDateTime ? new Date(t.endDateTime).toLocaleDateString('en-GB') : 'N/A'}
                                   </td>
                                   <td className="py-3 px-3 font-mono font-semibold">
                                     {t.totalKm} KM
@@ -1073,7 +1073,7 @@ export default function InvoicesPage() {
                           <div key={t.id} className="border border-[#E2E8F0] rounded-xl p-4 bg-white shadow-sm space-y-3">
                             <div className="flex items-center justify-between bg-gray-50 p-2 rounded-lg border">
                               <span className="font-mono font-bold text-blue-600">{t.dutySlip.dutySlipNumber}</span>
-                              <span className="text-xs text-[#64748B]">{new Date(t.booking.pickupDate).toLocaleDateString()}</span>
+                              <span className="text-xs text-[#64748B]">{new Date(t.booking.pickupDate).toLocaleDateString('en-GB')}</span>
                             </div>
                             
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
@@ -1091,7 +1091,7 @@ export default function InvoicesPage() {
                               </div>
                               <div>
                                 <span className="block text-[10px] text-[#64748B] uppercase">Duty Date</span>
-                                <span className="font-semibold text-[#0F172A]">{t.startDateTime ? new Date(t.startDateTime).toLocaleDateString() : 'N/A'}</span>
+                                <span className="font-semibold text-[#0F172A]">{t.startDateTime ? new Date(t.startDateTime).toLocaleDateString('en-GB') : 'N/A'}</span>
                               </div>
                             </div>
 
@@ -1270,11 +1270,11 @@ export default function InvoicesPage() {
                 <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-wider mb-2">Invoice Dates</h3>
                 <div className="flex justify-between">
                   <span>Invoice Date:</span>
-                  <span className="font-semibold text-[#0F172A]">{new Date(selectedInvoice.invoiceDate).toLocaleDateString()}</span>
+                  <span className="font-semibold text-[#0F172A]">{new Date(selectedInvoice.invoiceDate).toLocaleDateString('en-GB')}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Due Date:</span>
-                  <span className="font-semibold text-[#0F172A]">{new Date(selectedInvoice.dueDate).toLocaleDateString()}</span>
+                  <span className="font-semibold text-[#0F172A]">{new Date(selectedInvoice.dueDate).toLocaleDateString('en-GB')}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Tax Mode:</span>

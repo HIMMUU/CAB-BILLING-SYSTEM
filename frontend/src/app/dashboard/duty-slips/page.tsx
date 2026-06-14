@@ -69,9 +69,9 @@ const mergeDT = (date: string, time: string) => {
 const fmt = (n: number | string | null | undefined) =>
   Number(n || 0).toFixed(2);
 const fmtDate = (s: string | null | undefined) =>
-  s ? new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '–';
+  s ? new Date(s).toLocaleDateString('en-GB') : '–';
 const fmtTime = (s: string | null | undefined) =>
-  s ? new Date(s).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '–';
+  s ? new Date(s).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : '–';
 
 const STATUS_STYLES: Record<string, string> = {
   DRAFT: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -972,6 +972,11 @@ export default function DutySlipsPage() {
                     <td className="px-4 py-3.5 text-xs text-slate-600 font-medium">{slip.booking?.bookingNumber || '—'}</td>
                     <td className="px-4 py-3.5">
                       <div className="font-semibold text-slate-800 truncate max-w-[140px]">{slip.booking?.customer?.name}</div>
+                      {slip.booking?.guestName && (
+                        <div className="text-[10px] text-slate-500 font-medium truncate max-w-[140px]">
+                          Guest: {slip.booking.guestSalutation ? `${slip.booking.guestSalutation} ` : ''}{slip.booking.guestName}
+                        </div>
+                      )}
                       {slip.employeeId && <div className="text-[10px] text-slate-400 font-mono">{slip.employeeId}</div>}
                     </td>
                     <td className="px-4 py-3.5 text-slate-700 text-xs">{slip.driver?.name || '—'}</td>

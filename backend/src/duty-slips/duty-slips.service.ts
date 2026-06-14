@@ -484,7 +484,9 @@ export class DutySlipsService {
       doc.font(fontRegular).text(slip.status, 150, 125);
 
       doc.font(fontBold).text('Trip Date & Time:', 307, 125);
-      doc.font(fontRegular).text(`${new Date(slip.reportingTime).toLocaleDateString()} ${new Date(slip.reportingTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, 400, 125);
+      const repDate = new Date(slip.reportingTime).toLocaleDateString('en-GB');
+      const repTime = new Date(slip.reportingTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+      doc.font(fontRegular).text(`${repDate} ${repTime}`, 400, 125);
 
       // Section 2: Customer & Route Information Card (shifted up to y=165)
       doc.fontSize(12).font(fontBold).text('Customer & Route Details', 50, 165);
@@ -551,8 +553,14 @@ export class DutySlipsService {
       doc.fontSize(9).font(fontBold);
       doc.text(`${slip.startKm} KM`, 55, 442);
       doc.text(slip.endKm !== null ? `${slip.endKm} KM` : '--- KM', 170, 442);
-      doc.text(slip.startDateTime ? `${new Date(slip.startDateTime).toLocaleDateString()} ${new Date(slip.startDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '---', 285, 442);
-      doc.text(slip.endDateTime ? `${new Date(slip.endDateTime).toLocaleDateString()} ${new Date(slip.endDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '---', 400, 442);
+      const formatDT = (dt: Date | string | null) => {
+        if (!dt) return '---';
+        const d = new Date(dt).toLocaleDateString('en-GB');
+        const t = new Date(dt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+        return `${d} ${t}`;
+      };
+      doc.text(formatDT(slip.startDateTime), 285, 442);
+      doc.text(formatDT(slip.endDateTime), 400, 442);
 
       // Section 5: Tolls & Charges Receipt Table (shifted up to y=492)
       doc.fontSize(12).font(fontBold).text('Tolls & Incidentals Breakdown', 50, 492);
