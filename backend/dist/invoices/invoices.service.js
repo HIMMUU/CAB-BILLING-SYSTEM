@@ -630,7 +630,10 @@ let InvoicesService = class InvoicesService {
             doc.on('error', (err) => reject(err));
             let pageNum = 1;
             const drawHeader = (pNum) => {
+                const oldBottomMargin = doc.page.margins.bottom;
+                doc.page.margins.bottom = 10;
                 doc.fillColor('#64748B').fontSize(7.5).font(fontRegular).text(`Page ${pNum}`, 50, 810, { align: 'right', width: 495 });
+                doc.page.margins.bottom = oldBottomMargin;
                 const titleStr = (tenant?.invoiceTitle || 'TAX INVOICE').toUpperCase();
                 if (logoBuffer && !tenant?.hideLogoOnPdf) {
                     try {
