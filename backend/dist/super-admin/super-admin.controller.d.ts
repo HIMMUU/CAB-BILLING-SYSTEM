@@ -8,6 +8,7 @@ export declare class SuperAdminController {
         slug: string | null;
         domain: string | null;
         logoUrl: string | null;
+        digitalSignatureUrl: string | null;
         companyAddress: string | null;
         companyPhone: string | null;
         companyEmail: string | null;
@@ -44,6 +45,7 @@ export declare class SuperAdminController {
         slug: string | null;
         domain: string | null;
         logoUrl: string | null;
+        digitalSignatureUrl: string | null;
         companyAddress: string | null;
         companyPhone: string | null;
         companyEmail: string | null;

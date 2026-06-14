@@ -13,6 +13,13 @@ exports.TenantSettingsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const tenant_context_service_1 = require("../common/context/tenant-context.service");
+const cloudinary_1 = require("cloudinary");
+const stream_1 = require("stream");
+cloudinary_1.v2.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'dletrtogt',
+    api_key: process.env.CLOUDINARY_API_KEY || '332573535758619',
+    api_secret: process.env.CLOUDINARY_API_SECRET || 'NIq4rqo-RcgvVdAndbxfwB5T12s',
+});
 let TenantSettingsService = class TenantSettingsService {
     constructor(prisma, tenantContext) {
         this.prisma = prisma;
@@ -46,6 +53,28 @@ let TenantSettingsService = class TenantSettingsService {
             data: dto,
         });
         return updated;
+    }
+    async uploadImage(file) {
+        if (!file) {
+            throw new common_1.BadRequestException('No file provided');
+        }
+        return new Promise((resolve, reject) => {
+            const uploadStream = cloudinary_1.v2.uploader.upload_stream({
+                folder: 'tenant_uploads',
+            }, (error, result) => {
+                if (error) {
+                    return reject(new common_1.BadRequestException(`Cloudinary upload failed: ${error.message}`));
+                }
+                if (!result) {
+                    return reject(new common_1.BadRequestException('Cloudinary upload returned no result'));
+                }
+                resolve({ url: result.secure_url });
+            });
+            const stream = new stream_1.Readable();
+            stream.push(file.buffer);
+            stream.push(null);
+            stream.pipe(uploadStream);
+        });
     }
 };
 exports.TenantSettingsService = TenantSettingsService;

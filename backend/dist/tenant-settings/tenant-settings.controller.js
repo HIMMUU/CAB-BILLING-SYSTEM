@@ -18,6 +18,7 @@ const tenant_settings_service_1 = require("./tenant-settings.service");
 const update_tenant_settings_dto_1 = require("./dto/update-tenant-settings.dto");
 const permissions_decorator_1 = require("../common/decorators/permissions.decorator");
 const permissions_1 = require("../common/constants/permissions");
+const platform_express_1 = require("@nestjs/platform-express");
 let TenantSettingsController = class TenantSettingsController {
     constructor(tenantSettingsService) {
         this.tenantSettingsService = tenantSettingsService;
@@ -27,6 +28,9 @@ let TenantSettingsController = class TenantSettingsController {
     }
     updateSettings(dto) {
         return this.tenantSettingsService.updateSettings(dto);
+    }
+    uploadFile(file) {
+        return this.tenantSettingsService.uploadImage(file);
     }
 };
 exports.TenantSettingsController = TenantSettingsController;
@@ -45,6 +49,15 @@ __decorate([
     __metadata("design:paramtypes", [update_tenant_settings_dto_1.UpdateTenantSettingsDto]),
     __metadata("design:returntype", void 0)
 ], TenantSettingsController.prototype, "updateSettings", null);
+__decorate([
+    (0, common_1.Post)('upload'),
+    (0, permissions_decorator_1.Permissions)(permissions_1.Permission.RATE_CRUD),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),
+    __param(0, (0, common_1.UploadedFile)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], TenantSettingsController.prototype, "uploadFile", null);
 exports.TenantSettingsController = TenantSettingsController = __decorate([
     (0, common_1.Controller)('tenant-settings'),
     __metadata("design:paramtypes", [tenant_settings_service_1.TenantSettingsService])

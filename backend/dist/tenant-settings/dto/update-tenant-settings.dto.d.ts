@@ -1,6 +1,7 @@
 export declare class UpdateTenantSettingsDto {
     name?: string;
     logoUrl?: string;
+    digitalSignatureUrl?: string;
     companyAddress?: string;
     companyPhone?: string;
     companyEmail?: string;

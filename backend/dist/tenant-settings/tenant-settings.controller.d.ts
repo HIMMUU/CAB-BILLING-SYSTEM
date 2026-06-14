@@ -9,6 +9,7 @@ export declare class TenantSettingsController {
         slug: string | null;
         domain: string | null;
         logoUrl: string | null;
+        digitalSignatureUrl: string | null;
         companyAddress: string | null;
         companyPhone: string | null;
         companyEmail: string | null;
@@ -42,6 +43,7 @@ export declare class TenantSettingsController {
         slug: string | null;
         domain: string | null;
         logoUrl: string | null;
+        digitalSignatureUrl: string | null;
         companyAddress: string | null;
         companyPhone: string | null;
         companyEmail: string | null;
@@ -68,5 +70,8 @@ export declare class TenantSettingsController {
         pdfHeaderLayout: string;
         createdAt: Date;
         updatedAt: Date;
+    }>;
+    uploadFile(file: any): Promise<{
+        url: string;
     }>;
 }
