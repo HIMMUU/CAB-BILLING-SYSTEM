@@ -557,27 +557,27 @@ let InvoicesService = class InvoicesService {
         }
         const [logoBuffer, badgeBuffer, signatureBuffer] = await Promise.all([
             (async () => {
-                if (!tenant?.logoUrl)
-                    return null;
-                if (tenant.logoUrl.startsWith('http://') || tenant.logoUrl.startsWith('https://')) {
+                const logoUrl = tenant?.logoUrl || '/logo.png';
+                if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
                     try {
-                        const res = await fetch(tenant.logoUrl, { signal: AbortSignal.timeout(3000) });
+                        const res = await fetch(logoUrl, { signal: AbortSignal.timeout(3000) });
                         if (res.ok) {
                             return Buffer.from(await res.arrayBuffer());
                         }
                     }
                     catch (e) {
-                        console.warn('Failed to fetch logo from URL:', tenant.logoUrl, e.message);
+                        console.warn('Failed to fetch logo from URL:', logoUrl, e.message);
                     }
                 }
                 else {
                     try {
                         const fs = require('fs');
-                        const cleanPath = tenant.logoUrl.replace(/^\//, '');
+                        const cleanPath = logoUrl.replace(/^\//, '');
                         const pathsToTry = [
                             path.resolve(__dirname, '..', 'assets', cleanPath),
                             path.resolve(__dirname, '..', '..', 'frontend', 'public', cleanPath),
-                            path.resolve(tenant.logoUrl),
+                            path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', cleanPath),
+                            path.resolve(logoUrl),
                         ];
                         for (const p of pathsToTry) {
                             if (fs.existsSync(p)) {
@@ -586,7 +586,7 @@ let InvoicesService = class InvoicesService {
                         }
                     }
                     catch (e) {
-                        console.warn('Failed to read logo from local path:', tenant.logoUrl, e.message);
+                        console.warn('Failed to read logo from local path:', logoUrl, e.message);
                     }
                 }
                 return null;
@@ -635,12 +635,38 @@ let InvoicesService = class InvoicesService {
                 doc.fillColor('#64748B').fontSize(7.5).font(fontRegular).text(`Page ${pNum}`, 50, 810, { align: 'right', width: 495 });
                 doc.page.margins.bottom = oldBottomMargin;
                 const titleStr = (tenant?.invoiceTitle || 'TAX INVOICE').toUpperCase();
+                let hasDrawnLogo = false;
                 if (logoBuffer && !tenant?.hideLogoOnPdf) {
                     try {
                         doc.image(logoBuffer, 50, 18, { width: 90, height: 42, fit: [90, 42] });
+                        hasDrawnLogo = true;
                     }
                     catch (e) {
-                        console.warn('Failed to draw logo:', e);
+                        console.warn('Failed to draw tenant logo:', e);
+                    }
+                }
+                if (!hasDrawnLogo && !tenant?.hideLogoOnPdf) {
+                    try {
+                        const fs = require('fs');
+                        const path = require('path');
+                        const fallbackPaths = [
+                            path.resolve(__dirname, '..', 'assets', 'logo.png'),
+                            path.resolve(__dirname, '..', '..', 'frontend', 'public', 'logo.png'),
+                            path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'logo.png'),
+                        ];
+                        let fallbackBuffer = null;
+                        for (const p of fallbackPaths) {
+                            if (fs.existsSync(p)) {
+                                fallbackBuffer = fs.readFileSync(p);
+                                break;
+                            }
+                        }
+                        if (fallbackBuffer) {
+                            doc.image(fallbackBuffer, 50, 18, { width: 90, height: 42, fit: [90, 42] });
+                        }
+                    }
+                    catch (fallbackErr) {
+                        console.warn('Failed to draw fallback logo:', fallbackErr);
                     }
                 }
                 doc.fillColor('#000000')
@@ -918,12 +944,12 @@ let InvoicesService = class InvoicesService {
             doc.fillColor(primaryColor).text('TOTAL AMOUNT', 355, footerY + 6);
             doc.fillColor('#0F172A').text(amountColSum.toFixed(2), 480, footerY + 6, { width: 60, align: 'right' });
             if (showBank) {
-                doc.fillColor(primaryColor).fontSize(7.5).font(fontBold).text('BANK DETAILS:', 55, footerY + 18);
-                doc.fillColor('#334155').font(fontRegular).fontSize(7);
-                doc.text(`Bank Name: ${bankName}`, 55, footerY + 28);
-                doc.text(`A/c No: ${bankAccountNo}`, 55, footerY + 37);
-                doc.text(`IFSC: ${bankIfsc}`, 190, footerY + 28);
-                doc.text(`Branch: ${bankBranch}`, 190, footerY + 37);
+                doc.fillColor(primaryColor).fontSize(8.5).font(fontBold).text('BANK DETAILS:', 55, footerY + 16);
+                doc.fillColor('#334155').font(fontRegular).fontSize(8);
+                doc.text(`Bank Name: ${bankName}`, 55, footerY + 27);
+                doc.text(`A/c No: ${bankAccountNo}`, 55, footerY + 38);
+                doc.text(`IFSC: ${bankIfsc}`, 190, footerY + 27);
+                doc.text(`Branch: ${bankBranch}`, 190, footerY + 38);
             }
             const isRcm = !!parsedInvoice.isRcm;
             if (isRcm) {

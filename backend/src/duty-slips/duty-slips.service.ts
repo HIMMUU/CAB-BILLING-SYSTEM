@@ -394,24 +394,25 @@ export class DutySlipsService {
     }
 
     const logoBuffer = await (async () => {
-      if (!tenant?.logoUrl) return null;
-      if (tenant.logoUrl.startsWith('http://') || tenant.logoUrl.startsWith('https://')) {
+      const logoUrl = tenant?.logoUrl || '/logo.png';
+      if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
         try {
-          const res = await fetch(tenant.logoUrl, { signal: AbortSignal.timeout(2000) });
+          const res = await fetch(logoUrl, { signal: AbortSignal.timeout(2000) });
           if (res.ok) {
             return Buffer.from(await res.arrayBuffer());
           }
         } catch (e: any) {
-          console.warn('Failed to fetch logo from URL:', tenant.logoUrl, e.message);
+          console.warn('Failed to fetch logo from URL:', logoUrl, e.message);
         }
       } else {
         try {
           const fs = require('fs');
-          const cleanPath = tenant.logoUrl.replace(/^\//, '');
+          const cleanPath = logoUrl.replace(/^\//, '');
           const pathsToTry = [
             path.resolve(__dirname, '..', 'assets', cleanPath),
             path.resolve(__dirname, '..', '..', 'frontend', 'public', cleanPath),
-            path.resolve(tenant.logoUrl),
+            path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', cleanPath),
+            path.resolve(logoUrl),
           ];
           for (const p of pathsToTry) {
             if (fs.existsSync(p)) {
@@ -419,7 +420,7 @@ export class DutySlipsService {
             }
           }
         } catch (e: any) {
-          console.warn('Failed to read logo from local path:', tenant.logoUrl, e.message);
+          console.warn('Failed to read logo from local path:', logoUrl, e.message);
         }
       }
       return null;
