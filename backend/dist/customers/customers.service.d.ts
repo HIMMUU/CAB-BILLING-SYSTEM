@@ -24,6 +24,7 @@ export declare class CustomersService {
         cgstRate: import("@prisma/client/runtime/library").Decimal;
         sgstRate: import("@prisma/client/runtime/library").Decimal;
         igstRate: import("@prisma/client/runtime/library").Decimal;
+        isRcm: boolean;
     }>;
     findAll(query: {
         page?: number;
@@ -50,6 +51,7 @@ export declare class CustomersService {
             cgstRate: import("@prisma/client/runtime/library").Decimal;
             sgstRate: import("@prisma/client/runtime/library").Decimal;
             igstRate: import("@prisma/client/runtime/library").Decimal;
+            isRcm: boolean;
         }[];
         meta: {
             total: number;
@@ -112,6 +114,7 @@ export declare class CustomersService {
         cgstRate: import("@prisma/client/runtime/library").Decimal;
         sgstRate: import("@prisma/client/runtime/library").Decimal;
         igstRate: import("@prisma/client/runtime/library").Decimal;
+        isRcm: boolean;
     }>;
     update(id: string, dto: UpdateCustomerDto): Promise<{
         id: string;
@@ -132,6 +135,7 @@ export declare class CustomersService {
         cgstRate: import("@prisma/client/runtime/library").Decimal;
         sgstRate: import("@prisma/client/runtime/library").Decimal;
         igstRate: import("@prisma/client/runtime/library").Decimal;
+        isRcm: boolean;
     }>;
     remove(id: string): Promise<{
         id: string;
@@ -152,6 +156,7 @@ export declare class CustomersService {
         cgstRate: import("@prisma/client/runtime/library").Decimal;
         sgstRate: import("@prisma/client/runtime/library").Decimal;
         igstRate: import("@prisma/client/runtime/library").Decimal;
+        isRcm: boolean;
     }>;
     getHistory(id: string): Promise<({
         trip: {

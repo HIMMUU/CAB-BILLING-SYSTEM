@@ -30,4 +30,7 @@ export class CreateInvoiceDto {
   @Min(0, { message: 'GST Rate cannot be negative' })
   @IsOptional()
   gstRate?: number;
+
+  @IsOptional()
+  isRcm?: boolean;
 }

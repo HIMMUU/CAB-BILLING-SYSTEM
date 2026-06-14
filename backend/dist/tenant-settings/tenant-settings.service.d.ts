@@ -7,9 +7,9 @@ export declare class TenantSettingsService {
     constructor(prisma: PrismaService, tenantContext: TenantContextService);
     getSettings(): Promise<{
         id: string;
+        name: string;
         slug: string | null;
         domain: string | null;
-        name: string;
         logoUrl: string | null;
         companyAddress: string | null;
         companyPhone: string | null;
@@ -40,9 +40,9 @@ export declare class TenantSettingsService {
     }>;
     updateSettings(dto: UpdateTenantSettingsDto): Promise<{
         id: string;
+        name: string;
         slug: string | null;
         domain: string | null;
-        name: string;
         logoUrl: string | null;
         companyAddress: string | null;
         companyPhone: string | null;

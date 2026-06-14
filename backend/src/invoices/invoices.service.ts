@@ -82,39 +82,59 @@ export class InvoicesService {
     const subtotal = baseFare + extraKm + toll + parking + stateTax + mcd + nightCharges + miscCharges;
 
     // 4. Calculate Taxes based on GST Type
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: trips[0].tenantId },
+    });
+
+    const companyGst = tenant?.companyGst || '';
+    const customerGst = customer.gstNumber || '';
+
+    const getGstStateCode = (gst?: string | null) => {
+      if (!gst) return '07';
+      const clean = gst.trim();
+      const match = clean.match(/^\d{2}/);
+      return match ? match[0] : '07';
+    };
+
+    const compStateCode = getGstStateCode(companyGst);
+    const custStateCode = getGstStateCode(customerGst);
+    const isSameState = compStateCode === custStateCode;
+
+    const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd));
+
     let cgstRate = 0;
-    let cgstAmount = 0;
     let sgstRate = 0;
-    let sgstAmount = 0;
     let igstRate = 0;
-    let igstAmount = 0;
 
-    const hasCustGst = Number(customer.cgstRate || 0) > 0 || Number(customer.sgstRate || 0) > 0 || Number(customer.igstRate || 0) > 0;
+    const custCgst = Number(customer.cgstRate || 0);
+    const custSgst = Number(customer.sgstRate || 0);
+    const custIgst = Number(customer.igstRate || 0);
 
-    if (hasCustGst) {
-      cgstRate = Number(customer.cgstRate || 0);
-      cgstAmount = (subtotal * cgstRate) / 100;
-      sgstRate = Number(customer.sgstRate || 0);
-      sgstAmount = (subtotal * sgstRate) / 100;
-      igstRate = Number(customer.igstRate || 0);
-      igstAmount = (subtotal * igstRate) / 100;
-    } else {
-      const gstRate = dto.gstRate ?? 5; // default 5%
-      if (dto.gstType === GstType.INTRASTATE) {
-        cgstRate = gstRate / 2;
-        cgstAmount = (subtotal * cgstRate) / 100;
-        sgstRate = gstRate / 2;
-        sgstAmount = (subtotal * sgstRate) / 100;
+    if (isSameState) {
+      if (custCgst > 0 || custSgst > 0) {
+        cgstRate = custCgst;
+        sgstRate = custSgst;
       } else {
-        igstRate = gstRate;
-        igstAmount = (subtotal * igstRate) / 100;
+        const gstRate = dto.gstRate ?? 5;
+        cgstRate = gstRate / 2;
+        sgstRate = gstRate / 2;
+      }
+    } else {
+      if (custIgst > 0) {
+        igstRate = custIgst;
+      } else if (custCgst > 0 || custSgst > 0) {
+        igstRate = custCgst + custSgst;
+      } else {
+        igstRate = dto.gstRate ?? 5;
       }
     }
 
+    const cgstAmount = (gstTaxableAmount * cgstRate) / 100;
+    const sgstAmount = (gstTaxableAmount * sgstRate) / 100;
+    const igstAmount = (gstTaxableAmount * igstRate) / 100;
+
     const totalTax = cgstAmount + sgstAmount + igstAmount;
-    const isCorporate = customer.type === 'CORPORATE';
-    const totalGstRate = cgstRate + sgstRate + igstRate;
-    const isRcm = isCorporate && Math.abs(totalGstRate - 5) < 0.01;
+    const isRcm = dto.isRcm !== undefined ? !!dto.isRcm : !!customer.isRcm;
     const totalAmount = isRcm ? subtotal : (subtotal + totalTax);
     const dueAmount = totalAmount;
 
@@ -165,6 +185,7 @@ export class InvoicesService {
           totalAmount,
           paidAmount: 0.00,
           dueAmount,
+          isRcm,
         } as any,
       });
 
@@ -285,17 +306,17 @@ export class InvoicesService {
 
     const subtotal = baseFare + extraKmCharges + toll + parking + stateTax + mcd + nightCharges + miscCharges;
 
+    const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd));
+
     const cgstRate = Number(invoice.cgstRate || 0);
     const sgstRate = Number(invoice.sgstRate || 0);
     const igstRate = Number(invoice.igstRate || 0);
 
-    const cgstAmount = (subtotal * cgstRate) / 100;
-    const sgstAmount = (subtotal * sgstRate) / 100;
-    const igstAmount = (subtotal * igstRate) / 100;
+    const cgstAmount = (gstTaxableAmount * cgstRate) / 100;
+    const sgstAmount = (gstTaxableAmount * sgstRate) / 100;
+    const igstAmount = (gstTaxableAmount * igstRate) / 100;
     const totalTax = cgstAmount + sgstAmount + igstAmount;
-    const isCorporate = invoice.customer?.type === 'CORPORATE';
-    const totalGstRate = cgstRate + sgstRate + igstRate;
-    const isRcm = isCorporate && Math.abs(totalGstRate - 5) < 0.01;
+    const isRcm = !!invoice.isRcm;
     const totalAmount = isRcm ? subtotal : (subtotal + totalTax);
     const dueAmount = Math.max(0, totalAmount - Number(invoice.paidAmount || 0));
 
@@ -968,9 +989,7 @@ export class InvoicesService {
       doc.fillColor(primaryColor).text('TOTAL AMOUNT', 355, footerY + 6);
       doc.fillColor('#0F172A').text(amountColSum.toFixed(2), 480, footerY + 6, { width: 60, align: 'right' });
 
-      const totalGstRate = Number(parsedInvoice.cgstRate || 0) + Number(parsedInvoice.sgstRate || 0) + Number(parsedInvoice.igstRate || 0);
-      const isCorporate = parsedInvoice.customer?.type === 'CORPORATE';
-      const isRcm = isCorporate && Math.abs(totalGstRate - 5) < 0.01;
+      const isRcm = !!parsedInvoice.isRcm;
       if (isRcm) {
         doc.fillColor('#475569').fontSize(7).text('As per the Notification No.22/2019.Tax(rate)dated30.09.19 Service receiver is liable to pay', 55, footerY + 25, { width: 280 });
       }

@@ -133,6 +133,8 @@ export default function InvoicesPage() {
   const [genError, setGenError] = useState<string | null>(null);
   const [genStep, setGenStep] = useState<number>(1);
   const [genCustomerCategory, setGenCustomerCategory] = useState<string>('');
+  const [genIsRcm, setGenIsRcm] = useState<boolean>(false);
+  const [companyGst, setCompanyGst] = useState<string>('');
 
   // PDF Preview State
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
@@ -245,44 +247,72 @@ export default function InvoicesPage() {
     if (selectedTrips.length === 0) return null;
 
     let subtotal = 0;
+    let toll = 0;
+    let parking = 0;
+    let mcd = 0;
     for (const trip of selectedTrips) {
       subtotal +=
-        Number(trip.baseFareCharged) +
-        Number(trip.extraKmCharged) +
-        Number(trip.toll) +
-        Number(trip.parking) +
-        Number(trip.nightChargesCharged) +
-        Number(trip.extraHoursCharged) +
-        Number(trip.driverAllowance) +
-        Number(trip.miscChargesCharged);
+        Number(trip.baseFareCharged || 0) +
+        Number(trip.extraKmCharged || 0) +
+        Number(trip.toll || 0) +
+        Number(trip.parking || 0) +
+        Number(trip.stateTaxCharged || 0) +
+        Number(trip.mcdCharged || 0) +
+        Number(trip.nightChargesCharged || 0) +
+        Number(trip.extraHoursCharged || 0) +
+        Number(trip.driverAllowance || 0) +
+        Number(trip.miscChargesCharged || 0);
+
+      toll += Number(trip.toll || 0);
+      parking += Number(trip.parking || 0);
+      mcd += Number(trip.mcdCharged || 0);
     }
     
     // Check if selected customer has predefined rates
     const customer = selectedTrips[0]?.booking.customer;
-    let cgst = 0, sgst = 0, igst = 0;
     
-    const cgstRate = Number((customer as any)?.cgstRate || 0);
-    const sgstRate = Number((customer as any)?.sgstRate || 0);
-    const igstRate = Number((customer as any)?.igstRate || 0);
-    const hasCustGst = cgstRate > 0 || sgstRate > 0 || igstRate > 0;
+    // Auto-determine State Code Match
+    const custGst = customer?.gstNumber ? customer.gstNumber.trim() : '';
+    const compGst = companyGst ? companyGst.trim() : '';
+    
+    const custStateCode = custGst.match(/^\d{2}/) ? custGst.substring(0, 2) : '07';
+    const compStateCode = compGst.match(/^\d{2}/) ? compGst.substring(0, 2) : '07';
+    const isSameState = custStateCode === compStateCode;
+
+    const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd));
+
+    let cgst = 0, sgst = 0, igst = 0;
+    let cgstRate = 0, sgstRate = 0, igstRate = 0;
+    
+    const custCgst = Number((customer as any)?.cgstRate || 0);
+    const custSgst = Number((customer as any)?.sgstRate || 0);
+    const custIgst = Number((customer as any)?.igstRate || 0);
+    const hasCustGst = custCgst > 0 || custSgst > 0 || custIgst > 0;
 
     if (hasCustGst) {
-      cgst = (subtotal * cgstRate) / 100;
-      sgst = (subtotal * sgstRate) / 100;
-      igst = (subtotal * igstRate) / 100;
-    } else {
-      if (genGstType === 'INTRASTATE') {
-        cgst = (subtotal * (genGstRate / 2)) / 100;
-        sgst = (subtotal * (genGstRate / 2)) / 100;
+      if (isSameState) {
+        cgstRate = custCgst;
+        sgstRate = custSgst;
       } else {
-        igst = (subtotal * genGstRate) / 100;
+        igstRate = custIgst || (custCgst + custSgst);
+      }
+    } else {
+      if (isSameState) {
+        cgstRate = genGstRate / 2;
+        sgstRate = genGstRate / 2;
+      } else {
+        igstRate = genGstRate;
       }
     }
 
-    const totalTax = cgst + sgst + igst;
-    const totalAmount = subtotal + totalTax;
+    cgst = (gstTaxableAmount * cgstRate) / 100;
+    sgst = (gstTaxableAmount * sgstRate) / 100;
+    igst = (gstTaxableAmount * igstRate) / 100;
 
-    return { subtotal, cgst, sgst, igst, totalTax, totalAmount };
+    const totalTax = cgst + sgst + igst;
+    const totalAmount = genIsRcm ? subtotal : (subtotal + totalTax);
+
+    return { subtotal, cgst, sgst, igst, totalTax, totalAmount, cgstRate, sgstRate, igstRate };
   };
 
   const calcPreview = previewCalculation();
@@ -292,20 +322,30 @@ export default function InvoicesPage() {
     setGenCustomerFilter(customerId);
     setGenSelectedTripIds([]); // Reset selection on customer change
 
-    // Automatically set GST Type and Rate if defined on the customer
+    // Automatically set GST Type, Rate, and RCM if defined on the customer
     const selectedCust = allCustomers.find(c => c.id === customerId);
     if (selectedCust) {
       const cgst = Number((selectedCust as any).cgstRate || 0);
       const sgst = Number((selectedCust as any).sgstRate || 0);
       const igst = Number((selectedCust as any).igstRate || 0);
 
-      if (cgst > 0 || sgst > 0) {
+      // Rule: Compare Customer GST first 2 digits vs Company GST first 2 digits
+      const custGst = selectedCust.gstNumber ? selectedCust.gstNumber.trim() : '';
+      const compGst = companyGst ? companyGst.trim() : '';
+      
+      const custStateCode = custGst.match(/^\d{2}/) ? custGst.substring(0, 2) : '07';
+      const compStateCode = compGst.match(/^\d{2}/) ? compGst.substring(0, 2) : '07';
+      const isSameState = custStateCode === compStateCode;
+
+      if (isSameState) {
         setGenGstType('INTRASTATE');
-        setGenGstRate((cgst + sgst));
-      } else if (igst > 0) {
+        setGenGstRate(cgst + sgst || 5);
+      } else {
         setGenGstType('INTERSTATE');
-        setGenGstRate(igst);
+        setGenGstRate(igst || 5);
       }
+
+      setGenIsRcm(!!(selectedCust as any).isRcm);
     }
   };
 
@@ -329,6 +369,7 @@ export default function InvoicesPage() {
           gstRate: Number(genGstRate),
           invoiceDate: new Date(genInvoiceDate).toISOString(),
           dueDate: new Date(genDueDate).toISOString(),
+          isRcm: genIsRcm,
         }),
       });
 
@@ -405,14 +446,17 @@ export default function InvoicesPage() {
     setGenCustomerFilter('');
     setGenStep(1);
     setGenCustomerCategory('');
+    setGenIsRcm(false);
     
     try {
-      const [tripsRes, customersRes] = await Promise.all([
+      const [tripsRes, customersRes, tenantRes] = await Promise.all([
         api.request('/invoices/uninvoiced-trips'),
         api.request('/customers?limit=100'),
+        api.request('/tenant-settings'),
       ]);
       setUninvoicedTrips(tripsRes);
       setAllCustomers(customersRes.data || []);
+      setCompanyGst(tenantRes?.companyGst || '');
       setIsGenerateOpen(true);
     } catch (err: any) {
       alert(err.message || 'Failed to load eligible uninvoiced trips');
@@ -948,6 +992,19 @@ export default function InvoicesPage() {
                             />
                           </div>
                         </div>
+
+                        <div className="flex items-center space-x-2 pt-2">
+                          <input
+                            type="checkbox"
+                            id="genIsRcm"
+                            checked={genIsRcm}
+                            onChange={(e) => setGenIsRcm(e.target.checked)}
+                            className="w-4 h-4 rounded border-[#E2E8F0] text-blue-600 accent-blue-600 cursor-pointer"
+                          />
+                          <label htmlFor="genIsRcm" className="text-xs font-bold text-[#475569] uppercase cursor-pointer select-none">
+                            Reverse Charge Mechanism (RCM)
+                          </label>
+                        </div>
                       </div>
 
                       {/* Right: Consolidated Receipt Preview */}
@@ -976,51 +1033,23 @@ export default function InvoicesPage() {
                             <span>Sub Total</span>
                             <span>₹{calcPreview.subtotal.toLocaleString()}</span>
                           </div>
-                          {selectedTrips[0]?.booking.customer && (
-                            Number((selectedTrips[0].booking.customer as any).cgstRate || 0) > 0 ||
-                            Number((selectedTrips[0].booking.customer as any).sgstRate || 0) > 0 ||
-                            Number((selectedTrips[0].booking.customer as any).igstRate || 0) > 0
-                          ) ? (
-                            <>
-                              {Number((selectedTrips[0].booking.customer as any).cgstRate || 0) > 0 && (
-                                <div className="flex justify-between text-[#64748B]">
-                                  <span>CGST ({Number((selectedTrips[0].booking.customer as any).cgstRate)}%)</span>
-                                  <span>₹{calcPreview.cgst.toLocaleString()}</span>
-                                </div>
-                              )}
-                              {Number((selectedTrips[0].booking.customer as any).sgstRate || 0) > 0 && (
-                                <div className="flex justify-between text-[#64748B]">
-                                  <span>SGST ({Number((selectedTrips[0].booking.customer as any).sgstRate)}%)</span>
-                                  <span>₹{calcPreview.sgst.toLocaleString()}</span>
-                                </div>
-                              )}
-                              {Number((selectedTrips[0].booking.customer as any).igstRate || 0) > 0 && (
-                                <div className="flex justify-between text-[#64748B]">
-                                  <span>IGST ({Number((selectedTrips[0].booking.customer as any).igstRate)}%)</span>
-                                  <span>₹{calcPreview.igst.toLocaleString()}</span>
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              {genGstType === 'INTRASTATE' ? (
-                                <>
-                                  <div className="flex justify-between text-[#64748B]">
-                                    <span>CGST ({genGstRate / 2}%)</span>
-                                    <span>₹{calcPreview.cgst.toLocaleString()}</span>
-                                  </div>
-                                  <div className="flex justify-between text-[#64748B]">
-                                    <span>SGST ({genGstRate / 2}%)</span>
-                                    <span>₹{calcPreview.sgst.toLocaleString()}</span>
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="flex justify-between text-[#64748B]">
-                                  <span>IGST ({genGstRate}%)</span>
-                                  <span>₹{calcPreview.igst.toLocaleString()}</span>
-                                </div>
-                              )}
-                            </>
+                          {calcPreview.cgstRate > 0 && (
+                            <div className="flex justify-between text-[#64748B]">
+                              <span>CGST ({calcPreview.cgstRate}%)</span>
+                              <span>₹{calcPreview.cgst.toLocaleString()}</span>
+                            </div>
+                          )}
+                          {calcPreview.sgstRate > 0 && (
+                            <div className="flex justify-between text-[#64748B]">
+                              <span>SGST ({calcPreview.sgstRate}%)</span>
+                              <span>₹{calcPreview.sgst.toLocaleString()}</span>
+                            </div>
+                          )}
+                          {calcPreview.igstRate > 0 && (
+                            <div className="flex justify-between text-[#64748B]">
+                              <span>IGST ({calcPreview.igstRate}%)</span>
+                              <span>₹{calcPreview.igst.toLocaleString()}</span>
+                            </div>
                           )}
                         </div>
 

@@ -40,6 +40,7 @@ let CustomersService = class CustomersService {
                     cgstRate: dto.cgstRate ?? 0,
                     sgstRate: dto.sgstRate ?? 0,
                     igstRate: dto.igstRate ?? 0,
+                    isRcm: !!dto.isRcm,
                 },
             });
             if (dto.rateCards && Array.isArray(dto.rateCards)) {
@@ -168,6 +169,7 @@ let CustomersService = class CustomersService {
                     cgstRate: dto.cgstRate,
                     sgstRate: dto.sgstRate,
                     igstRate: dto.igstRate,
+                    isRcm: dto.isRcm !== undefined ? !!dto.isRcm : undefined,
                 },
             });
             if (dto.rateCards && Array.isArray(dto.rateCards)) {

@@ -54,5 +54,8 @@ export class CreateCustomerDto {
   igstRate?: number;
 
   @IsOptional()
+  isRcm?: boolean;
+
+  @IsOptional()
   rateCards?: any[];
 }

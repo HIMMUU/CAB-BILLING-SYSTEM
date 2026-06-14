@@ -17,6 +17,7 @@ interface Customer {
   creditLimit: string | number;
   paymentTerms: string | null;
   status: string;
+  isRcm?: boolean;
 }
 
 export default function CustomersPage() {
@@ -60,6 +61,7 @@ export default function CustomersPage() {
     cgstRate: 0,
     sgstRate: 0,
     igstRate: 0,
+    isRcm: false,
   });
 
   const fetchCategories = async () => {
@@ -133,6 +135,7 @@ export default function CustomersPage() {
       cgstRate: 2.5,
       sgstRate: 2.5,
       igstRate: 5.0,
+      isRcm: false,
     });
 
     const defaultRows = categories.map((cat) => ({
@@ -178,6 +181,7 @@ export default function CustomersPage() {
         cgstRate: Number(fullCust.cgstRate || 0),
         sgstRate: Number(fullCust.sgstRate || 0),
         igstRate: Number(fullCust.igstRate || 0),
+        isRcm: !!fullCust.isRcm,
       });
 
       if (fullCust.rateCards && fullCust.rateCards.length > 0) {
@@ -372,6 +376,7 @@ export default function CustomersPage() {
         cgstRate: Number(formData.cgstRate || 0),
         sgstRate: Number(formData.sgstRate || 0),
         igstRate: Number(formData.igstRate || 0),
+        isRcm: !!formData.isRcm,
         rateCards: gridRows.map((row) => ({
           vehicleCategoryId: row.vehicleCategoryId || undefined,
           vehicleCategoryName: row.vehicleCategoryName,
@@ -834,8 +839,22 @@ export default function CustomersPage() {
                     />
                   </div>
 
-                  <div className="flex items-end text-xs text-[#1E40AF] pb-2 font-medium">
-                    * If configured, these rates override tenant active tax brackets on invoice generation.
+                  <div className="flex flex-col justify-end gap-2 text-xs text-[#1E40AF]">
+                    <div className="flex items-center space-x-2 pb-1">
+                      <input
+                        type="checkbox"
+                        id="customerIsRcm"
+                        checked={formData.isRcm}
+                        onChange={(e) => setFormData({ ...formData, isRcm: e.target.checked })}
+                        className="w-4 h-4 rounded border-[#BFDBFE] text-blue-600 accent-blue-600 cursor-pointer"
+                      />
+                      <label htmlFor="customerIsRcm" className="text-xs font-bold uppercase cursor-pointer select-none">
+                        Reverse Charge (RCM)
+                      </label>
+                    </div>
+                    <div className="text-[10px] font-medium leading-tight text-blue-700/80">
+                      * If configured, these rates override tenant active tax brackets on invoice generation.
+                    </div>
                   </div>
                 </div>
               </div>

@@ -39,6 +39,7 @@ export declare class PaymentsController {
                     cgstRate: import("@prisma/client/runtime/library").Decimal;
                     sgstRate: import("@prisma/client/runtime/library").Decimal;
                     igstRate: import("@prisma/client/runtime/library").Decimal;
+                    isRcm: boolean;
                 };
             } & {
                 id: string;
@@ -49,6 +50,7 @@ export declare class PaymentsController {
                 cgstRate: import("@prisma/client/runtime/library").Decimal;
                 sgstRate: import("@prisma/client/runtime/library").Decimal;
                 igstRate: import("@prisma/client/runtime/library").Decimal;
+                isRcm: boolean;
                 customerId: string;
                 s3Url: string | null;
                 toll: import("@prisma/client/runtime/library").Decimal;
@@ -111,6 +113,7 @@ export declare class PaymentsController {
                 cgstRate: import("@prisma/client/runtime/library").Decimal;
                 sgstRate: import("@prisma/client/runtime/library").Decimal;
                 igstRate: import("@prisma/client/runtime/library").Decimal;
+                isRcm: boolean;
             };
         } & {
             id: string;
@@ -121,6 +124,7 @@ export declare class PaymentsController {
             cgstRate: import("@prisma/client/runtime/library").Decimal;
             sgstRate: import("@prisma/client/runtime/library").Decimal;
             igstRate: import("@prisma/client/runtime/library").Decimal;
+            isRcm: boolean;
             customerId: string;
             s3Url: string | null;
             toll: import("@prisma/client/runtime/library").Decimal;

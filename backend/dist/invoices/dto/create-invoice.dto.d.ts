@@ -9,4 +9,5 @@ export declare class CreateInvoiceDto {
     dueDate?: string;
     gstType: GstType;
     gstRate?: number;
+    isRcm?: boolean;
 }

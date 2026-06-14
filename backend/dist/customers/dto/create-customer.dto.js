@@ -81,6 +81,10 @@ __decorate([
 ], CreateCustomerDto.prototype, "igstRate", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreateCustomerDto.prototype, "isRcm", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
 ], CreateCustomerDto.prototype, "rateCards", void 0);
 //# sourceMappingURL=create-customer.dto.js.map

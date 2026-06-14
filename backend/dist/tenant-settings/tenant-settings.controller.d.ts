@@ -5,9 +5,9 @@ export declare class TenantSettingsController {
     constructor(tenantSettingsService: TenantSettingsService);
     getSettings(): Promise<{
         id: string;
+        name: string;
         slug: string | null;
         domain: string | null;
-        name: string;
         logoUrl: string | null;
         companyAddress: string | null;
         companyPhone: string | null;
@@ -38,9 +38,9 @@ export declare class TenantSettingsController {
     }>;
     updateSettings(dto: UpdateTenantSettingsDto): Promise<{
         id: string;
+        name: string;
         slug: string | null;
         domain: string | null;
-        name: string;
         logoUrl: string | null;
         companyAddress: string | null;
         companyPhone: string | null;

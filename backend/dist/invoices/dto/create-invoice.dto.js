@@ -50,4 +50,8 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], CreateInvoiceDto.prototype, "gstRate", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreateInvoiceDto.prototype, "isRcm", void 0);
 //# sourceMappingURL=create-invoice.dto.js.map

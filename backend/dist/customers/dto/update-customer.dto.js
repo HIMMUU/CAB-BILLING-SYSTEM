@@ -82,6 +82,10 @@ __decorate([
 ], UpdateCustomerDto.prototype, "igstRate", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], UpdateCustomerDto.prototype, "isRcm", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
 ], UpdateCustomerDto.prototype, "rateCards", void 0);
 //# sourceMappingURL=update-customer.dto.js.map

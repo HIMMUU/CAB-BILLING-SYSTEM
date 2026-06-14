@@ -33,6 +33,7 @@ export class CustomersService {
           cgstRate: dto.cgstRate ?? 0,
           sgstRate: dto.sgstRate ?? 0,
           igstRate: dto.igstRate ?? 0,
+          isRcm: !!dto.isRcm,
         } as any,
       });
 
@@ -185,6 +186,7 @@ export class CustomersService {
           cgstRate: dto.cgstRate,
           sgstRate: dto.sgstRate,
           igstRate: dto.igstRate,
+          isRcm: dto.isRcm !== undefined ? !!dto.isRcm : undefined,
         },
       });
 

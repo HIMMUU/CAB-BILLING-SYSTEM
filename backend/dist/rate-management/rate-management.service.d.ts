@@ -37,6 +37,7 @@ export declare class RateManagementService {
             cgstRate: import("@prisma/client/runtime/library").Decimal;
             sgstRate: import("@prisma/client/runtime/library").Decimal;
             igstRate: import("@prisma/client/runtime/library").Decimal;
+            isRcm: boolean;
         } | null;
         vehicleCategory: {
             id: string;
@@ -100,6 +101,7 @@ export declare class RateManagementService {
                 cgstRate: import("@prisma/client/runtime/library").Decimal;
                 sgstRate: import("@prisma/client/runtime/library").Decimal;
                 igstRate: import("@prisma/client/runtime/library").Decimal;
+                isRcm: boolean;
             } | null;
             vehicleCategory: {
                 id: string;
@@ -161,6 +163,7 @@ export declare class RateManagementService {
             cgstRate: import("@prisma/client/runtime/library").Decimal;
             sgstRate: import("@prisma/client/runtime/library").Decimal;
             igstRate: import("@prisma/client/runtime/library").Decimal;
+            isRcm: boolean;
         } | null;
         vehicleCategory: {
             id: string;
@@ -215,6 +218,7 @@ export declare class RateManagementService {
             cgstRate: import("@prisma/client/runtime/library").Decimal;
             sgstRate: import("@prisma/client/runtime/library").Decimal;
             igstRate: import("@prisma/client/runtime/library").Decimal;
+            isRcm: boolean;
         } | null;
         vehicleCategory: {
             id: string;
@@ -269,6 +273,7 @@ export declare class RateManagementService {
             cgstRate: import("@prisma/client/runtime/library").Decimal;
             sgstRate: import("@prisma/client/runtime/library").Decimal;
             igstRate: import("@prisma/client/runtime/library").Decimal;
+            isRcm: boolean;
         } | null;
         vehicleCategory: {
             id: string;

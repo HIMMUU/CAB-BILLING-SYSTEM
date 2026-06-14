@@ -46,6 +46,7 @@ export declare class TripsService {
                     cgstRate: import("@prisma/client/runtime/library").Decimal;
                     sgstRate: import("@prisma/client/runtime/library").Decimal;
                     igstRate: import("@prisma/client/runtime/library").Decimal;
+                    isRcm: boolean;
                 };
             } & {
                 id: string;

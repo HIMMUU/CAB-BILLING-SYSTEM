@@ -235,18 +235,18 @@ export class TripsService {
     const subtotal = baseFare + extraKm + toll + parking + stateTax + mcd + nightCharges + miscCharges;
 
     // 3. Calculate Taxes based on GST rates in the invoice
+    const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd));
+
     const cgstRate = Number(invoice.cgstRate || 0);
     const sgstRate = Number(invoice.sgstRate || 0);
     const igstRate = Number(invoice.igstRate || 0);
 
-    const cgstAmount = (subtotal * cgstRate) / 100;
-    const sgstAmount = (subtotal * sgstRate) / 100;
-    const igstAmount = (subtotal * igstRate) / 100;
+    const cgstAmount = (gstTaxableAmount * cgstRate) / 100;
+    const sgstAmount = (gstTaxableAmount * sgstRate) / 100;
+    const igstAmount = (gstTaxableAmount * igstRate) / 100;
     const totalTax = cgstAmount + sgstAmount + igstAmount;
 
-    const isCorporate = invoice.customer.type === 'CORPORATE';
-    const totalGstRate = cgstRate + sgstRate + igstRate;
-    const isRcm = isCorporate && Math.abs(totalGstRate - 5) < 0.01;
+    const isRcm = !!invoice.isRcm;
     const totalAmount = isRcm ? subtotal : (subtotal + totalTax);
 
     // dueAmount = totalAmount - paidAmount

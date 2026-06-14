@@ -13,5 +13,6 @@ export declare class CreateCustomerDto {
     cgstRate?: number;
     sgstRate?: number;
     igstRate?: number;
+    isRcm?: boolean;
     rateCards?: any[];
 }

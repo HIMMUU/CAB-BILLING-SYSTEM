@@ -55,5 +55,8 @@ export class UpdateCustomerDto {
   igstRate?: number;
 
   @IsOptional()
+  isRcm?: boolean;
+
+  @IsOptional()
   rateCards?: any[];
 }

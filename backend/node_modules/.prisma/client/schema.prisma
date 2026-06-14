@@ -188,6 +188,7 @@ model Customer {
   cgstRate       Decimal      @default(0.00) @map("cgst_rate") @db.Decimal(5, 2)
   sgstRate       Decimal      @default(0.00) @map("sgst_rate") @db.Decimal(5, 2)
   igstRate       Decimal      @default(0.00) @map("igst_rate") @db.Decimal(5, 2)
+  isRcm          Boolean      @default(false) @map("is_rcm")
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -488,6 +489,7 @@ model Invoice {
   paidAmount     Decimal       @default(0.00) @map("paid_amount") @db.Decimal(12, 2)
   dueAmount      Decimal       @map("due_amount") @db.Decimal(12, 2)
   s3Url          String?       @map("s3_url") @db.VarChar(512)
+  isRcm          Boolean       @default(false) @map("is_rcm")
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz
 
