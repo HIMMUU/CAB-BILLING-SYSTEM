@@ -412,7 +412,7 @@ export default function DutySlipsPage() {
       const extraKmRateVal = f.isManualExtraKmRate ? f.extraKmRate : calculatedExtraKmRate;
       const extraHourRateVal = f.isManualExtraHourRate ? f.extraHourRate : calculatedExtraHourRate;
 
-      const driverAllowanceVal = f.includeDriverAllowance 
+      const driverAllowanceVal = f.includeDriverAllowance
         ? (f.isManualDriverAllowance ? f.driverAllowance : calculatedDriverAllowance)
         : 0;
       const nightChargesVal = f.includeNightCharges
@@ -702,16 +702,16 @@ export default function DutySlipsPage() {
 
       // If CLOSED, register/close the Trip record
       if (targetStatus === 'CLOSED') {
-        const subtotal = Number(df.baseFare || 0) + 
-                         Number(df.extraKmCharged || 0) + 
-                         Number(df.extraHoursCharged || 0) + 
-                         Number(df.toll || 0) + 
-                         Number(df.parking || 0) + 
-                         Number(df.stateTax || 0) + 
-                         Number(df.mcdToll || 0) + 
-                         Number(df.driverAllowance || 0) + 
-                         Number(df.nightChargesOnTime || 0) +
-                         Number(df.extraCharges || 0);
+        const subtotal = Number(df.baseFare || 0) +
+          Number(df.extraKmCharged || 0) +
+          Number(df.extraHoursCharged || 0) +
+          Number(df.toll || 0) +
+          Number(df.parking || 0) +
+          Number(df.stateTax || 0) +
+          Number(df.mcdToll || 0) +
+          Number(df.driverAllowance || 0) +
+          Number(df.nightChargesOnTime || 0) +
+          Number(df.extraCharges || 0);
 
         const totalAmount = subtotal;
 
@@ -764,7 +764,7 @@ export default function DutySlipsPage() {
       console.error(err);
     }
 
-    const customerTaxRate = customerObj 
+    const customerTaxRate = customerObj
       ? Number(customerObj.cgstRate || 0) + Number(customerObj.sgstRate || 0) + Number(customerObj.igstRate || 0)
       : Number(slip.booking?.customer?.cgstRate || 0) + Number(slip.booking?.customer?.sgstRate || 0) + Number(slip.booking?.customer?.igstRate || 0);
 
@@ -825,7 +825,7 @@ export default function DutySlipsPage() {
       nightChargesOnTime: Number(slip.nightCharges) || 0,
       billingMode: 'N',
       extraCharges: Number(slip.extraCharges) || 0,
-      
+
       // Override values
       baseFare: slip.trip ? Number((slip.trip as any).baseFareCharged) : 0,
       extraKmRate: 0,
@@ -914,14 +914,14 @@ export default function DutySlipsPage() {
               onClick={() => { loadAssets(); setBookingForm({ bookingId: '', reportingTime: '', startKm: 0, employeeId: '' }); setFormError(null); setIsBookingDrawerOpen(true); }}
               className="py-2 px-4 text-sm font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition flex items-center gap-2 shadow-sm"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
               From Booking
             </button>
             <button
               onClick={() => { loadAssets(); setFormError(null); setIsDirectOpen(true); }}
               className="py-2 px-5 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition flex items-center gap-2 shadow-sm"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
               Create Duty Slip
             </button>
           </div>
@@ -933,8 +933,8 @@ export default function DutySlipsPage() {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <form onSubmit={(e) => { e.preventDefault(); setPage(1); fetchDutySlips(); }} className="relative flex-1 max-w-xs">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search slip, booking, driver..." className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"/>
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search slip, booking, driver..." className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
         </form>
         <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
           {['ALL', 'DRAFT', 'FILLED', 'CLOSED'].map(s => (
@@ -952,7 +952,7 @@ export default function DutySlipsPage() {
           <div className="flex items-center justify-center h-48 text-slate-500 text-sm">Loading duty slips…</div>
         ) : dutySlips.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-slate-400 gap-2">
-            <svg className="w-10 h-10 opacity-40" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg>
+            <svg className="w-10 h-10 opacity-40" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
             <p className="text-sm font-medium">No duty slips found</p>
           </div>
         ) : (
@@ -960,7 +960,7 @@ export default function DutySlipsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50">
-                  {['Slip No.', 'Booking', 'Customer', 'Driver', 'Vehicle', 'Date', 'Status', 'KM', ''].map(h => (
+                  {['Slip No.', 'Booking', 'Customer', 'Guest Name', 'Driver', 'Vehicle', 'Date', 'Status', 'KM', ''].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -972,12 +972,14 @@ export default function DutySlipsPage() {
                     <td className="px-4 py-3.5 text-xs text-slate-600 font-medium">{slip.booking?.bookingNumber || '—'}</td>
                     <td className="px-4 py-3.5">
                       <div className="font-semibold text-slate-800 truncate max-w-[140px]">{slip.booking?.customer?.name}</div>
-                      {slip.booking?.guestName && (
-                        <div className="text-[10px] text-slate-500 font-medium truncate max-w-[140px]">
-                          Guest: {slip.booking.guestSalutation ? `${slip.booking.guestSalutation} ` : ''}{slip.booking.guestName}
-                        </div>
-                      )}
                       {slip.employeeId && <div className="text-[10px] text-slate-400 font-mono">{slip.employeeId}</div>}
+                    </td>
+                    <td className="px-4 py-3.5 text-xs text-slate-700 font-medium">
+                      {slip.booking?.guestName ? (
+                        <div className="truncate max-w-[120px] font-semibold text-slate-800">
+                          {slip.booking.guestSalutation ? `${slip.booking.guestSalutation} ` : ''}{slip.booking.guestName}
+                        </div>
+                      ) : '—'}
                     </td>
                     <td className="px-4 py-3.5 text-slate-700 text-xs">{slip.driver?.name || '—'}</td>
                     <td className="px-4 py-3.5 text-xs font-mono text-slate-600">{slip.vehicle?.vehicleNumber || '—'}</td>
@@ -1003,26 +1005,26 @@ export default function DutySlipsPage() {
                             className="px-2.5 py-1.5 text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition">
                             Edit
                           </button>
-                           <button
-                             onClick={() => previewPdf(slip.id, slip.dutySlipNumber)}
-                             className="px-2 py-1 text-[11px] font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition inline-flex items-center gap-1"
-                             title="Preview PDF"
-                           >
-                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                               <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                             </svg>
-                             Preview
-                           </button>
-                           <button onClick={() => downloadPdf(slip.id, slip.dutySlipNumber)}
-                             className="p-1.5 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
-                             title="Download PDF"
-                           >
-                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
-                           </button>
+                          <button
+                            onClick={() => previewPdf(slip.id, slip.dutySlipNumber)}
+                            className="px-2 py-1 text-[11px] font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition inline-flex items-center gap-1"
+                            title="Preview PDF"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                            </svg>
+                            Preview
+                          </button>
+                          <button onClick={() => downloadPdf(slip.id, slip.dutySlipNumber)}
+                            className="p-1.5 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
+                            title="Download PDF"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                          </button>
                           <button onClick={() => handleDelete(slip.id)}
                             className="p-1.5 text-rose-400 hover:text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-100 rounded-lg transition">
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
                           </button>
                         </div>
                       )}
@@ -1059,7 +1061,7 @@ export default function DutySlipsPage() {
                 <p className="text-xs text-slate-500 mt-0.5">Generate a duty slip from an assigned booking</p>
               </div>
               <button onClick={() => setIsBookingDrawerOpen(false)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
               </button>
             </div>
 
@@ -1079,15 +1081,15 @@ export default function DutySlipsPage() {
               </Field>
 
               <Field label="Reporting Date & Time *">
-                <input type="datetime-local" required value={bookingForm.reportingTime} onChange={e => setBookingForm(f => ({ ...f, reportingTime: e.target.value }))} className={inp}/>
+                <input type="datetime-local" required value={bookingForm.reportingTime} onChange={e => setBookingForm(f => ({ ...f, reportingTime: e.target.value }))} className={inp} />
               </Field>
 
               <Field label="Start Odometer (KM) *">
-                <input type="number" required min={0} value={bookingForm.startKm || ''} onChange={e => setBookingForm(f => ({ ...f, startKm: parseInt(e.target.value) || 0 }))} className={inp + ' font-mono'} placeholder="e.g. 12540"/>
+                <input type="number" required min={0} value={bookingForm.startKm || ''} onChange={e => setBookingForm(f => ({ ...f, startKm: parseInt(e.target.value) || 0 }))} className={inp + ' font-mono'} placeholder="e.g. 12540" />
               </Field>
 
               <Field label="Employee ID (optional)">
-                <input type="text" value={bookingForm.employeeId} onChange={e => setBookingForm(f => ({ ...f, employeeId: e.target.value }))} className={inp} placeholder="EMP-001"/>
+                <input type="text" value={bookingForm.employeeId} onChange={e => setBookingForm(f => ({ ...f, employeeId: e.target.value }))} className={inp} placeholder="EMP-001" />
               </Field>
             </form>
 
@@ -1108,7 +1110,7 @@ export default function DutySlipsPage() {
           <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm shrink-0">
             <div className="flex items-center gap-3">
               <button type="button" onClick={() => { setIsDirectOpen(false); setEditingSlip(null); }} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg>
               </button>
               <div>
                 <h2 className="text-base font-bold text-slate-900">
@@ -1126,7 +1128,7 @@ export default function DutySlipsPage() {
               </button>
               {(df.dutyEndDate && df.dutyEndTime && df.dutyEndMeter > 0) && (
                 <button type="button" onClick={(e) => handleUnifiedSave(e, true)} disabled={submitting} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition disabled:opacity-60 shadow-sm flex items-center gap-1.5">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
                   Close & Finalize Duty
                 </button>
               )}
@@ -1137,10 +1139,10 @@ export default function DutySlipsPage() {
 
           {/* Form Grid */}
           <div className="flex-1 overflow-y-auto px-6 py-6 max-w-[1500px] mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6">
-            
+
             {/* ─── LEFT COLUMN: Operational Inputs (7/12) ─── */}
             <div className="lg:col-span-7 space-y-6">
-              
+
               {/* Customer Information Card */}
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <div className="bg-slate-50 px-5 py-3 border-b border-slate-200">
@@ -1169,22 +1171,22 @@ export default function DutySlipsPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Phone / Mobile">
-                      <input type="tel" value={df.phone} onChange={e => setDf(f => ({ ...f, phone: e.target.value }))} className={inp} placeholder="+91 98765 43210"/>
+                      <input type="tel" value={df.phone} onChange={e => setDf(f => ({ ...f, phone: e.target.value }))} className={inp} placeholder="+91 98765 43210" />
                     </Field>
                     <Field label="Full Address">
-                      <input type="text" value={df.address} onChange={e => setDf(f => ({ ...f, address: e.target.value }))} className={inp} placeholder="Billing Address"/>
+                      <input type="text" value={df.address} onChange={e => setDf(f => ({ ...f, address: e.target.value }))} className={inp} placeholder="Billing Address" />
                     </Field>
                   </div>
 
                   <div className="grid grid-cols-3 gap-4">
                     <Field label="Booking By">
-                      <input type="text" value={df.bookingBy} onChange={e => setDf(f => ({ ...f, bookingBy: e.target.value }))} className={inp} placeholder="Booked By"/>
+                      <input type="text" value={df.bookingBy} onChange={e => setDf(f => ({ ...f, bookingBy: e.target.value }))} className={inp} placeholder="Booked By" />
                     </Field>
                     <Field label="File Code">
-                      <input type="text" value={df.fileCode} onChange={e => setDf(f => ({ ...f, fileCode: e.target.value }))} className={inp} placeholder="FC-001"/>
+                      <input type="text" value={df.fileCode} onChange={e => setDf(f => ({ ...f, fileCode: e.target.value }))} className={inp} placeholder="FC-001" />
                     </Field>
                     <Field label="Employee ID">
-                      <input type="text" value={df.employeeId} onChange={e => setDf(f => ({ ...f, employeeId: e.target.value }))} className={inp} placeholder="EMP-001"/>
+                      <input type="text" value={df.employeeId} onChange={e => setDf(f => ({ ...f, employeeId: e.target.value }))} className={inp} placeholder="EMP-001" />
                     </Field>
                   </div>
                 </div>
@@ -1218,7 +1220,7 @@ export default function DutySlipsPage() {
                       </select>
                     </Field>
                     <Field label="Car Name">
-                      <input type="text" value={df.carName} onChange={e => setDf(f => ({ ...f, carName: e.target.value }))} className={inp} placeholder="e.g. Innova Crysta"/>
+                      <input type="text" value={df.carName} onChange={e => setDf(f => ({ ...f, carName: e.target.value }))} className={inp} placeholder="e.g. Innova Crysta" />
                     </Field>
                   </div>
 
@@ -1231,21 +1233,21 @@ export default function DutySlipsPage() {
                     </Field>
                     <Field label="Reporting Time *">
                       <div className="flex gap-2">
-                        <input type="date" required value={df.reportingDate} onChange={e => setDf(f => ({ ...f, reportingDate: e.target.value }))} className={inp + ' w-2/3'}/>
-                        <input type="time" required value={df.reportingTime} onChange={e => setDf(f => ({ ...f, reportingTime: e.target.value }))} className={inp + ' w-1/3'}/>
+                        <input type="date" required value={df.reportingDate} onChange={e => setDf(f => ({ ...f, reportingDate: e.target.value }))} className={inp + ' w-2/3'} />
+                        <input type="time" required value={df.reportingTime} onChange={e => setDf(f => ({ ...f, reportingTime: e.target.value }))} className={inp + ' w-1/3'} />
                       </div>
                     </Field>
                   </div>
 
                   <div className="grid grid-cols-3 gap-4">
                     <Field label="Pickup Location">
-                      <input type="text" value={df.pickupLocation} onChange={e => setDf(f => ({ ...f, pickupLocation: e.target.value }))} className={inp} placeholder="IGI Airport T3"/>
+                      <input type="text" value={df.pickupLocation} onChange={e => setDf(f => ({ ...f, pickupLocation: e.target.value }))} className={inp} placeholder="IGI Airport T3" />
                     </Field>
                     <Field label="Drop Location">
-                      <input type="text" value={df.dropLocation} onChange={e => setDf(f => ({ ...f, dropLocation: e.target.value }))} className={inp} placeholder="Connaught Place"/>
+                      <input type="text" value={df.dropLocation} onChange={e => setDf(f => ({ ...f, dropLocation: e.target.value }))} className={inp} placeholder="Connaught Place" />
                     </Field>
                     <Field label="Guest Name">
-                      <input type="text" value={df.guestName} onChange={e => setDf(f => ({ ...f, guestName: e.target.value }))} className={inp} placeholder="Passenger Name"/>
+                      <input type="text" value={df.guestName} onChange={e => setDf(f => ({ ...f, guestName: e.target.value }))} className={inp} placeholder="Passenger Name" />
                     </Field>
                   </div>
                 </div>
@@ -1260,32 +1262,32 @@ export default function DutySlipsPage() {
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-3 p-4 bg-blue-50/40 rounded-xl border border-blue-100/40">
                       <p className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-blue-500 inline-block"/>Start Metrics
+                        <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />Start Metrics
                       </p>
-                      <Field label="Start Date"><input type="date" value={df.dutyStartDate} onChange={e => setDf(f => ({ ...f, dutyStartDate: e.target.value }))} className={inp}/></Field>
-                      <Field label="Start Time"><input type="time" value={df.dutyStartTime} onChange={e => setDf(f => ({ ...f, dutyStartTime: e.target.value }))} className={inp}/></Field>
-                      <Field label="Start Meter (KM)"><input type="number" min={0} value={df.dutyStartMeter || ''} onChange={e => setDf(f => ({ ...f, dutyStartMeter: parseInt(e.target.value) || 0 }))} className={inp + ' font-mono'}/></Field>
+                      <Field label="Start Date"><input type="date" value={df.dutyStartDate} onChange={e => setDf(f => ({ ...f, dutyStartDate: e.target.value }))} className={inp} /></Field>
+                      <Field label="Start Time"><input type="time" value={df.dutyStartTime} onChange={e => setDf(f => ({ ...f, dutyStartTime: e.target.value }))} className={inp} /></Field>
+                      <Field label="Start Meter (KM)"><input type="number" min={0} value={df.dutyStartMeter || ''} onChange={e => setDf(f => ({ ...f, dutyStartMeter: parseInt(e.target.value) || 0 }))} className={inp + ' font-mono'} /></Field>
                     </div>
                     <div className="space-y-3 p-4 bg-emerald-50/40 rounded-xl border border-emerald-100/40">
                       <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"/>End Metrics
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />End Metrics
                       </p>
-                      <Field label="End Date"><input type="date" value={df.dutyEndDate} onChange={e => setDf(f => ({ ...f, dutyEndDate: e.target.value }))} className={inp}/></Field>
-                      <Field label="End Time"><input type="time" value={df.dutyEndTime} onChange={e => setDf(f => ({ ...f, dutyEndTime: e.target.value }))} className={inp}/></Field>
-                      <Field label="End Meter (KM)"><input type="number" min={0} value={df.dutyEndMeter || ''} onChange={e => setDf(f => ({ ...f, dutyEndMeter: parseInt(e.target.value) || 0 }))} className={inp + ' font-mono'}/></Field>
+                      <Field label="End Date"><input type="date" value={df.dutyEndDate} onChange={e => setDf(f => ({ ...f, dutyEndDate: e.target.value }))} className={inp} /></Field>
+                      <Field label="End Time"><input type="time" value={df.dutyEndTime} onChange={e => setDf(f => ({ ...f, dutyEndTime: e.target.value }))} className={inp} /></Field>
+                      <Field label="End Meter (KM)"><input type="number" min={0} value={df.dutyEndMeter || ''} onChange={e => setDf(f => ({ ...f, dutyEndMeter: parseInt(e.target.value) || 0 }))} className={inp + ' font-mono'} /></Field>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-4 gap-3">
-                    <Field label="Actual KM"><input type="number" min={0} step="0.01" value={df.actualKm || ''} onChange={e => setDf(f => ({ ...f, actualKm: parseFloat(e.target.value) || 0 }))} className={inp + ' font-mono bg-slate-50'}/></Field>
-                    <Field label="Billed KM"><input type="number" min={0} step="0.01" value={df.billedKm || ''} onChange={e => setDf(f => ({ ...f, billedKm: parseFloat(e.target.value) || 0 }))} className={inp + ' font-mono'}/></Field>
-                    <Field label="Actual Hrs"><input type="number" min={0} step="0.01" value={df.actualHours || ''} onChange={e => setDf(f => ({ ...f, actualHours: parseFloat(e.target.value) || 0 }))} className={inp + ' font-mono bg-slate-50'}/></Field>
-                    <Field label="Billed Hrs"><input type="number" min={0} step="0.01" value={df.billedHours || ''} onChange={e => setDf(f => ({ ...f, billedHours: parseFloat(e.target.value) || 0 }))} className={inp + ' font-mono'}/></Field>
+                    <Field label="Actual KM"><input type="number" min={0} step="0.01" value={df.actualKm || ''} onChange={e => setDf(f => ({ ...f, actualKm: parseFloat(e.target.value) || 0 }))} className={inp + ' font-mono bg-slate-50'} /></Field>
+                    <Field label="Billed KM"><input type="number" min={0} step="0.01" value={df.billedKm || ''} onChange={e => setDf(f => ({ ...f, billedKm: parseFloat(e.target.value) || 0 }))} className={inp + ' font-mono'} /></Field>
+                    <Field label="Actual Hrs"><input type="number" min={0} step="0.01" value={df.actualHours || ''} onChange={e => setDf(f => ({ ...f, actualHours: parseFloat(e.target.value) || 0 }))} className={inp + ' font-mono bg-slate-50'} /></Field>
+                    <Field label="Billed Hrs"><input type="number" min={0} step="0.01" value={df.billedHours || ''} onChange={e => setDf(f => ({ ...f, billedHours: parseFloat(e.target.value) || 0 }))} className={inp + ' font-mono'} /></Field>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <Field label="Day Hours"><input type="number" min={0} step="0.5" value={df.dayHours || ''} onChange={e => setDf(f => ({ ...f, dayHours: parseFloat(e.target.value) || 0 }))} className={inp + ' font-mono bg-slate-50'}/></Field>
-                    <Field label="Night Hours"><input type="number" min={0} step="0.5" value={df.nightHours || ''} onChange={e => setDf(f => ({ ...f, nightHours: parseFloat(e.target.value) || 0 }))} className={inp + ' font-mono bg-slate-50'}/></Field>
+                    <Field label="Day Hours"><input type="number" min={0} step="0.5" value={df.dayHours || ''} onChange={e => setDf(f => ({ ...f, dayHours: parseFloat(e.target.value) || 0 }))} className={inp + ' font-mono bg-slate-50'} /></Field>
+                    <Field label="Night Hours"><input type="number" min={0} step="0.5" value={df.nightHours || ''} onChange={e => setDf(f => ({ ...f, nightHours: parseFloat(e.target.value) || 0 }))} className={inp + ' font-mono bg-slate-50'} /></Field>
                   </div>
                 </div>
               </div>
@@ -1303,10 +1305,10 @@ export default function DutySlipsPage() {
                           df.dutyType === 'O' || df.dutyType === 'T'
                             ? 'outstation'
                             : df.pickupType === 'airport' || df.pickupType === 'railway'
-                            ? 'transfer'
-                            : df.billingMode === 'H'
-                            ? 'local_half_day'
-                            : 'local_full_day'
+                              ? 'transfer'
+                              : df.billingMode === 'H'
+                                ? 'local_half_day'
+                                : 'local_full_day'
                         }
                         onChange={e => {
                           const val = e.target.value;
@@ -1333,10 +1335,10 @@ export default function DutySlipsPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Remarks / Internal Notes">
-                      <input type="text" value={df.remarks} onChange={e => setDf(f => ({ ...f, remarks: e.target.value }))} className={inp}/>
+                      <input type="text" value={df.remarks} onChange={e => setDf(f => ({ ...f, remarks: e.target.value }))} className={inp} />
                     </Field>
                     <Field label="Tour Code (optional)">
-                      <input type="text" value={df.tourCode} onChange={e => setDf(f => ({ ...f, tourCode: e.target.value }))} className={inp} placeholder="TC-001"/>
+                      <input type="text" value={df.tourCode} onChange={e => setDf(f => ({ ...f, tourCode: e.target.value }))} className={inp} placeholder="TC-001" />
                     </Field>
                   </div>
                 </div>
@@ -1345,7 +1347,7 @@ export default function DutySlipsPage() {
 
             {/* ─── RIGHT COLUMN: Rate Reference & Interactive Billing (5/12) ─── */}
             <div className="lg:col-span-5 space-y-6">
-              
+
               {/* Rate Card Reference Panel */}
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-3.5">
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Rate Card Reference</h4>
@@ -1372,13 +1374,13 @@ export default function DutySlipsPage() {
                   </div>
 
                   <div className="space-y-3 text-xs divide-y divide-slate-100">
-                    
+
                     {/* Base Fare Row */}
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-slate-600 font-medium">Base Fare (₹)</span>
                       <input type="number" min={0} value={df.baseFare || ''}
                         onChange={e => setDf(f => ({ ...f, baseFare: parseFloat(e.target.value) || 0, isManualBaseFare: true }))}
-                        className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono font-semibold text-right text-emerald-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"/>
+                        className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono font-semibold text-right text-emerald-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
                     </div>
 
                     {/* Extra KM Row */}
@@ -1389,7 +1391,7 @@ export default function DutySlipsPage() {
                           <span className="text-[10px] text-slate-400 font-mono mr-1">Rate:</span>
                           <input type="number" min={0} value={df.extraKmRate || ''}
                             onChange={e => setDf(f => ({ ...f, extraKmRate: parseFloat(e.target.value) || 0, isManualExtraKmRate: true }))}
-                            className="w-14 bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-center font-mono text-[11px] text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"/>
+                            className="w-14 bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-center font-mono text-[11px] text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
                           <span className="text-[10px] text-slate-400 font-mono">/KM</span>
                         </div>
                       </div>
@@ -1399,7 +1401,7 @@ export default function DutySlipsPage() {
                         </span>
                         <input type="number" min={0} value={df.extraKmCharged || ''}
                           onChange={e => setDf(f => ({ ...f, extraKmCharged: parseFloat(e.target.value) || 0, isManualExtraKmCharged: true }))}
-                          className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono font-semibold text-right text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"/>
+                          className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono font-semibold text-right text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
                       </div>
                     </div>
 
@@ -1411,7 +1413,7 @@ export default function DutySlipsPage() {
                           <span className="text-[10px] text-slate-400 font-mono mr-1">Rate:</span>
                           <input type="number" min={0} value={df.extraHourRate || ''}
                             onChange={e => setDf(f => ({ ...f, extraHourRate: parseFloat(e.target.value) || 0, isManualExtraHourRate: true }))}
-                            className="w-14 bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-center font-mono text-[11px] text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"/>
+                            className="w-14 bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-center font-mono text-[11px] text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
                           <span className="text-[10px] text-slate-400 font-mono">/Hr</span>
                         </div>
                       </div>
@@ -1421,7 +1423,7 @@ export default function DutySlipsPage() {
                         </span>
                         <input type="number" min={0} value={df.extraHoursCharged || ''}
                           onChange={e => setDf(f => ({ ...f, extraHoursCharged: parseFloat(e.target.value) || 0, isManualExtraHoursCharged: true }))}
-                          className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono font-semibold text-right text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"/>
+                          className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono font-semibold text-right text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
                       </div>
                     </div>
 
@@ -1430,12 +1432,12 @@ export default function DutySlipsPage() {
                       <div className="flex items-center gap-2">
                         <input type="checkbox" checked={df.includeDriverAllowance}
                           onChange={e => setDf(f => ({ ...f, includeDriverAllowance: e.target.checked }))}
-                          className="rounded text-blue-600 focus:ring-blue-500 bg-white border-slate-300 w-3.5 h-3.5"/>
+                          className="rounded text-blue-600 focus:ring-blue-500 bg-white border-slate-300 w-3.5 h-3.5" />
                         <span className="text-slate-600 font-medium">Driver Allowance (₹)</span>
                       </div>
                       <input type="number" disabled={!df.includeDriverAllowance} min={0} value={df.driverAllowance || ''}
                         onChange={e => setDf(f => ({ ...f, driverAllowance: parseFloat(e.target.value) || 0, isManualDriverAllowance: true }))}
-                        className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono font-semibold text-right text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100 disabled:opacity-40 disabled:bg-slate-100 disabled:text-slate-400"/>
+                        className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono font-semibold text-right text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100 disabled:opacity-40 disabled:bg-slate-100 disabled:text-slate-400" />
                     </div>
 
                     {/* Night Charges */}
@@ -1443,12 +1445,12 @@ export default function DutySlipsPage() {
                       <div className="flex items-center gap-2">
                         <input type="checkbox" checked={df.includeNightCharges}
                           onChange={e => setDf(f => ({ ...f, includeNightCharges: e.target.checked }))}
-                          className="rounded text-blue-600 focus:ring-blue-500 bg-white border-slate-300 w-3.5 h-3.5"/>
+                          className="rounded text-blue-600 focus:ring-blue-500 bg-white border-slate-300 w-3.5 h-3.5" />
                         <span className="text-slate-600 font-medium">Night Surcharges (₹)</span>
                       </div>
                       <input type="number" disabled={!df.includeNightCharges} min={0} value={df.nightChargesOnTime || ''}
                         onChange={e => setDf(f => ({ ...f, nightChargesOnTime: parseFloat(e.target.value) || 0, isManualNightCharges: true }))}
-                        className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono font-semibold text-right text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100 disabled:opacity-40 disabled:bg-slate-100 disabled:text-slate-400"/>
+                        className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono font-semibold text-right text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100 disabled:opacity-40 disabled:bg-slate-100 disabled:text-slate-400" />
                     </div>
 
                     {/* Parking & Tolls & Taxes */}
@@ -1457,25 +1459,25 @@ export default function DutySlipsPage() {
                         <span className="text-[11px] text-slate-505">Parking</span>
                         <input type="number" min={0} value={df.parking || ''}
                           onChange={e => setDf(f => ({ ...f, parking: parseFloat(e.target.value) || 0 }))}
-                          className="w-16 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-right font-mono text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"/>
+                          className="w-16 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-right font-mono text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
                       </div>
                       <div className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
                         <span className="text-[11px] text-slate-505">Tolls</span>
                         <input type="number" min={0} value={df.toll || ''}
                           onChange={e => setDf(f => ({ ...f, toll: parseFloat(e.target.value) || 0 }))}
-                          className="w-16 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-right font-mono text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"/>
+                          className="w-16 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-right font-mono text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
                       </div>
                       <div className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
                         <span className="text-[11px] text-slate-550">State Tax</span>
                         <input type="number" min={0} value={df.stateTax || ''}
                           onChange={e => setDf(f => ({ ...f, stateTax: parseFloat(e.target.value) || 0 }))}
-                          className="w-16 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-right font-mono text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"/>
+                          className="w-16 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-right font-mono text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
                       </div>
                       <div className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
                         <span className="text-[11px] text-slate-550">MCD Toll</span>
                         <input type="number" min={0} value={df.mcdToll || ''}
                           onChange={e => setDf(f => ({ ...f, mcdToll: parseFloat(e.target.value) || 0 }))}
-                          className="w-16 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-right font-mono text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"/>
+                          className="w-16 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-right font-mono text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
                       </div>
                     </div>
 
@@ -1484,7 +1486,7 @@ export default function DutySlipsPage() {
                       <span className="text-slate-600 font-medium">Misc Extra Charges (₹)</span>
                       <input type="number" min={0} value={df.extraCharges || ''}
                         onChange={e => setDf(f => ({ ...f, extraCharges: parseFloat(e.target.value) || 0 }))}
-                        className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono text-right text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"/>
+                        className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono text-right text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
                     </div>
 
                     {/* Grand Total Row */}
