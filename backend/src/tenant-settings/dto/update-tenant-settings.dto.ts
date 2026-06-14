@@ -11,6 +11,10 @@ export class UpdateTenantSettingsDto {
 
   @IsString()
   @IsOptional()
+  digitalSignatureUrl?: string;
+
+  @IsString()
+  @IsOptional()
   companyAddress?: string;
 
   @IsString()

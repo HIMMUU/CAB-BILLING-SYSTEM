@@ -17,6 +17,7 @@ export default function CompanySettingsPage() {
   const [formData, setFormData] = useState({
     name: '',
     logoUrl: '',
+    digitalSignatureUrl: '',
     companyAddress: '',
     companyPhone: '',
     companyEmail: '',
@@ -61,6 +62,7 @@ export default function CompanySettingsPage() {
       setFormData({
         name: settings.name || '',
         logoUrl: settings.logoUrl || '',
+        digitalSignatureUrl: settings.digitalSignatureUrl || '',
         companyAddress: settings.companyAddress || '',
         companyPhone: settings.companyPhone || '',
         companyEmail: settings.companyEmail || '',
@@ -91,6 +93,7 @@ export default function CompanySettingsPage() {
     }
   };
 
+
   useEffect(() => {
     if (user) {
       fetchSettings();
@@ -109,6 +112,42 @@ export default function CompanySettingsPage() {
       return updated;
     });
   };
+
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingSignature, setUploadingSignature] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'logoUrl' | 'digitalSignatureUrl') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (field === 'logoUrl') setUploadingLogo(true);
+    else setUploadingSignature(true);
+
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', file);
+
+      const res = await api.request('/tenant-settings/upload', {
+        method: 'POST',
+        body: formDataUpload,
+      });
+
+      setFormData((prev) => ({
+        ...prev,
+        [field]: res.url,
+      }));
+      setSuccess(`${field === 'logoUrl' ? 'Logo' : 'Digital Signature'} uploaded successfully to Cloudinary!`);
+    } catch (err: any) {
+      setError(err.message || 'Failed to upload file');
+    } finally {
+      if (field === 'logoUrl') setUploadingLogo(false);
+      else setUploadingSignature(false);
+    }
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -246,27 +285,81 @@ export default function CompanySettingsPage() {
                       />
                     </div>
                     <div className="space-y-1.5 col-span-2">
-                      <label className="text-xs font-bold text-[#475569] uppercase">Logo URL</label>
-                      <div className="flex gap-3 items-center">
-                        <input
-                          type="text"
-                          name="logoUrl"
-                          value={formData.logoUrl}
-                          onChange={handleChange}
-                          disabled={!canEdit}
-                          placeholder="e.g. /images/logo.png or AWS S3 URL"
-                          className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500"
-                        />
-                        {formData.logoUrl && (
-                          <img
-                            src={formData.logoUrl}
-                            alt="Logo preview"
-                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                            className="w-12 h-12 object-contain border border-[#E2E8F0] rounded-lg bg-gray-50"
+                      <label className="text-xs font-bold text-[#475569] uppercase">Company Logo</label>
+                      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                        <div className="flex-1 w-full space-y-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileUpload(e, 'logoUrl')}
+                            disabled={!canEdit || uploadingLogo}
+                            className="block w-full text-sm text-slate-500
+                              file:mr-4 file:py-2 file:px-4
+                              file:rounded-lg file:border file:border-blue-100
+                              file:text-sm file:font-semibold
+                              file:bg-blue-50 file:text-blue-700
+                              hover:file:bg-blue-100 cursor-pointer disabled:opacity-50"
                           />
+                          <input
+                            type="text"
+                            name="logoUrl"
+                            value={formData.logoUrl}
+                            onChange={handleChange}
+                            disabled={!canEdit}
+                            placeholder="Or enter logo URL manually"
+                            className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-xs text-[#0F172A] focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                        {formData.logoUrl && (
+                          <div className="relative group shrink-0">
+                            <img
+                              src={formData.logoUrl}
+                              alt="Logo preview"
+                              className="w-20 h-20 object-contain border border-[#E2E8F0] rounded-lg bg-gray-50 p-1"
+                            />
+                          </div>
                         )}
                       </div>
                     </div>
+
+                    <div className="space-y-1.5 col-span-2">
+                      <label className="text-xs font-bold text-[#475569] uppercase">Digital Signature of Tenant</label>
+                      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                        <div className="flex-1 w-full space-y-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileUpload(e, 'digitalSignatureUrl')}
+                            disabled={!canEdit || uploadingSignature}
+                            className="block w-full text-sm text-slate-500
+                              file:mr-4 file:py-2 file:px-4
+                              file:rounded-lg file:border file:border-blue-100
+                              file:text-sm file:font-semibold
+                              file:bg-blue-50 file:text-blue-700
+                              hover:file:bg-blue-100 cursor-pointer disabled:opacity-50"
+                          />
+                          <input
+                            type="text"
+                            name="digitalSignatureUrl"
+                            value={formData.digitalSignatureUrl}
+                            onChange={handleChange}
+                            disabled={!canEdit}
+                            placeholder="Or enter digital signature URL manually"
+                            className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-xs text-[#0F172A] focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                        {formData.digitalSignatureUrl && (
+                          <div className="relative group shrink-0">
+                            <img
+                              src={formData.digitalSignatureUrl}
+                              alt="Signature preview"
+                              className="w-20 h-20 object-contain border border-[#E2E8F0] rounded-lg bg-gray-50 p-1"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-[#475569] uppercase">Contact Email</label>
                       <input

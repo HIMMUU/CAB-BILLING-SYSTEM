@@ -103,6 +103,7 @@ model Tenant {
   slug      String?  @unique @db.VarChar(255)
   domain    String?  @unique @db.VarChar(255)
   logoUrl   String?  @map("logo_url") @db.VarChar(512)
+  digitalSignatureUrl String?  @map("digital_signature_url") @db.VarChar(512)
   companyAddress    String?   @map("company_address") @db.Text
   companyPhone      String?   @map("company_phone") @db.VarChar(100)
   companyEmail      String?   @map("company_email") @db.VarChar(255)

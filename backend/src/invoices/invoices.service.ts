@@ -565,6 +565,9 @@ export class InvoicesService {
     // Theme values
     const primaryColor = tenant?.pdfColorPrimary || '#1E3A8A';
     const isRefined = tenant?.pdfTheme === 'REFINED';
+    const showTerms = tenant?.pdfShowTerms !== false;
+    const showBank = tenant?.pdfShowBank !== false;
+
     
     // Font mapping
     let fontRegular = 'Helvetica';
@@ -577,37 +580,65 @@ export class InvoicesService {
       fontBold = 'Courier-Bold';
     }
 
-    const logoBuffer = await (async () => {
-      if (!tenant?.logoUrl) return null;
-      if (tenant.logoUrl.startsWith('http://') || tenant.logoUrl.startsWith('https://')) {
+    const [logoBuffer, badgeBuffer, signatureBuffer] = await Promise.all([
+      (async () => {
+        if (!tenant?.logoUrl) return null;
+        if (tenant.logoUrl.startsWith('http://') || tenant.logoUrl.startsWith('https://')) {
+          try {
+            const res = await fetch(tenant.logoUrl, { signal: AbortSignal.timeout(3000) });
+            if (res.ok) {
+              return Buffer.from(await res.arrayBuffer());
+            }
+          } catch (e: any) {
+            console.warn('Failed to fetch logo from URL:', tenant.logoUrl, e.message);
+          }
+        } else {
+          try {
+            const fs = require('fs');
+            const cleanPath = tenant.logoUrl.replace(/^\//, '');
+            const pathsToTry = [
+              path.resolve(__dirname, '..', 'assets', cleanPath),
+              path.resolve(__dirname, '..', '..', 'frontend', 'public', cleanPath),
+              path.resolve(tenant.logoUrl),
+            ];
+            for (const p of pathsToTry) {
+              if (fs.existsSync(p)) {
+                return fs.readFileSync(p);
+              }
+            }
+          } catch (e: any) {
+            console.warn('Failed to read logo from local path:', tenant.logoUrl, e.message);
+          }
+        }
+        return null;
+      })(),
+      (async () => {
+        const badgeUrl = 'https://res.cloudinary.com/dletrtogt/image/upload/v1718363717/satisfaction_guaranteed.png';
         try {
-          const res = await fetch(tenant.logoUrl, { signal: AbortSignal.timeout(2000) });
+          const res = await fetch(badgeUrl, { signal: AbortSignal.timeout(3000) });
           if (res.ok) {
             return Buffer.from(await res.arrayBuffer());
           }
         } catch (e: any) {
-          console.warn('Failed to fetch logo from URL:', tenant.logoUrl, e.message);
+          console.warn('Failed to fetch satisfaction badge:', e.message);
         }
-      } else {
-        try {
-          const fs = require('fs');
-          const cleanPath = tenant.logoUrl.replace(/^\//, '');
-          const pathsToTry = [
-            path.resolve(__dirname, '..', 'assets', cleanPath),
-            path.resolve(__dirname, '..', '..', 'frontend', 'public', cleanPath),
-            path.resolve(tenant.logoUrl),
-          ];
-          for (const p of pathsToTry) {
-            if (fs.existsSync(p)) {
-              return fs.readFileSync(p);
+        return null;
+      })(),
+      (async () => {
+        if (!tenant?.digitalSignatureUrl) return null;
+        if (tenant.digitalSignatureUrl.startsWith('http://') || tenant.digitalSignatureUrl.startsWith('https://')) {
+          try {
+            const res = await fetch(tenant.digitalSignatureUrl, { signal: AbortSignal.timeout(3000) });
+            if (res.ok) {
+              return Buffer.from(await res.arrayBuffer());
             }
+          } catch (e: any) {
+            console.warn('Failed to fetch digital signature from URL:', tenant.digitalSignatureUrl, e.message);
           }
-        } catch (e: any) {
-          console.warn('Failed to read logo from local path:', tenant.logoUrl, e.message);
         }
-      }
-      return null;
-    })();
+        return null;
+      })(),
+    ]);
 
     const parsedInvoice = this.recalculateInvoiceFields(invoice);
 
@@ -622,40 +653,44 @@ export class InvoicesService {
       let pageNum = 1;
 
       const drawHeader = (pNum: number) => {
-        // Page Number
-        doc.fillColor('#64748B').fontSize(8).font(fontBold).text(`Page No.`, 480, 20, { width: 50, align: 'right' });
-        doc.text(`${pNum}`, 535, 20, { width: 15, align: 'right' });
+        // Draw page number at the bottom of the page
+        doc.fillColor('#64748B').fontSize(7.5).font(fontRegular).text(`Page ${pNum}`, 50, 810, { align: 'right', width: 495 });
 
-        // Header layouts
-        const layout = tenant?.pdfHeaderLayout || 'SINGLE_LINE';
+        // Header layout
         const titleStr = (tenant?.invoiceTitle || 'TAX INVOICE').toUpperCase();
 
-        if (layout === 'SPLIT' && logoBuffer && !tenant?.hideLogoOnPdf) {
-          // SPLIT with Logo
-          doc.fillColor(primaryColor).fontSize(16).font(fontBold).text(companyName.toUpperCase(), 50, 30);
-          doc.fillColor('#475569').fontSize(10).font(fontBold).text(titleStr, 50, 52);
+        // Left logo (tenant logo)
+        if (logoBuffer && !tenant?.hideLogoOnPdf) {
           try {
-            doc.image(logoBuffer, 460, 25, { width: 85, height: 35, fit: [85, 35] });
+            doc.image(logoBuffer, 50, 18, { width: 90, height: 42, fit: [90, 42] });
           } catch (e) {
-            // fallback text logo
-            doc.fillColor('#64748B').fontSize(10).font(fontBold).text('LOGO', 460, 30, { align: 'right', width: 85 });
+            console.warn('Failed to draw logo:', e);
           }
-        } else if (layout === 'STACKED') {
-          // STACKED layout
-          doc.fillColor(primaryColor).fontSize(20).font(fontBold).text(companyName.toUpperCase(), 50, 25);
-          doc.fillColor('#475569').fontSize(11).font(fontBold).text(titleStr, 50, 50);
-        } else {
-          // SINGLE_LINE (default)
-          doc.fillColor(primaryColor).fontSize(18).font(fontBold).text(companyName.toUpperCase(), 50, 30);
-          doc.fillColor('#475569').fontSize(11).font(fontBold).text(titleStr, 350, 35, { align: 'right', width: 195 });
         }
 
-        // Draw double lines for REFINED theme
-        if (isRefined) {
-          doc.moveTo(50, 63).lineTo(545, 63).lineWidth(1).stroke(primaryColor);
-          doc.moveTo(50, 65.5).lineTo(545, 65.5).lineWidth(0.5).stroke(primaryColor);
-          doc.lineWidth(1); // reset line width
+        // Center Tax Invoice + Red Brand Name
+        doc.fillColor('#000000')
+           .fontSize(10)
+           .font(fontBold)
+           .text(titleStr, 150, 18, { align: 'center', width: 295, underline: true });
+        
+        doc.fillColor('#E11D48') // Red bold brand text
+           .fontSize(22)
+           .font(fontBold)
+           .text(companyName.toUpperCase(), 150, 30, { align: 'center', width: 295 });
+
+        // Right logo (satisfaction guaranteed badge)
+        if (badgeBuffer) {
+          try {
+            doc.image(badgeBuffer, 455, 18, { width: 90, height: 42, fit: [90, 42] });
+          } catch (e) {
+            console.warn('Failed to draw satisfaction badge:', e);
+          }
         }
+
+        // Horizontal line separating header
+        doc.moveTo(50, 65).lineTo(545, 65).lineWidth(0.5).stroke('#CBD5E1');
+
 
         // Top Company Info Table / Box
         const gridY = 70;
@@ -979,19 +1014,32 @@ export class InvoicesService {
       }
 
       // Summary lines
-      doc.rect(50, footerY, 495, 60).stroke('#CBD5E1');
-      doc.moveTo(350, footerY).lineTo(350, footerY + 60).stroke('#CBD5E1');
+      doc.rect(50, footerY, 495, 70).stroke('#CBD5E1');
+      doc.moveTo(350, footerY).lineTo(350, footerY + 70).stroke('#CBD5E1');
 
       doc.fillColor(primaryColor).font(fontBold).fontSize(8.5);
       doc.text('TOTAL DUTY SLIP ENCLOSE', 55, footerY + 6);
-      doc.fillColor('#0F172A').text(`${totalSlipsEnclosed}`, 210, footerY + 6);
+      doc.fillColor('#0F172A').text(`${totalSlipsEnclosed}`, 215, footerY + 6);
 
       doc.fillColor(primaryColor).text('TOTAL AMOUNT', 355, footerY + 6);
       doc.fillColor('#0F172A').text(amountColSum.toFixed(2), 480, footerY + 6, { width: 60, align: 'right' });
 
+      // Render Bank Details inside the summary box on the left
+      if (showBank) {
+        doc.fillColor(primaryColor).fontSize(7.5).font(fontBold).text('BANK DETAILS:', 55, footerY + 18);
+        doc.fillColor('#334155').font(fontRegular).fontSize(7);
+        doc.text(`Bank Name: ${bankName}`, 55, footerY + 28);
+        doc.text(`A/c No: ${bankAccountNo}`, 55, footerY + 37);
+        doc.text(`IFSC: ${bankIfsc}`, 190, footerY + 28);
+        doc.text(`Branch: ${bankBranch}`, 190, footerY + 37);
+      }
+
       const isRcm = !!parsedInvoice.isRcm;
       if (isRcm) {
-        doc.fillColor('#475569').fontSize(7).text('As per the Notification No.22/2019.Tax(rate)dated30.09.19 Service receiver is liable to pay', 55, footerY + 25, { width: 280 });
+        doc.fillColor('#E11D48').fontSize(6.5).font(fontBold).text(
+          'RCM: As per Notification No. 22/2019-Central Tax (Rate), GST is payable by the recipient.',
+          55, footerY + 49, { width: 280 }
+        );
       }
 
       doc.fillColor(primaryColor).fontSize(8.5).text('Parking/TollTax Detail', 355, footerY + 20);
@@ -1012,7 +1060,7 @@ export class InvoicesService {
       }
 
       // Grand Total Box
-      const totalBoxY = footerY + 60;
+      const totalBoxY = footerY + 70;
       doc.rect(50, totalBoxY, 495, 30).stroke('#CBD5E1');
       doc.moveTo(350, totalBoxY).lineTo(350, totalBoxY + 30).stroke('#CBD5E1');
 
@@ -1033,11 +1081,9 @@ export class InvoicesService {
 
       // Terms & Conditions and Signature
       const termsY = totalBoxY + 35;
-      
-      const showTerms = tenant?.pdfShowTerms !== false;
-      const showBank = tenant?.pdfShowBank !== false;
 
       if (showTerms) {
+
         const customTerms = tenant?.termsAndConditions || (
           'E. & O.E. Subject to Delhi Jurisdiction.\n' +
           'Our Responsibility of the signed duty slip resets till we handover them to you with the bill.\n' +
@@ -1057,19 +1103,22 @@ export class InvoicesService {
       doc.font(fontBold).fontSize(9).fillColor(primaryColor).text(companyName.toUpperCase(), 390, termsY + 5, { align: 'center', width: 150 });
       doc.fillColor('#000000');
 
-      // Bank Details box
-      if (showBank) {
+      // In place of bank details show digital signature of tenant
+      if (signatureBuffer) {
+        try {
+          doc.image(signatureBuffer, 390, termsY + 20, { width: 150, height: 48, fit: [150, 48] });
+        } catch (e) {
+          console.warn('Failed to draw signature image:', e);
+          doc.rect(390, termsY + 20, 150, 48).stroke('#CBD5E1');
+          doc.fillColor('#94A3B8').fontSize(8).font(fontRegular).text('Digital Signature', 390, termsY + 38, { align: 'center', width: 150 });
+        }
+      } else {
         doc.rect(390, termsY + 20, 150, 48).stroke('#CBD5E1');
-        doc.fillColor(primaryColor).fontSize(6.5).font(fontBold);
-        doc.text('BANK DETAILS:', 393, termsY + 23);
-        doc.fillColor('#334155').font(fontRegular);
-        doc.text(`Bank Name: ${bankName}`, 393, termsY + 31, { width: 144, height: 8 });
-        doc.text(`A/c No: ${bankAccountNo}`, 393, termsY + 39, { width: 144, height: 8 });
-        doc.text(`IFSC: ${bankIfsc}`, 393, termsY + 47, { width: 144, height: 8 });
-        doc.text(`Branch: ${bankBranch}`, 393, termsY + 55, { width: 144, height: 8 });
+        doc.fillColor('#94A3B8').fontSize(8).font(fontRegular).text('Sign Here', 390, termsY + 38, { align: 'center', width: 150 });
       }
 
       doc.fillColor(primaryColor).font(fontBold).fontSize(8.5).text('Authorized Signatory', 390, termsY + 75, { align: 'center', width: 150 });
+
 
       doc.end();
     });
