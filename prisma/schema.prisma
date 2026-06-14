@@ -345,6 +345,7 @@ model Booking {
   @@index([tenantId])
   @@index([pickupDate])
   @@index([status])
+  @@index([tenantId, createdAt])
   @@map("bookings")
 }
 
@@ -406,6 +407,8 @@ model DutySlip {
   @@unique([tenantId, dutySlipNumber], name: "tenantDutySlipNumber")
   @@index([tenantId])
   @@index([status])
+  @@index([vehicleId])
+  @@index([driverId])
   @@map("duty_slips")
 }
 
@@ -445,6 +448,8 @@ model Trip {
   invoiceItems InvoiceItem[]
 
   @@index([tenantId])
+  @@index([closedAt])
+  @@index([tenantId, closedAt])
   @@map("trips")
 }
 
@@ -489,6 +494,8 @@ model Invoice {
   @@index([tenantId])
   @@index([status])
   @@index([invoiceDate])
+  @@index([tenantId, invoiceDate])
+  @@index([tenantId, dueAmount, status])
   @@map("invoices")
 }
 

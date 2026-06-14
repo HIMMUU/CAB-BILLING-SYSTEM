@@ -25,7 +25,67 @@ interface Booking {
   status: 'PENDING' | 'ASSIGNED' | 'STARTED' | 'COMPLETED' | 'CANCELLED';
   employeeId?: string;
   customer: Customer;
+  guestName?: string;
+  guestSalutation?: string;
+  bookingBy?: string;
+  remarks?: string;
+  dutySlip?: {
+    id: string;
+    dutySlipNumber: string;
+  } | null;
 }
+
+const formatTimeTo24h = (timeStr: string | null | undefined): string => {
+  if (!timeStr) return 'N/A';
+  const parts = timeStr.trim().split(':');
+  if (parts.length >= 2) {
+    let hh = parseInt(parts[0], 10);
+    const mm = parts[1].substring(0, 2);
+    const lower = timeStr.toLowerCase();
+    if (lower.includes('pm') && hh < 12) hh += 12;
+    if (lower.includes('am') && hh === 12) hh = 0;
+    return `${String(hh).padStart(2, '0')}:${mm}`;
+  }
+  return timeStr;
+};
+
+const handleDateChange = (val: string): string => {
+  const clean = val.replace(/\D/g, '').slice(0, 8);
+  if (clean.length >= 5) {
+    return `${clean.slice(0, 2)}/${clean.slice(2, 4)}/${clean.slice(4)}`;
+  }
+  if (clean.length >= 3) {
+    return `${clean.slice(0, 2)}/${clean.slice(2)}`;
+  }
+  return clean;
+};
+
+const handleTimeChange = (val: string): string => {
+  const clean = val.replace(/\D/g, '').slice(0, 4);
+  if (clean.length >= 3) {
+    return `${clean.slice(0, 2)}:${clean.slice(2)}`;
+  }
+  return clean;
+};
+
+const dateToApi = (d: string): string => {
+  if (!d) return '';
+  const parts = d.split('/');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return d;
+};
+
+const dateToDisplay = (d: string): string => {
+  if (!d) return '';
+  const clean = d.split('T')[0];
+  const parts = clean.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return d;
+};
 
 export default function BookingsPage() {
   const router = useRouter();
@@ -58,6 +118,10 @@ export default function BookingsPage() {
     vehicleTypeRequired: '',
     status: 'PENDING' as 'PENDING' | 'ASSIGNED' | 'STARTED' | 'COMPLETED' | 'CANCELLED',
     employeeId: '',
+    guestName: '',
+    guestSalutation: 'Mr',
+    bookingBy: '',
+    remarks: '',
   });
 
   useEffect(() => {
@@ -122,6 +186,10 @@ export default function BookingsPage() {
       vehicleTypeRequired: 'Sedan',
       status: 'PENDING',
       employeeId: '',
+      guestName: '',
+      guestSalutation: 'Mr',
+      bookingBy: '',
+      remarks: '',
     });
     setFormError(null);
     setIsFormOpen(true);
@@ -133,12 +201,16 @@ export default function BookingsPage() {
       customerId: booking.customerId,
       pickupLocation: booking.pickupLocation,
       dropLocation: booking.dropLocation,
-      pickupDate: booking.pickupDate ? booking.pickupDate.substring(0, 10) : '',
-      pickupTime: booking.pickupTime,
+      pickupDate: booking.pickupDate ? dateToDisplay(booking.pickupDate) : '',
+      pickupTime: booking.pickupTime ? formatTimeTo24h(booking.pickupTime) : '',
       tripType: booking.tripType,
       vehicleTypeRequired: booking.vehicleTypeRequired,
       status: booking.status,
       employeeId: booking.employeeId || '',
+      guestName: booking.guestName || '',
+      guestSalutation: booking.guestSalutation || 'Mr',
+      bookingBy: booking.bookingBy || '',
+      remarks: booking.remarks || '',
     });
     setFormError(null);
     setIsFormOpen(true);
@@ -153,18 +225,38 @@ export default function BookingsPage() {
       return;
     }
 
+    const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+    if (!dateRegex.test(formData.pickupDate)) {
+      setFormError('Pickup Date must be in DD/MM/YYYY format.');
+      return;
+    }
+    const timeRegex = /^([0-1]\d|2[0-3]):([0-5]\d)$/;
+    if (!timeRegex.test(formData.pickupTime)) {
+      setFormError('Pickup Time must be in 24 Hrs HH:mm format.');
+      return;
+    }
+
+    const payload = {
+      ...formData,
+      guestName: formData.guestName || undefined,
+      guestSalutation: formData.guestSalutation || undefined,
+      bookingBy: formData.bookingBy || undefined,
+      remarks: formData.remarks || undefined,
+      pickupDate: dateToApi(formData.pickupDate),
+    };
+
     setSubmitting(true);
 
     try {
       if (editingId) {
         await api.request(`/bookings/${editingId}`, {
           method: 'PATCH',
-          body: JSON.stringify(formData),
+          body: JSON.stringify(payload),
         });
       } else {
         await api.request('/bookings', {
           method: 'POST',
-          body: JSON.stringify(formData),
+          body: JSON.stringify(payload),
         });
       }
 
@@ -185,6 +277,19 @@ export default function BookingsPage() {
     } catch (err: any) {
       alert(err.message || 'Failed to delete booking.');
     }
+  };
+  
+  const downloadPdf = async (id: string, num: string) => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/duty-slips/${id}/pdf`, {
+        headers: { Authorization: `Bearer ${api.getToken()}` },
+      });
+      if (!res.ok) throw new Error('PDF failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `DS-${num}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch (e: any) { alert(e.message); }
   };
 
   if (!user) return null;
@@ -305,6 +410,16 @@ export default function BookingsPage() {
                             {booking.customer.companyName}
                           </div>
                         )}
+                        {booking.guestName && (
+                          <div className="text-[11px] text-[#64748B] mt-1 font-medium bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded inline-block">
+                            <span className="font-bold text-[#475569]">Guest:</span> {booking.guestSalutation} {booking.guestName}
+                          </div>
+                        )}
+                        {booking.bookingBy && (
+                          <div className="text-[10px] text-[#64748B] mt-0.5">
+                            <span className="font-semibold text-gray-600">Booked by:</span> {booking.bookingBy}
+                          </div>
+                        )}
                       </td>
                       <td className="py-4 px-6">
                         <span className="inline-block text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 rounded px-1.5 py-0.5 uppercase tracking-wide">
@@ -332,7 +447,7 @@ export default function BookingsPage() {
                         <div className="text-[#0F172A] font-medium">
                           {booking.pickupDate ? new Date(booking.pickupDate).toLocaleDateString('en-GB') : 'N/A'}
                         </div>
-                        <div className="text-xs text-[#64748B] mt-0.5">{booking.pickupTime}</div>
+                        <div className="text-xs text-[#64748B] mt-0.5">{formatTimeTo24h(booking.pickupTime)}</div>
                       </td>
                       <td className="py-4 px-6">
                         <span className={`inline-block px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase ${
@@ -347,6 +462,14 @@ export default function BookingsPage() {
                       </td>
                       {canEdit && (
                         <td className="py-4 px-6 text-right space-x-2">
+                          {booking.dutySlip && (
+                            <button
+                              onClick={() => downloadPdf(booking.dutySlip!.id, booking.dutySlip!.dutySlipNumber)}
+                              className="px-3 py-1.5 text-xs font-semibold text-blue-700 hover:text-blue-800 bg-blue-50 border border-blue-100 rounded-lg transition"
+                            >
+                              Print Slip
+                            </button>
+                          )}
                           <button
                             onClick={() => handleOpenEdit(booking)}
                             className="px-3 py-1.5 text-xs font-semibold text-[#64748B] hover:text-[#0F172A] bg-white border border-[#E2E8F0] rounded-lg transition"
@@ -462,6 +585,77 @@ export default function BookingsPage() {
                   </select>
                 </div>
 
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
+                      Salutation
+                    </label>
+                    <select
+                      value={formData.guestSalutation}
+                      onChange={(e) => setFormData({ ...formData, guestSalutation: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
+                    >
+                      <option value="Mr">Mr.</option>
+                      <option value="Mrs">Mrs.</option>
+                      <option value="Ms">Ms.</option>
+                      <option value="Dr">Dr.</option>
+                      <option value="Prof">Prof.</option>
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
+                      Guest / Passenger Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.guestName}
+                      onChange={(e) => setFormData({ ...formData, guestName: e.target.value })}
+                      placeholder="Passenger name"
+                      className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
+                      Booked By
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.bookingBy}
+                      onChange={(e) => setFormData({ ...formData, bookingBy: e.target.value })}
+                      placeholder="Booked by name"
+                      className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
+                      Employee ID
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.employeeId}
+                      onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+                      placeholder="Employee ID (optional)"
+                      className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
+                    Special Remarks / Instructions
+                  </label>
+                  <textarea
+                    value={formData.remarks}
+                    onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                    placeholder="Enter special instructions or remarks"
+                    rows={2}
+                    className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition resize-none"
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
@@ -534,40 +728,33 @@ export default function BookingsPage() {
                       Pickup Date
                     </label>
                     <input
-                      type="date"
+                      type="text"
+                      placeholder="DD/MM/YYYY"
+                      maxLength={10}
                       required
                       value={formData.pickupDate}
-                      onChange={(e) => setFormData({ ...formData, pickupDate: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, pickupDate: handleDateChange(e.target.value) })}
                       className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition text-xs"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
-                      Pickup Time
+                      Pickup Time (24h)
                     </label>
                     <input
-                      type="time"
+                      type="text"
+                      placeholder="HH:mm"
+                      maxLength={5}
                       required
                       value={formData.pickupTime}
-                      onChange={(e) => setFormData({ ...formData, pickupTime: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, pickupTime: handleTimeChange(e.target.value) })}
                       className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition text-xs"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
-                    Employee ID
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.employeeId}
-                    onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-                    placeholder="Enter Employee ID (optional)"
-                    className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
-                  />
-                </div>
+
               </form>
             </div>
 

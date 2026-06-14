@@ -22,6 +22,14 @@ interface Booking {
   vehicleTypeRequired: string;
   status: string;
   customer: Customer;
+  guestName?: string;
+  guestSalutation?: string;
+  bookingBy?: string;
+  remarks?: string;
+  dutySlip?: {
+    id: string;
+    dutySlipNumber: string;
+  } | null;
 }
 
 interface Driver {
@@ -50,6 +58,20 @@ interface Assignment {
   driver: Driver;
   vehicle: Vehicle;
 }
+
+const formatTimeTo24h = (timeStr: string | null | undefined): string => {
+  if (!timeStr) return 'N/A';
+  const parts = timeStr.trim().split(':');
+  if (parts.length >= 2) {
+    let hh = parseInt(parts[0], 10);
+    const mm = parts[1].substring(0, 2);
+    const lower = timeStr.toLowerCase();
+    if (lower.includes('pm') && hh < 12) hh += 12;
+    if (lower.includes('am') && hh === 12) hh = 0;
+    return `${String(hh).padStart(2, '0')}:${mm}`;
+  }
+  return timeStr;
+};
 
 export default function AssignmentsPage() {
   const router = useRouter();
@@ -206,6 +228,61 @@ export default function AssignmentsPage() {
     }
   };
 
+  const downloadPdf = async (id: string, num: string) => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/duty-slips/${id}/pdf`, {
+        headers: { Authorization: `Bearer ${api.getToken()}` },
+      });
+      if (!res.ok) throw new Error('PDF failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `DS-${num}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch (e: any) { alert(e.message); }
+  };
+
+  const handlePrintDutySlip = async (booking: Booking) => {
+    let slipId = booking.dutySlip?.id;
+    let slipNumber = booking.dutySlip?.dutySlipNumber;
+
+    if (!slipId) {
+      try {
+        const pDate = new Date(booking.pickupDate);
+        let repTimeDate = new Date(booking.pickupDate);
+        if (booking.pickupTime) {
+          const timeParts = booking.pickupTime.split(':');
+          if (timeParts.length >= 2) {
+            const hh = parseInt(timeParts[0], 10);
+            const mm = parseInt(timeParts[1], 10);
+            if (!isNaN(hh) && !isNaN(mm)) {
+              repTimeDate.setHours(hh, mm, 0, 0);
+            }
+          }
+        }
+        const res = await api.request('/duty-slips', {
+          method: 'POST',
+          body: JSON.stringify({
+            bookingId: booking.id,
+            reportingTime: repTimeDate.toISOString(),
+            startKm: 0,
+          }),
+        });
+        slipId = res.id;
+        slipNumber = res.dutySlipNumber;
+        
+        // Refresh logs
+        fetchAssignmentsHistory();
+      } catch (err: any) {
+        alert(err.message || 'Failed to create draft duty slip');
+        return;
+      }
+    }
+
+    if (slipId && slipNumber) {
+      await downloadPdf(slipId, slipNumber);
+    }
+  };
+
   if (!user) return null;
 
   const canEdit = user.role !== 'BILLING_EXECUTIVE';
@@ -280,6 +357,16 @@ export default function AssignmentsPage() {
                       {b.customer?.companyName && (
                         <div className="text-[10px] text-gray-400 truncate max-w-xs">{b.customer.companyName}</div>
                       )}
+                      {b.guestName && (
+                        <div className="text-[10px] text-[#64748B] mt-0.5">
+                          <span className="font-medium text-gray-500">Guest:</span> {b.guestSalutation} {b.guestName}
+                        </div>
+                      )}
+                      {b.bookingBy && (
+                        <div className="text-[9px] text-[#64748B] mt-0.5">
+                          <span className="font-medium text-gray-500">Booked by:</span> {b.bookingBy}
+                        </div>
+                      )}
                     </td>
                     <td className="py-3 px-6">
                       <span className="text-[10px] font-bold bg-blue-50 border border-blue-100 text-blue-700 px-1.5 py-0.5 rounded uppercase">
@@ -294,7 +381,7 @@ export default function AssignmentsPage() {
                     </td>
                     <td className="py-3 px-6">
                       <div className="text-xs text-[#0F172A] font-medium">{new Date(b.pickupDate).toLocaleDateString('en-GB')}</div>
-                      <div className="text-[10px] text-[#64748B] mt-0.5">{b.pickupTime}</div>
+                      <div className="text-[10px] text-[#64748B] mt-0.5">{formatTimeTo24h(b.pickupTime)}</div>
                     </td>
                     {canEdit && (
                       <td className="py-3 px-6 text-right">
@@ -388,6 +475,16 @@ export default function AssignmentsPage() {
                           {a.booking?.bookingNumber || 'N/A'}
                         </div>
                         <div className="text-[10px] text-gray-400 mt-0.5">Cust: {a.booking?.customer?.name}</div>
+                        {a.booking?.guestName && (
+                          <div className="text-[10px] text-[#64748B] mt-0.5">
+                            <span className="font-medium text-gray-500">Guest:</span> {a.booking.guestSalutation} {a.booking.guestName}
+                          </div>
+                        )}
+                        {a.booking?.bookingBy && (
+                          <div className="text-[9px] text-[#64748B] mt-0.5">
+                            <span className="font-medium text-gray-500">Booked by:</span> {a.booking.bookingBy}
+                          </div>
+                        )}
                       </td>
                       <td className="py-4 px-6">
                         <div className="font-semibold text-[#0F172A]">{a.driver?.name}</div>
@@ -403,7 +500,7 @@ export default function AssignmentsPage() {
                         <div className="text-xs text-[#0F172A] font-medium">
                           {a.booking?.pickupDate ? new Date(a.booking.pickupDate).toLocaleDateString('en-GB') : 'N/A'}
                         </div>
-                        <div className="text-[10px] text-[#64748B] mt-0.5">{a.booking?.pickupTime}</div>
+                        <div className="text-[10px] text-[#64748B] mt-0.5">{formatTimeTo24h(a.booking?.pickupTime)}</div>
                       </td>
                       <td className="py-4 px-6">
                         <span className={`inline-block px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase ${
@@ -418,6 +515,14 @@ export default function AssignmentsPage() {
                         <td className="py-4 px-6 text-right">
                           {a.status === 'ACTIVE' ? (
                             <div className="flex justify-end gap-1.5">
+                              {a.booking && (
+                                <button
+                                  onClick={() => handlePrintDutySlip(a.booking)}
+                                  className="px-2.5 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-lg transition"
+                                >
+                                  Print Slip
+                                </button>
+                              )}
                               <button
                                 onClick={() => handleUpdateStatus(a.id, 'COMPLETED')}
                                 className="px-2.5 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 rounded-lg transition"
@@ -512,7 +617,7 @@ export default function AssignmentsPage() {
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <span className="font-bold text-[#0F172A] block uppercase tracking-wider text-[10px]">Requested Date/Time:</span>
-                        <span className="text-[#64748B] font-medium">{new Date(selectedBooking.pickupDate).toLocaleDateString('en-GB')} at {selectedBooking.pickupTime}</span>
+                        <span className="text-[#64748B] font-medium">{new Date(selectedBooking.pickupDate).toLocaleDateString('en-GB')} at {formatTimeTo24h(selectedBooking.pickupTime)}</span>
                       </div>
                       <div>
                         <span className="font-bold text-[#0F172A] block uppercase tracking-wider text-[10px]">Requested Vehicle Type:</span>

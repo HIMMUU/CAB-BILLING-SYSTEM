@@ -28,6 +28,20 @@ interface Booking {
   } | null;
 }
 
+const formatTimeTo24h = (timeStr: string | null | undefined): string => {
+  if (!timeStr) return 'N/A';
+  const parts = timeStr.trim().split(':');
+  if (parts.length >= 2) {
+    let hh = parseInt(parts[0], 10);
+    const mm = parts[1].substring(0, 2);
+    const lower = timeStr.toLowerCase();
+    if (lower.includes('pm') && hh < 12) hh += 12;
+    if (lower.includes('am') && hh === 12) hh = 0;
+    return `${String(hh).padStart(2, '0')}:${mm}`;
+  }
+  return timeStr;
+};
+
 export default function CustomerHistoryPage() {
   const router = useRouter();
   const params = useParams();
@@ -186,7 +200,7 @@ export default function CustomerHistoryPage() {
                   <tr key={booking.id} className="hover:bg-[#F8FAFC] transition-colors">
                     <td className="py-4 px-6 font-mono font-medium text-[#0F172A]">{booking.bookingNumber}</td>
                     <td className="py-4 px-6 text-[#0F172A]">
-                      {new Date(booking.pickupDate).toLocaleDateString('en-GB')} at {booking.pickupTime}
+                      {new Date(booking.pickupDate).toLocaleDateString('en-GB')} at {formatTimeTo24h(booking.pickupTime)}
                     </td>
                     <td className="py-4 px-6">
                       <div className="text-[#0F172A] truncate max-w-xs" title={booking.pickupLocation}>

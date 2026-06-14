@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import PDFDocument from 'pdfkit';
 
 @Injectable()
 export class ReportsService {
@@ -285,5 +286,799 @@ export class ReportsService {
       },
       ledger: ageingLedger,
     };
+  }
+
+  async getBillRegisterData(query: {
+    gstOption?: string;
+    customerId?: string;
+    state?: string;
+    city?: string;
+    guestName?: string;
+    employeeId?: string;
+    billDateFrom?: string;
+    billDateTo?: string;
+    dutyDateFrom?: string;
+    dutyDateTo?: string;
+    monthOf?: string;
+    billCoverNo?: string;
+  }) {
+    const where: any = {};
+
+    where.status = { not: 'VOID' };
+
+    if (query.customerId) {
+      where.customerId = query.customerId;
+    }
+
+    if (query.gstOption === 'GST') {
+      where.customer = { gstNumber: { not: null, notIn: [''] } };
+    } else if (query.gstOption === 'SERVICES_TAX') {
+      where.customer = { OR: [{ gstNumber: null }, { gstNumber: '' }] };
+    }
+
+    if (query.billCoverNo) {
+      where.invoiceNumber = { contains: query.billCoverNo, mode: 'insensitive' };
+    }
+
+    if (query.billDateFrom || query.billDateTo) {
+      where.invoiceDate = {};
+      if (query.billDateFrom) where.invoiceDate.gte = new Date(query.billDateFrom);
+      if (query.billDateTo) where.invoiceDate.lte = new Date(query.billDateTo);
+    }
+
+    if (query.monthOf) {
+      const [year, month] = query.monthOf.split('-').map(Number);
+      const start = new Date(year, month - 1, 1);
+      const end = new Date(year, month, 0, 23, 59, 59, 999);
+      where.invoiceDate = { gte: start, lte: end };
+    }
+
+    if (query.state) {
+      where.customer = {
+        ...where.customer,
+        billingAddress: { contains: query.state, mode: 'insensitive' },
+      };
+    }
+
+    if (query.city) {
+      where.customer = {
+        ...where.customer,
+        billingAddress: { contains: query.city, mode: 'insensitive' },
+      };
+    }
+
+    if (query.guestName || query.employeeId || query.dutyDateFrom || query.dutyDateTo) {
+      where.items = {
+        some: {
+          trip: {
+            booking: {
+              guestName: query.guestName ? { contains: query.guestName, mode: 'insensitive' } : undefined,
+              employeeId: query.employeeId ? { contains: query.employeeId, mode: 'insensitive' } : undefined,
+              pickupDate: (query.dutyDateFrom || query.dutyDateTo) ? {
+                gte: query.dutyDateFrom ? new Date(query.dutyDateFrom) : undefined,
+                lte: query.dutyDateTo ? new Date(query.dutyDateTo) : undefined,
+              } : undefined,
+            },
+          },
+        },
+      };
+    }
+
+    const invoices = await this.prisma.invoice.findMany({
+      where,
+      orderBy: { invoiceDate: 'asc' },
+      include: {
+        customer: true,
+        items: {
+          include: {
+            trip: {
+              include: {
+                booking: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return invoices.map((inv, idx) => {
+      const subtotal = Number(inv.subtotal);
+      const toll = Number(inv.toll);
+      const parking = Number(inv.parking);
+      const mcd = Number(inv.mcd || 0);
+      const stateTax = Number(inv.stateTax || 0);
+
+      const basicAmt = subtotal - toll - parking - mcd - stateTax;
+      const ptTaxes = toll + parking + mcd + stateTax;
+
+      // Extract unique guest names
+      const guestNames = Array.from(
+        new Set(
+          inv.items
+            .map((item) => item.trip?.booking?.guestName)
+            .filter(Boolean)
+        )
+      ).join(', ') || '.';
+
+      return {
+        sn: idx + 1,
+        id: inv.id,
+        billDate: new Date(inv.invoiceDate).toLocaleDateString('en-GB'),
+        billNo: inv.invoiceNumber,
+        clientName: inv.customer.name,
+        guestName: guestNames,
+        basicAmt,
+        ptTaxes,
+        igst: Number(inv.igstAmount),
+        cgst: Number(inv.cgstAmount),
+        sgst: Number(inv.sgstAmount),
+        total: Number(inv.totalAmount),
+      };
+    });
+  }
+
+  async generateBillRegisterPdf(query: {
+    gstOption?: string;
+    customerId?: string;
+    state?: string;
+    city?: string;
+    guestName?: string;
+    employeeId?: string;
+    billDateFrom?: string;
+    billDateTo?: string;
+    dutyDateFrom?: string;
+    dutyDateTo?: string;
+    monthOf?: string;
+    billCoverNo?: string;
+  }): Promise<Buffer> {
+    const data = await this.getBillRegisterData(query);
+
+    // Fetch tenant details
+    const invoices = await this.prisma.invoice.findMany({
+      where: {
+        status: { not: 'VOID' },
+        ...(query.customerId ? { customerId: query.customerId } : {}),
+      },
+      take: 1,
+    });
+    
+    let tenantId = '';
+    if (invoices.length > 0) {
+      tenantId = invoices[0].tenantId;
+    }
+    const tenant = tenantId 
+      ? await this.prisma.tenant.findUnique({ where: { id: tenantId } })
+      : await this.prisma.tenant.findFirst();
+
+    const companyName = tenant?.name || 'TRAVEL DREAM';
+    const companyAddress = tenant?.companyAddress || 'E57/A,HARI NAGAR EXTN-PART-II\nBADARPUR,NEW DELHI-110044 New Delhi Delhi\n110044';
+    const companyPhone = tenant?.companyPhone || '9310632440 9560352484';
+    const companyEmail = tenant?.companyEmail || 'traveldream1812@gmail.com';
+
+    // Fetch logo and satisfaction badge if available
+    const [logoBuffer, badgeBuffer] = await Promise.all([
+      (async () => {
+        const logoUrl = tenant?.logoUrl;
+        if (logoUrl && (logoUrl.startsWith('http://') || logoUrl.startsWith('https://'))) {
+          try {
+            const res = await fetch(logoUrl, { signal: AbortSignal.timeout(3000) });
+            if (res.ok) return Buffer.from(await res.arrayBuffer());
+          } catch (e: any) {
+            console.warn('Failed to fetch report tenant logo:', e.message);
+          }
+        }
+        return null;
+      })(),
+      (async () => {
+        const badgeUrl = 'https://res.cloudinary.com/dletrtogt/image/upload/v1718363717/satisfaction_guaranteed.png';
+        try {
+          const res = await fetch(badgeUrl, { signal: AbortSignal.timeout(3000) });
+          if (res.ok) return Buffer.from(await res.arrayBuffer());
+        } catch (e: any) {
+          console.warn('Failed to fetch satisfaction badge:', e.message);
+        }
+        return null;
+      })(),
+    ]);
+
+    return new Promise<Buffer>((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 30, size: 'A4', layout: 'landscape' });
+      const chunks: Buffer[] = [];
+
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', (err) => reject(err));
+
+      let pageNum = 1;
+
+      const drawHeader = (pNum: number) => {
+        // Logo
+        if (logoBuffer) {
+          try {
+            doc.image(logoBuffer, 30, 20, { width: 90, height: 42, fit: [90, 42] });
+          } catch (e) {
+            console.warn('Failed to draw logo on report:', e);
+          }
+        }
+
+        // Company Details (Center)
+        doc.fillColor('#000000')
+           .font('Helvetica-Bold')
+           .fontSize(14)
+           .text(companyName.toUpperCase(), 150, 18, { align: 'center', width: 541 });
+
+        doc.font('Helvetica')
+           .fontSize(8.5)
+           .text(companyAddress.replace(/\n/g, ', '), 150, 36, { align: 'center', width: 541 });
+
+        doc.font('Helvetica-Bold')
+           .text('Contact No: ', 280, 50, { continued: true })
+           .font('Helvetica')
+           .text(companyPhone.replace(/\n/g, ', '), { continued: true })
+           .font('Helvetica-Bold')
+           .text('  Email: ', { continued: true })
+           .font('Helvetica')
+           .text(companyEmail);
+
+        // Page number (Top Right)
+        doc.font('Helvetica-Bold')
+           .fontSize(9.5)
+           .text(`Page No  ${pNum}`, 720, 18, { align: 'right', width: 95 });
+
+        // Report Title (Right Side below Page No)
+        doc.font('Helvetica-Bold')
+           .fontSize(13)
+           .text('Bill Register', 700, 38, { align: 'right', width: 115, underline: true });
+
+        // Horizontal Line separating top brand info
+        doc.moveTo(30, 68).lineTo(815, 68).lineWidth(0.5).stroke('#000000');
+
+        // Filter details (Left below horizontal line)
+        let dateFilterStr = 'All Records';
+        if (query.dutyDateFrom || query.dutyDateTo) {
+          const startFmt = query.dutyDateFrom ? new Date(query.dutyDateFrom).toLocaleDateString('en-GB') : 'Start';
+          const endFmt = query.dutyDateTo ? new Date(query.dutyDateTo).toLocaleDateString('en-GB') : 'End';
+          dateFilterStr = `Duty Date From:-  ${startFmt} To  ${endFmt}`;
+        } else if (query.billDateFrom || query.billDateTo) {
+          const startFmt = query.billDateFrom ? new Date(query.billDateFrom).toLocaleDateString('en-GB') : 'Start';
+          const endFmt = query.billDateTo ? new Date(query.billDateTo).toLocaleDateString('en-GB') : 'End';
+          dateFilterStr = `Bill Date From:-  ${startFmt} To  ${endFmt}`;
+        } else if (query.monthOf) {
+          const parts = query.monthOf.split('-');
+          dateFilterStr = `Month Of:-  ${parts[1]}/${parts[0]}`;
+        }
+        doc.font('Helvetica-Bold')
+           .fontSize(9.5)
+           .text(dateFilterStr, 30, 75);
+
+        // Header bottom line
+        doc.moveTo(30, 90).lineTo(815, 90).lineWidth(1).stroke('#000000');
+      };
+
+      const drawTableHeader = (startY: number) => {
+        doc.rect(30, startY, 785, 20).fill('#F8FAFC').stroke('#000000');
+        doc.fillColor('#000000').font('Helvetica-Bold').fontSize(8.5);
+
+        const cols = [
+          { label: 'S.N', x: 30, w: 25, align: 'center' },
+          { label: 'Bill Date', x: 55, w: 65, align: 'left' },
+          { label: 'Bill No', x: 120, w: 65, align: 'left' },
+          { label: 'Client Name', x: 185, w: 160, align: 'left' },
+          { label: 'Guest Name', x: 345, w: 110, align: 'left' },
+          { label: 'Basic Amt', x: 455, w: 65, align: 'right' },
+          { label: 'P/T/Taxes', x: 520, w: 65, align: 'right' },
+          { label: 'IGST', x: 585, w: 55, align: 'right' },
+          { label: 'CGST', x: 640, w: 55, align: 'right' },
+          { label: 'SGST', x: 695, w: 55, align: 'right' },
+          { label: 'Total', x: 750, w: 65, align: 'right' },
+        ];
+
+        cols.forEach((col) => {
+          doc.text(col.label, col.x + 3, startY + 6, {
+            width: col.w - 6,
+            align: col.align as any,
+          });
+          if (col.x > 30) {
+            doc.moveTo(col.x, startY).lineTo(col.x, startY + 20).stroke('#000000');
+          }
+        });
+      };
+
+      // Draw page 1 header & table header
+      drawHeader(pageNum);
+      let currentY = 95;
+      drawTableHeader(currentY);
+      currentY += 20;
+
+      // Variables to aggregate totals
+      let grandBasicAmt = 0;
+      let grandPtTaxes = 0;
+      let grandIgst = 0;
+      let grandCgst = 0;
+      let grandSgst = 0;
+      let grandTotal = 0;
+
+      // Iterate and draw rows
+      data.forEach((row, index) => {
+        grandBasicAmt += row.basicAmt;
+        grandPtTaxes += row.ptTaxes;
+        grandIgst += row.igst;
+        grandCgst += row.cgst;
+        grandSgst += row.sgst;
+        grandTotal += row.total;
+
+        // Calculate dynamic row height based on text wrap
+        doc.fontSize(8);
+        const clientNameHeight = doc.heightOfString(row.clientName, { width: 160 - 6 });
+        const guestNameHeight = doc.heightOfString(row.guestName, { width: 110 - 6 });
+        const rowHeight = Math.max(18, clientNameHeight, guestNameHeight) + 6;
+
+        // Check page overflow
+        if (currentY + rowHeight > 520) {
+          doc.addPage();
+          pageNum++;
+          drawHeader(pageNum);
+          let tempY = 95;
+          drawTableHeader(tempY);
+          currentY = tempY + 20;
+        }
+
+        // Draw Row cells
+        doc.fillColor('#000000').font('Helvetica').fontSize(8);
+
+        // Draw Sn (Serial No)
+        doc.text(row.sn.toString(), 30 + 3, currentY + 4, { width: 25 - 6, align: 'center' });
+
+        // Draw Bill Date
+        doc.text(row.billDate, 55 + 3, currentY + 4, { width: 65 - 6 });
+
+        // Draw Bill No
+        doc.text(row.billNo, 120 + 3, currentY + 4, { width: 65 - 6 });
+
+        // Draw Client Name
+        doc.text(row.clientName, 185 + 3, currentY + 4, { width: 160 - 6 });
+
+        // Draw Guest Name
+        doc.text(row.guestName, 345 + 3, currentY + 4, { width: 110 - 6 });
+
+        // Draw Basic Amt
+        doc.text(row.basicAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 455 + 3, currentY + 4, { width: 65 - 6, align: 'right' });
+
+        // Draw P/T/Taxes
+        doc.text(row.ptTaxes.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 520 + 3, currentY + 4, { width: 65 - 6, align: 'right' });
+
+        // Draw IGST
+        doc.text(row.igst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 585 + 3, currentY + 4, { width: 55 - 6, align: 'right' });
+
+        // Draw CGST
+        doc.text(row.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 640 + 3, currentY + 4, { width: 55 - 6, align: 'right' });
+
+        // Draw SGST
+        doc.text(row.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 695 + 3, currentY + 4, { width: 55 - 6, align: 'right' });
+
+        // Draw Total
+        doc.text(row.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 750 + 3, currentY + 4, { width: 65 - 6, align: 'right' });
+
+        // Draw borders for this row
+        doc.rect(30, currentY, 785, rowHeight).stroke('#000000');
+        
+        const colsX = [55, 120, 185, 345, 455, 520, 585, 640, 695, 750];
+        colsX.forEach((xCoord) => {
+          doc.moveTo(xCoord, currentY).lineTo(xCoord, currentY + rowHeight).stroke('#000000');
+        });
+
+        currentY += rowHeight;
+      });
+
+      // Draw Totals row
+      const totalRowHeight = 20;
+      if (currentY + totalRowHeight > 520) {
+        doc.addPage();
+        pageNum++;
+        drawHeader(pageNum);
+        let tempY = 95;
+        drawTableHeader(tempY);
+        currentY = tempY + 20;
+      }
+
+      doc.rect(30, currentY, 785, totalRowHeight).fill('#F1F5F9').stroke('#000000');
+      doc.fillColor('#000000').font('Helvetica-Bold').fontSize(8.5);
+
+      // Label "Total"
+      doc.text('TOTAL', 30 + 3, currentY + 5, { width: 425 - 6, align: 'right' });
+
+      // Draw columns divider lines inside totals row
+      const totalColsX = [55, 120, 185, 345, 455, 520, 585, 640, 695, 750];
+      totalColsX.forEach((xCoord) => {
+        doc.moveTo(xCoord, currentY).lineTo(xCoord, currentY + totalRowHeight).stroke('#000000');
+      });
+
+      // Draw aggregated values
+      doc.text(grandBasicAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 455 + 3, currentY + 5, { width: 65 - 6, align: 'right' });
+      doc.text(grandPtTaxes.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 520 + 3, currentY + 5, { width: 65 - 6, align: 'right' });
+      doc.text(grandIgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 585 + 3, currentY + 5, { width: 55 - 6, align: 'right' });
+      doc.text(grandCgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 640 + 3, currentY + 5, { width: 55 - 6, align: 'right' });
+      doc.text(grandSgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 695 + 3, currentY + 5, { width: 55 - 6, align: 'right' });
+      doc.text(grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 750 + 3, currentY + 5, { width: 65 - 6, align: 'right' });
+
+      doc.end();
+    });
+  }
+
+  async getDutySlipRegisterData(query: {
+    customerId?: string;
+    driverId?: string;
+    vehicleId?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+    guestName?: string;
+    employeeId?: string;
+    dutySlipFrom?: string;
+    dutySlipTo?: string;
+    vehicleOwnership?: string;
+    billingStatus?: string;
+    dutyType?: string;
+    state?: string;
+    city?: string;
+  }) {
+    const where: any = {};
+
+    if (query.driverId) {
+      where.driverId = query.driverId;
+    }
+    if (query.vehicleId) {
+      where.vehicleId = query.vehicleId;
+    }
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    // Duty Date Range (reportingTime)
+    if (query.startDate || query.endDate) {
+      where.reportingTime = {};
+      if (query.startDate) where.reportingTime.gte = new Date(query.startDate);
+      if (query.endDate) where.reportingTime.lte = new Date(query.endDate);
+    }
+
+    // Duty Slip Range
+    if (query.dutySlipFrom || query.dutySlipTo) {
+      where.dutySlipNumber = {};
+      if (query.dutySlipFrom) where.dutySlipNumber.gte = query.dutySlipFrom;
+      if (query.dutySlipTo) where.dutySlipNumber.lte = query.dutySlipTo;
+    }
+
+    // Vehicle Ownership: Own (O) vs Hired (H) vs Both (B)
+    if (query.vehicleOwnership === 'O') {
+      where.vehicle = {
+        NOT: {
+          vehicleType: { contains: 'hired', mode: 'insensitive' },
+        },
+      };
+    } else if (query.vehicleOwnership === 'H') {
+      where.vehicle = {
+        vehicleType: { contains: 'hired', mode: 'insensitive' },
+      };
+    }
+
+    // Billing Status: Billed (BI) vs UnBilled (UB) vs All (A)
+    if (query.billingStatus === 'BI') {
+      where.trip = {
+        invoiceItems: {
+          some: {},
+        },
+      };
+    } else if (query.billingStatus === 'UB') {
+      where.OR = [
+        { trip: null },
+        {
+          trip: {
+            invoiceItems: {
+              none: {},
+            },
+          },
+        },
+      ];
+    }
+
+    // Booking & Customer Relations Nested Filters
+    if (
+      query.customerId ||
+      query.guestName ||
+      query.employeeId ||
+      query.dutyType ||
+      query.state ||
+      query.city
+    ) {
+      where.booking = where.booking || {};
+
+      if (query.customerId) {
+        where.booking.customerId = query.customerId;
+      }
+      if (query.guestName) {
+        where.booking.guestName = { contains: query.guestName, mode: 'insensitive' };
+      }
+      if (query.employeeId) {
+        where.booking.employeeId = { contains: query.employeeId, mode: 'insensitive' };
+      }
+      if (query.dutyType) {
+        where.booking.tripType = query.dutyType;
+      }
+
+      if (query.state || query.city) {
+        const customerConditions: any[] = [];
+        if (query.state) {
+          customerConditions.push({
+            billingAddress: { contains: query.state, mode: 'insensitive' },
+          });
+        }
+        if (query.city) {
+          customerConditions.push({
+            billingAddress: { contains: query.city, mode: 'insensitive' },
+          });
+        }
+        where.booking.customer = {
+          AND: customerConditions,
+        };
+      }
+    }
+
+    const slips = await this.prisma.dutySlip.findMany({
+      where,
+      orderBy: { reportingTime: 'asc' },
+      include: {
+        booking: {
+          include: {
+            customer: true,
+          },
+        },
+        driver: true,
+        vehicle: true,
+      },
+    });
+
+    return slips.map((slip, idx) => {
+      const start = Number(slip.startKm) || 0;
+      const end = Number(slip.endKm) || 0;
+      const run = end > start ? end - start : 0;
+
+      return {
+        sn: idx + 1,
+        id: slip.id,
+        date: new Date(slip.reportingTime).toLocaleDateString('en-GB'),
+        slipNo: slip.dutySlipNumber,
+        clientName: slip.booking.customer.name,
+        guestName: slip.booking.guestName || '.',
+        driverName: slip.driver.name,
+        vehicleNo: slip.vehicle.vehicleNumber,
+        startKm: start,
+        endKm: end > 0 ? end : '-',
+        runKm: run > 0 ? run : '-',
+        status: slip.status,
+      };
+    });
+  }
+
+  async generateDutySlipRegisterPdf(query: {
+    customerId?: string;
+    driverId?: string;
+    vehicleId?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+    guestName?: string;
+    employeeId?: string;
+    dutySlipFrom?: string;
+    dutySlipTo?: string;
+    vehicleOwnership?: string;
+    billingStatus?: string;
+    dutyType?: string;
+    state?: string;
+    city?: string;
+  }): Promise<Buffer> {
+    const data = await this.getDutySlipRegisterData(query);
+
+    // Fetch tenant details from first slip or first tenant
+    let tenantId = '';
+    if (data.length > 0) {
+      const firstSlip = await this.prisma.dutySlip.findUnique({
+        where: { id: data[0].id },
+      });
+      if (firstSlip) tenantId = firstSlip.tenantId;
+    }
+    const tenant = tenantId 
+      ? await this.prisma.tenant.findUnique({ where: { id: tenantId } })
+      : await this.prisma.tenant.findFirst();
+
+    const companyName = tenant?.name || 'TRAVEL DREAM';
+    const companyAddress = tenant?.companyAddress || 'E57/A,HARI NAGAR EXTN-PART-II\nBADARPUR,NEW DELHI-110044 New Delhi Delhi\n110044';
+    const companyPhone = tenant?.companyPhone || '9310632440 9560352484';
+    const companyEmail = tenant?.companyEmail || 'traveldream1812@gmail.com';
+
+    // Fetch logo
+    const logoBuffer = await (async () => {
+      const logoUrl = tenant?.logoUrl;
+      if (logoUrl && (logoUrl.startsWith('http://') || logoUrl.startsWith('https://'))) {
+        try {
+          const res = await fetch(logoUrl, { signal: AbortSignal.timeout(3000) });
+          if (res.ok) return Buffer.from(await res.arrayBuffer());
+        } catch (e: any) {
+          console.warn('Failed to fetch report tenant logo:', e.message);
+        }
+      }
+      return null;
+    })();
+
+    return new Promise<Buffer>((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 30, size: 'A4', layout: 'landscape' });
+      const chunks: Buffer[] = [];
+
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', (err) => reject(err));
+
+      let pageNum = 1;
+
+      const drawHeader = (pNum: number) => {
+        // Logo
+        if (logoBuffer) {
+          try {
+            doc.image(logoBuffer, 30, 20, { width: 90, height: 42, fit: [90, 42] });
+          } catch (e) {
+            console.warn('Failed to draw logo on report:', e);
+          }
+        }
+
+        // Company Details (Center)
+        doc.fillColor('#000000')
+           .font('Helvetica-Bold')
+           .fontSize(14)
+           .text(companyName.toUpperCase(), 150, 18, { align: 'center', width: 541 });
+
+        doc.font('Helvetica')
+           .fontSize(8.5)
+           .text(companyAddress.replace(/\n/g, ', '), 150, 36, { align: 'center', width: 541 });
+
+        doc.font('Helvetica-Bold')
+           .text('Contact No: ', 280, 50, { continued: true })
+           .font('Helvetica')
+           .text(companyPhone.replace(/\n/g, ', '), { continued: true })
+           .font('Helvetica-Bold')
+           .text('  Email: ', { continued: true })
+           .font('Helvetica')
+           .text(companyEmail);
+
+        // Page number (Top Right)
+        doc.font('Helvetica-Bold')
+           .fontSize(9.5)
+           .text(`Page No  ${pNum}`, 720, 18, { align: 'right', width: 95 });
+
+        // Report Title (Right Side below Page No)
+        doc.font('Helvetica-Bold')
+           .fontSize(13)
+           .text('Duty Slip Operational Register', 550, 38, { align: 'right', width: 265, underline: true });
+
+        // Horizontal Line separating top brand info
+        doc.moveTo(30, 68).lineTo(815, 68).lineWidth(0.5).stroke('#000000');
+
+        // Filter details (Left below horizontal line)
+        let filterStr = 'All Records';
+        if (query.startDate || query.endDate) {
+          const startFmt = query.startDate ? new Date(query.startDate).toLocaleDateString('en-GB') : 'Start';
+          const endFmt = query.endDate ? new Date(query.endDate).toLocaleDateString('en-GB') : 'End';
+          filterStr = `Date range:-  ${startFmt} To  ${endFmt}`;
+        }
+        doc.font('Helvetica-Bold')
+           .fontSize(9.5)
+           .text(filterStr, 30, 75);
+
+        // Header bottom line
+        doc.moveTo(30, 90).lineTo(815, 90).lineWidth(1).stroke('#000000');
+      };
+
+      const drawTableHeader = (startY: number) => {
+        doc.rect(30, startY, 785, 20).fill('#F8FAFC').stroke('#000000');
+        doc.fillColor('#000000').font('Helvetica-Bold').fontSize(8.5);
+
+        const cols = [
+          { label: 'S.N', x: 30, w: 25, align: 'center' },
+          { label: 'Duty Date', x: 55, w: 65, align: 'left' },
+          { label: 'Slip No', x: 120, w: 65, align: 'left' },
+          { label: 'Client Name', x: 185, w: 140, align: 'left' },
+          { label: 'Guest Name', x: 325, w: 100, align: 'left' },
+          { label: 'Driver', x: 425, w: 100, align: 'left' },
+          { label: 'Car / Vehicle No', x: 525, w: 70, align: 'left' },
+          { label: 'Start KM', x: 595, w: 50, align: 'right' },
+          { label: 'End KM', x: 645, w: 50, align: 'right' },
+          { label: 'Run KM', x: 695, w: 50, align: 'right' },
+          { label: 'Status', x: 745, w: 70, align: 'center' },
+        ];
+
+        cols.forEach((col) => {
+          doc.text(col.label, col.x + 3, startY + 6, {
+            width: col.w - 6,
+            align: col.align as any,
+          });
+          if (col.x > 30) {
+            doc.moveTo(col.x, startY).lineTo(col.x, startY + 20).stroke('#000000');
+          }
+        });
+      };
+
+      // Draw page 1 header & table header
+      drawHeader(pageNum);
+      let currentY = 95;
+      drawTableHeader(currentY);
+      currentY += 20;
+
+      // Iterate and draw rows
+      data.forEach((row) => {
+        // Calculate dynamic row height based on text wrap
+        doc.fontSize(8);
+        const clientNameHeight = doc.heightOfString(row.clientName, { width: 140 - 6 });
+        const guestNameHeight = doc.heightOfString(row.guestName, { width: 100 - 6 });
+        const driverNameHeight = doc.heightOfString(row.driverName, { width: 100 - 6 });
+        
+        const rowHeight = Math.max(18, clientNameHeight, guestNameHeight, driverNameHeight) + 6;
+
+        // Check page overflow
+        if (currentY + rowHeight > 520) {
+          doc.addPage();
+          pageNum++;
+          drawHeader(pageNum);
+          let tempY = 95;
+          drawTableHeader(tempY);
+          currentY = tempY + 20;
+        }
+
+        // Draw Row cells
+        doc.fillColor('#000000').font('Helvetica').fontSize(8);
+
+        // Draw Sn (Serial No)
+        doc.text(row.sn.toString(), 30 + 3, currentY + 4, { width: 25 - 6, align: 'center' });
+
+        // Draw Date
+        doc.text(row.date, 55 + 3, currentY + 4, { width: 65 - 6 });
+
+        // Draw Slip No
+        doc.text(row.slipNo, 120 + 3, currentY + 4, { width: 65 - 6 });
+
+        // Draw Client Name
+        doc.text(row.clientName, 185 + 3, currentY + 4, { width: 140 - 6 });
+
+        // Draw Guest Name
+        doc.text(row.guestName, 325 + 3, currentY + 4, { width: 100 - 6 });
+
+        // Draw Driver
+        doc.text(row.driverName, 425 + 3, currentY + 4, { width: 100 - 6 });
+
+        // Draw Vehicle No
+        doc.text(row.vehicleNo, 525 + 3, currentY + 4, { width: 70 - 6 });
+
+        // Draw Start KM
+        doc.text(row.startKm.toString(), 595 + 3, currentY + 4, { width: 50 - 6, align: 'right' });
+
+        // Draw End KM
+        doc.text(row.endKm.toString(), 645 + 3, currentY + 4, { width: 50 - 6, align: 'right' });
+
+        // Draw Run KM
+        doc.text(row.runKm.toString(), 695 + 3, currentY + 4, { width: 50 - 6, align: 'right' });
+
+        // Draw Status
+        doc.text(row.status, 745 + 3, currentY + 4, { width: 70 - 6, align: 'center' });
+
+        // Draw borders for this row
+        doc.rect(30, currentY, 785, rowHeight).stroke('#000000');
+        
+        const colsX = [55, 120, 185, 325, 425, 525, 595, 645, 695, 745];
+        colsX.forEach((xCoord) => {
+          doc.moveTo(xCoord, currentY).lineTo(xCoord, currentY + rowHeight).stroke('#000000');
+        });
+
+        currentY += rowHeight;
+      });
+
+      doc.end();
+    });
   }
 }

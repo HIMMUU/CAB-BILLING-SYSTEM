@@ -24,19 +24,20 @@ let BookingsService = class BookingsService {
         if (!customer) {
             throw new common_1.NotFoundException('Customer not found');
         }
+        const count = await this.prisma.booking.count();
         let bookingNumber = '';
         let isUnique = false;
-        let attempts = 0;
-        while (!isUnique && attempts < 10) {
-            attempts++;
-            const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-            const randomDigits = Math.floor(1000 + Math.random() * 9000);
-            bookingNumber = `BK-${dateStr}-${randomDigits}`;
+        let currentVal = count + 1;
+        while (!isUnique) {
+            bookingNumber = String(currentVal);
             const existing = await this.prisma.booking.findFirst({
                 where: { bookingNumber },
             });
             if (!existing) {
                 isUnique = true;
+            }
+            else {
+                currentVal++;
             }
         }
         return this.prisma.booking.create({
@@ -90,6 +91,12 @@ let BookingsService = class BookingsService {
                 orderBy: { createdAt: 'desc' },
                 include: {
                     customer: true,
+                    dutySlip: {
+                        select: {
+                            id: true,
+                            dutySlipNumber: true,
+                        },
+                    },
                 },
             }),
         ]);
@@ -109,6 +116,12 @@ let BookingsService = class BookingsService {
             where: { id },
             include: {
                 customer: true,
+                dutySlip: {
+                    select: {
+                        id: true,
+                        dutySlipNumber: true,
+                    },
+                },
             },
         });
         if (!booking) {

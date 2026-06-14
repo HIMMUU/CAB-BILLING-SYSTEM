@@ -4,6 +4,12 @@ class ApiClient {
   private accessToken: string | null = null;
   private isRefreshing = false;
   private refreshSubscribers: ((token: string) => void)[] = [];
+  private cache = new Map<string, { data: any; timestamp: number }>();
+  private readonly CACHE_TTL = 15000; // 15 seconds
+
+  clearCache() {
+    this.cache.clear();
+  }
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -35,7 +41,20 @@ class ApiClient {
     this.refreshSubscribers.push(cb);
   }
 
-  async request(endpoint: string, options: RequestInit = {}): Promise<any> {
+  async request(endpoint: string, options: RequestInit & { bypassCache?: boolean } = {}): Promise<any> {
+    const method = (options.method || 'GET').toUpperCase();
+    const isGet = method === 'GET';
+    const cacheKey = `${endpoint}_${options.body ? JSON.stringify(options.body) : ''}`;
+
+    if (!isGet) {
+      this.clearCache();
+    } else if (!options.bypassCache) {
+      const cached = this.cache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+        return Promise.resolve(JSON.parse(JSON.stringify(cached.data)));
+      }
+    }
+
     const url = `${API_BASE_URL}${endpoint}`;
     
     // Set headers
@@ -107,13 +126,18 @@ class ApiClient {
         return null;
       }
 
-      return await response.json();
+      const data = await response.json();
+      if (isGet && !options.bypassCache) {
+        this.cache.set(cacheKey, { data, timestamp: Date.now() });
+      }
+      return JSON.parse(JSON.stringify(data));
     } catch (error) {
       return Promise.reject(error);
     }
   }
 
   async login(email: string, password: string) {
+    this.clearCache();
     const data = await this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
@@ -126,6 +150,7 @@ class ApiClient {
   }
 
   async register(formData: any) {
+    this.clearCache();
     const data = await this.request('/auth/register', {
       method: 'POST',
       body: JSON.stringify(formData),
@@ -138,6 +163,7 @@ class ApiClient {
   }
 
   async logout() {
+    this.clearCache();
     try {
       await this.request('/auth/logout', { 
         method: 'POST',

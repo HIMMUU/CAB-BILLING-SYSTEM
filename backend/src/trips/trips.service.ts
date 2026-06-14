@@ -36,6 +36,10 @@ export class TripsService {
     const startDateTime = overrideStartDateTime || slip.startDateTime;
     const endDateTime = overrideEndDateTime || slip.endDateTime;
 
+    if (startDateTime && endDateTime && new Date(endDateTime) < new Date(startDateTime)) {
+      throw new BadRequestException('End Date & Time cannot be before Start Date & Time');
+    }
+
     let calculatedHours = 0;
     let calculatedDays = 1;
     let extraHours = 0;

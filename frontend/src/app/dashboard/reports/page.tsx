@@ -344,6 +344,20 @@ export default function ReportsPage() {
         <div className="p-8 text-center text-red-600 text-sm font-semibold">{error}</div>
       ) : activeTab === 'operations' ? (
         <div className="space-y-6">
+          {/* CTA Card for Duty Slip Register */}
+          <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200/60 rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-[#0F172A]">Duty Slip Operational Registers</h4>
+              <p className="text-xs text-[#64748B]">Filter and export operational manifests by driver performance, car usage, and client account timelines.</p>
+            </div>
+            <button
+              onClick={() => router.push('/dashboard/reports/duty-slip-register')}
+              className="py-2 px-4 bg-[#059669] hover:bg-[#047857] text-white text-xs font-semibold rounded-lg shadow-sm transition shrink-0 self-start md:self-auto"
+            >
+              Configure & Export Register
+            </button>
+          </div>
+
           {/* Operations Overview Cards */}
           {bookingReport && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -467,6 +481,20 @@ export default function ReportsPage() {
       ) : (
         /* Financial Performance Tab */
         <div className="space-y-6">
+          {/* CTA Card for Bill Register */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/60 rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-[#0F172A]">Compliant GST & Services Tax Registers</h4>
+              <p className="text-xs text-[#64748B]">Generate formal bill registers, print customer summary covers, and export PDF tax reports with custom filters.</p>
+            </div>
+            <button
+              onClick={() => router.push('/dashboard/reports/bill-register')}
+              className="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition shrink-0 self-start md:self-auto"
+            >
+              Configure & Export Register
+            </button>
+          </div>
+
           {/* Revenue aggregate cards */}
           {revenueReport && (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TenantContextService } from '../common/context/tenant-context.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { UpdateAssignmentStatusDto } from './dto/update-assignment-status.dto';
-import { AssignmentStatus, DriverStatus, VehicleStatus, BookingStatus } from '@prisma/client';
+import { AssignmentStatus, DriverStatus, VehicleStatus, BookingStatus, DutySlipStatus } from '@prisma/client';
 
 @Injectable()
 export class AssignmentsService {
@@ -114,6 +114,50 @@ export class AssignmentsService {
         data: { status: VehicleStatus.ON_TRIP },
       });
 
+      // Construct reportingTime from booking pickupDate & pickupTime
+      let repTimeDate = new Date(booking.pickupDate);
+      if (booking.pickupTime) {
+        const timeParts = booking.pickupTime.split(':');
+        if (timeParts.length >= 2) {
+          const hh = parseInt(timeParts[0], 10);
+          const mm = parseInt(timeParts[1], 10);
+          if (!isNaN(hh) && !isNaN(mm)) {
+            repTimeDate.setHours(hh, mm, 0, 0);
+          }
+        }
+      }
+
+      // Generate unique duty slip number
+      const countSlips = await tx.dutySlip.count();
+      let dutySlipNumber = '';
+      let isUniqueSlip = false;
+      let currentDsVal = countSlips + 1;
+      while (!isUniqueSlip) {
+        dutySlipNumber = String(currentDsVal);
+        const existing = await tx.dutySlip.findFirst({
+          where: { dutySlipNumber },
+        });
+        if (!existing) {
+          isUniqueSlip = true;
+        } else {
+          currentDsVal++;
+        }
+      }
+
+      await tx.dutySlip.create({
+        data: {
+          tenantId: booking.tenantId,
+          dutySlipNumber,
+          bookingId: booking.id,
+          driverId: dto.driverId,
+          vehicleId: dto.vehicleId,
+          reportingTime: repTimeDate,
+          startKm: 0,
+          status: DutySlipStatus.DRAFT,
+          employeeId: booking.employeeId,
+        } as any,
+      });
+
       return assignment;
     });
   }
@@ -214,7 +258,15 @@ export class AssignmentsService {
         orderBy: { createdAt: 'desc' },
         include: {
           booking: {
-            include: { customer: true },
+            include: {
+              customer: true,
+              dutySlip: {
+                select: {
+                  id: true,
+                  dutySlipNumber: true,
+                },
+              },
+            },
           },
           driver: true,
           vehicle: true,
@@ -284,6 +336,15 @@ export class AssignmentsService {
         where: { id: assignment.bookingId },
         data: { status: targetBookingStatus },
       });
+
+      if (dto.status === AssignmentStatus.CANCELLED) {
+        await tx.dutySlip.deleteMany({
+          where: {
+            bookingId: assignment.bookingId,
+            status: DutySlipStatus.DRAFT,
+          },
+        });
+      }
 
       return updatedAssignment;
     });

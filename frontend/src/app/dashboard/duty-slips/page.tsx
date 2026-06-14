@@ -51,21 +51,62 @@ interface CalcPreview {
 }
 
 /* ─── Helpers ────────────────────────────────────────────────────────── */
+const handleDateChange = (val: string): string => {
+  const clean = val.replace(/\D/g, '').slice(0, 8);
+  if (clean.length >= 5) {
+    return `${clean.slice(0, 2)}/${clean.slice(2, 4)}/${clean.slice(4)}`;
+  }
+  if (clean.length >= 3) {
+    return `${clean.slice(0, 2)}/${clean.slice(2)}`;
+  }
+  return clean;
+};
+
+const handleTimeChange = (val: string): string => {
+  const clean = val.replace(/\D/g, '').slice(0, 4);
+  if (clean.length >= 3) {
+    return `${clean.slice(0, 2)}:${clean.slice(2)}`;
+  }
+  return clean;
+};
+
+const dateToApi = (d: string): string => {
+  if (!d) return '';
+  const parts = d.split('/');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return d;
+};
+
+const dateToDisplay = (d: string): string => {
+  if (!d) return '';
+  const clean = d.split('T')[0];
+  const parts = clean.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return d;
+};
+
 const splitDT = (s: string | null | undefined) => {
   if (!s) return { date: '', time: '' };
   const d = new Date(s);
   if (isNaN(d.getTime())) return { date: '', time: '' };
   const pad = (n: number) => String(n).padStart(2, '0');
   return {
-    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    date: `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`,
     time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
   };
 };
+
 const mergeDT = (date: string, time: string) => {
   if (!date) return null;
-  const d = new Date(`${date}T${time || '00:00'}`);
+  const isoDate = date.includes('/') ? dateToApi(date) : date;
+  const d = new Date(`${isoDate}T${time || '00:00'}`);
   return isNaN(d.getTime()) ? null : d.toISOString();
 };
+
 const fmt = (n: number | string | null | undefined) =>
   Number(n || 0).toFixed(2);
 const fmtDate = (s: string | null | undefined) =>
@@ -120,7 +161,7 @@ export default function DutySlipsPage() {
 
   /* From-Booking create drawer */
   const [isBookingDrawerOpen, setIsBookingDrawerOpen] = useState(false);
-  const [bookingForm, setBookingForm] = useState({ bookingId: '', reportingTime: '', startKm: 0, employeeId: '' });
+  const [bookingForm, setBookingForm] = useState({ bookingId: '', reportingDate: '', reportingTime: '', startKm: 0, employeeId: '' });
 
   /* Direct create & Edit unified full-screen form */
   const [isDirectOpen, setIsDirectOpen] = useState(false);
@@ -324,14 +365,16 @@ export default function DutySlipsPage() {
     let calcDays = 1;
 
     if (df.dutyStartDate && df.dutyStartTime && df.dutyEndDate && df.dutyEndTime) {
-      const start = new Date(`${df.dutyStartDate}T${df.dutyStartTime}`);
-      const end = new Date(`${df.dutyEndDate}T${df.dutyEndTime}`);
+      const isoStartDate = df.dutyStartDate.includes('/') ? dateToApi(df.dutyStartDate) : df.dutyStartDate;
+      const isoEndDate = df.dutyEndDate.includes('/') ? dateToApi(df.dutyEndDate) : df.dutyEndDate;
+      const start = new Date(`${isoStartDate}T${df.dutyStartTime}`);
+      const end = new Date(`${isoEndDate}T${df.dutyEndTime}`);
       if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end > start) {
         actHrs = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
         bilHrs = actHrs;
 
-        const startD = new Date(df.dutyStartDate);
-        const endD = new Date(df.dutyEndDate);
+        const startD = new Date(isoStartDate);
+        const endD = new Date(isoEndDate);
         const diffDaysMs = endD.getTime() - startD.getTime();
         calcDays = Math.max(1, Math.round(diffDaysMs / (1000 * 60 * 60 * 24)) + 1);
 
@@ -420,10 +463,10 @@ export default function DutySlipsPage() {
         : 0;
 
       const extraKmChargedVal = f.isManualExtraKmCharged
-        ? f.extraKmCharged
+        ? (Math.max(0, bilKm - baseKm) > 0 ? f.extraKmCharged : 0)
         : (Math.max(0, bilKm - baseKm) * extraKmRateVal);
       const extraHoursChargedVal = f.isManualExtraHoursCharged
-        ? f.extraHoursCharged
+        ? (Math.max(0, actHrs - baseHours) > 0 ? f.extraHoursCharged : 0)
         : (Math.max(0, actHrs - baseHours) * extraHourRateVal);
 
       return {
@@ -483,8 +526,10 @@ export default function DutySlipsPage() {
 
     let calcDays = 1;
     if (df.dutyStartDate && df.dutyEndDate) {
-      const startD = new Date(df.dutyStartDate);
-      const endD = new Date(df.dutyEndDate);
+      const isoStartDate = df.dutyStartDate.includes('/') ? dateToApi(df.dutyStartDate) : df.dutyStartDate;
+      const isoEndDate = df.dutyEndDate.includes('/') ? dateToApi(df.dutyEndDate) : df.dutyEndDate;
+      const startD = new Date(isoStartDate);
+      const endD = new Date(isoEndDate);
       const diffDaysMs = endD.getTime() - startD.getTime();
       calcDays = Math.max(1, Math.round(diffDaysMs / (1000 * 60 * 60 * 24)) + 1);
     }
@@ -566,7 +611,7 @@ export default function DutySlipsPage() {
         api.request('/vehicles?limit=200'),
         api.request('/rate-management/categories'),
       ]);
-      setAssignedBookings(bRes.data || []);
+      setAssignedBookings((bRes.data || []).filter((b: any) => !b.dutySlip));
       setCustomers(cRes.data || cRes || []);
       setDrivers(dRes.data || dRes || []);
       setVehicles(vRes.data || vRes || []);
@@ -579,17 +624,29 @@ export default function DutySlipsPage() {
   const handleBookingCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    if (!bookingForm.bookingId || !bookingForm.reportingTime) {
-      setFormError('Booking and reporting time are required.');
+    if (!bookingForm.bookingId || !bookingForm.reportingDate || !bookingForm.reportingTime) {
+      setFormError('Booking, reporting date and reporting time are required.');
       return;
     }
+
+    const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+    if (!dateRegex.test(bookingForm.reportingDate)) {
+      setFormError('Reporting Date must be in DD/MM/YYYY format.');
+      return;
+    }
+    const timeRegex = /^([0-1]\d|2[0-3]):([0-5]\d)$/;
+    if (!timeRegex.test(bookingForm.reportingTime)) {
+      setFormError('Reporting Time must be in 24 Hrs HH:mm format.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       await api.request('/duty-slips', {
         method: 'POST',
         body: JSON.stringify({
           bookingId: bookingForm.bookingId,
-          reportingTime: new Date(bookingForm.reportingTime).toISOString(),
+          reportingTime: mergeDT(bookingForm.reportingDate, bookingForm.reportingTime),
           startKm: Number(bookingForm.startKm),
           employeeId: bookingForm.employeeId || undefined,
         }),
@@ -608,12 +665,51 @@ export default function DutySlipsPage() {
     if (!df.driverId) { setFormError('Select a driver.'); return; }
     if (!df.vehicleId) { setFormError('Select a vehicle.'); return; }
 
-    const rdt = df.reportingDate && df.reportingTime
-      ? new Date(`${df.reportingDate}T${df.reportingTime}`).toISOString()
-      : new Date().toISOString();
+    const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+    const timeRegex = /^([0-1]\d|2[0-3]):([0-5]\d)$/;
+
+    if (df.reportingDate && !dateRegex.test(df.reportingDate)) {
+      setFormError('Reporting Date must be in DD/MM/YYYY format.');
+      return;
+    }
+    if (df.reportingTime && !timeRegex.test(df.reportingTime)) {
+      setFormError('Reporting Time must be in 24 Hrs HH:mm format.');
+      return;
+    }
+
+    if (df.dutyStartDate && !dateRegex.test(df.dutyStartDate)) {
+      setFormError('Start Date must be in DD/MM/YYYY format.');
+      return;
+    }
+    if (df.dutyStartTime && !timeRegex.test(df.dutyStartTime)) {
+      setFormError('Start Time must be in 24 Hrs HH:mm format.');
+      return;
+    }
+
+    if (df.dutyEndDate && !dateRegex.test(df.dutyEndDate)) {
+      setFormError('End Date must be in DD/MM/YYYY format.');
+      return;
+    }
+    if (df.dutyEndTime && !timeRegex.test(df.dutyEndTime)) {
+      setFormError('End Time must be in 24 Hrs HH:mm format.');
+      return;
+    }
 
     const startDateTime = mergeDT(df.dutyStartDate, df.dutyStartTime);
     const endDateTime = mergeDT(df.dutyEndDate, df.dutyEndTime);
+
+    if (startDateTime && endDateTime) {
+      const start = new Date(startDateTime);
+      const end = new Date(endDateTime);
+      if (end < start) {
+        setFormError('End Date & Time cannot be before Start Date & Time.');
+        return;
+      }
+    }
+
+    const rdt = df.reportingDate && df.reportingTime
+      ? mergeDT(df.reportingDate, df.reportingTime)
+      : new Date().toISOString();
 
     let targetStatus: 'DRAFT' | 'FILLED' | 'CLOSED' = 'DRAFT';
     if (closeStatus) {
@@ -911,7 +1007,7 @@ export default function DutySlipsPage() {
         {canEdit && (
           <div className="flex items-center gap-3">
             <button
-              onClick={() => { loadAssets(); setBookingForm({ bookingId: '', reportingTime: '', startKm: 0, employeeId: '' }); setFormError(null); setIsBookingDrawerOpen(true); }}
+              onClick={() => { loadAssets(); setBookingForm({ bookingId: '', reportingDate: '', reportingTime: '', startKm: 0, employeeId: '' }); setFormError(null); setIsBookingDrawerOpen(true); }}
               className="py-2 px-4 text-sm font-semibold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition flex items-center gap-2 shadow-sm"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
@@ -960,7 +1056,7 @@ export default function DutySlipsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50">
-                  {['Slip No.', 'Booking', 'Customer', 'Guest Name', 'Driver', 'Vehicle', 'Date', 'Status', 'KM', ''].map(h => (
+                  {['Slip No.', 'Booking', 'Customer', 'Guest Name', 'Driver', 'Vehicle', 'Reporting Date & Time', 'Status', 'KM', ''].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -983,7 +1079,10 @@ export default function DutySlipsPage() {
                     </td>
                     <td className="px-4 py-3.5 text-slate-700 text-xs">{slip.driver?.name || '—'}</td>
                     <td className="px-4 py-3.5 text-xs font-mono text-slate-600">{slip.vehicle?.vehicleNumber || '—'}</td>
-                    <td className="px-4 py-3.5 text-xs text-slate-500">{fmtDate(slip.reportingTime)}</td>
+                    <td className="px-4 py-3.5 text-xs text-slate-500">
+                      <div className="text-slate-800 font-medium">{fmtDate(slip.reportingTime)}</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5 font-medium">{fmtTime(slip.reportingTime)}</div>
+                    </td>
                     <td className="px-4 py-3.5">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wide ${STATUS_STYLES[slip.status]}`}>
                         {slip.status.toLowerCase()}
@@ -1081,7 +1180,10 @@ export default function DutySlipsPage() {
               </Field>
 
               <Field label="Reporting Date & Time *">
-                <input type="datetime-local" required value={bookingForm.reportingTime} onChange={e => setBookingForm(f => ({ ...f, reportingTime: e.target.value }))} className={inp} />
+                <div className="flex gap-2">
+                  <input type="text" placeholder="DD/MM/YYYY" maxLength={10} required value={bookingForm.reportingDate} onChange={e => setBookingForm(f => ({ ...f, reportingDate: handleDateChange(e.target.value) }))} className={inp + ' w-2/3'} />
+                  <input type="text" placeholder="HH:mm" maxLength={5} required value={bookingForm.reportingTime} onChange={e => setBookingForm(f => ({ ...f, reportingTime: handleTimeChange(e.target.value) }))} className={inp + ' w-1/3'} />
+                </div>
               </Field>
 
               <Field label="Start Odometer (KM) *">
@@ -1233,8 +1335,8 @@ export default function DutySlipsPage() {
                     </Field>
                     <Field label="Reporting Time *">
                       <div className="flex gap-2">
-                        <input type="date" required value={df.reportingDate} onChange={e => setDf(f => ({ ...f, reportingDate: e.target.value }))} className={inp + ' w-2/3'} />
-                        <input type="time" required value={df.reportingTime} onChange={e => setDf(f => ({ ...f, reportingTime: e.target.value }))} className={inp + ' w-1/3'} />
+                        <input type="text" placeholder="DD/MM/YYYY" maxLength={10} required value={df.reportingDate} onChange={e => setDf(f => ({ ...f, reportingDate: handleDateChange(e.target.value) }))} className={inp + ' w-2/3'} />
+                        <input type="text" placeholder="HH:mm" maxLength={5} required value={df.reportingTime} onChange={e => setDf(f => ({ ...f, reportingTime: handleTimeChange(e.target.value) }))} className={inp + ' w-1/3'} />
                       </div>
                     </Field>
                   </div>
@@ -1264,16 +1366,16 @@ export default function DutySlipsPage() {
                       <p className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />Start Metrics
                       </p>
-                      <Field label="Start Date"><input type="date" value={df.dutyStartDate} onChange={e => setDf(f => ({ ...f, dutyStartDate: e.target.value }))} className={inp} /></Field>
-                      <Field label="Start Time"><input type="time" value={df.dutyStartTime} onChange={e => setDf(f => ({ ...f, dutyStartTime: e.target.value }))} className={inp} /></Field>
+                      <Field label="Start Date"><input type="text" placeholder="DD/MM/YYYY" maxLength={10} value={df.dutyStartDate} onChange={e => setDf(f => ({ ...f, dutyStartDate: handleDateChange(e.target.value) }))} className={inp} /></Field>
+                      <Field label="Start Time"><input type="text" placeholder="HH:mm" maxLength={5} value={df.dutyStartTime} onChange={e => setDf(f => ({ ...f, dutyStartTime: handleTimeChange(e.target.value) }))} className={inp} /></Field>
                       <Field label="Start Meter (KM)"><input type="number" min={0} value={df.dutyStartMeter || ''} onChange={e => setDf(f => ({ ...f, dutyStartMeter: parseInt(e.target.value) || 0 }))} className={inp + ' font-mono'} /></Field>
                     </div>
                     <div className="space-y-3 p-4 bg-emerald-50/40 rounded-xl border border-emerald-100/40">
                       <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />End Metrics
                       </p>
-                      <Field label="End Date"><input type="date" value={df.dutyEndDate} onChange={e => setDf(f => ({ ...f, dutyEndDate: e.target.value }))} className={inp} /></Field>
-                      <Field label="End Time"><input type="time" value={df.dutyEndTime} onChange={e => setDf(f => ({ ...f, dutyEndTime: e.target.value }))} className={inp} /></Field>
+                      <Field label="End Date"><input type="text" placeholder="DD/MM/YYYY" maxLength={10} value={df.dutyEndDate} onChange={e => setDf(f => ({ ...f, dutyEndDate: handleDateChange(e.target.value) }))} className={inp} /></Field>
+                      <Field label="End Time"><input type="text" placeholder="HH:mm" maxLength={5} value={df.dutyEndTime} onChange={e => setDf(f => ({ ...f, dutyEndTime: handleTimeChange(e.target.value) }))} className={inp} /></Field>
                       <Field label="End Meter (KM)"><input type="number" min={0} value={df.dutyEndMeter || ''} onChange={e => setDf(f => ({ ...f, dutyEndMeter: parseInt(e.target.value) || 0 }))} className={inp + ' font-mono'} /></Field>
                     </div>
                   </div>

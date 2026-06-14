@@ -139,20 +139,19 @@ export class InvoicesService {
     const dueAmount = totalAmount;
 
     // 5. Generate unique invoice number
+    const countInvoices = await this.prisma.invoice.count();
     let invoiceNumber = '';
     let isUnique = false;
-    let attempts = 0;
-    while (!isUnique && attempts < 10) {
-      attempts++;
-      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const randomDigits = Math.floor(1000 + Math.random() * 9000);
-      invoiceNumber = `INV-${dateStr}-${randomDigits}`;
-
+    let currentInvVal = countInvoices + 1;
+    while (!isUnique) {
+      invoiceNumber = String(currentInvVal);
       const existing = await this.prisma.invoice.findFirst({
         where: { invoiceNumber },
       });
       if (!existing) {
         isUnique = true;
+      } else {
+        currentInvVal++;
       }
     }
 

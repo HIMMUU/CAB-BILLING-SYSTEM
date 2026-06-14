@@ -1,4 +1,5 @@
 import { ReportsService } from './reports.service';
+import * as express from 'express';
 export declare class ReportsController {
     private readonly reportsService;
     constructor(reportsService: ReportsService);
@@ -61,4 +62,34 @@ export declare class ReportsController {
             overdue61Plus: number;
         }[];
     }>;
+    getBillRegister(gstOption?: string, customerId?: string, state?: string, city?: string, guestName?: string, employeeId?: string, billDateFrom?: string, billDateTo?: string, dutyDateFrom?: string, dutyDateTo?: string, monthOf?: string, billCoverNo?: string): Promise<{
+        sn: number;
+        id: string;
+        billDate: string;
+        billNo: string;
+        clientName: string;
+        guestName: string;
+        basicAmt: number;
+        ptTaxes: number;
+        igst: number;
+        cgst: number;
+        sgst: number;
+        total: number;
+    }[]>;
+    getBillRegisterPdf(gstOption: string, customerId: string, state: string, city: string, guestName: string, employeeId: string, billDateFrom: string, billDateTo: string, dutyDateFrom: string, dutyDateTo: string, monthOf: string, billCoverNo: string, res: express.Response): Promise<void>;
+    getDutySlipRegister(customerId?: string, driverId?: string, vehicleId?: string, status?: string, startDate?: string, endDate?: string, guestName?: string, employeeId?: string, dutySlipFrom?: string, dutySlipTo?: string, vehicleOwnership?: string, billingStatus?: string, dutyType?: string, state?: string, city?: string): Promise<{
+        sn: number;
+        id: string;
+        date: string;
+        slipNo: string;
+        clientName: string;
+        guestName: string;
+        driverName: string;
+        vehicleNo: string;
+        startKm: number;
+        endKm: string | number;
+        runKm: string | number;
+        status: import(".prisma/client").$Enums.DutySlipStatus;
+    }[]>;
+    getDutySlipRegisterPdf(customerId: string, driverId: string, vehicleId: string, status: string, startDate: string, endDate: string, guestName: string, employeeId: string, dutySlipFrom: string, dutySlipTo: string, vehicleOwnership: string, billingStatus: string, dutyType: string, state: string, city: string, res: express.Response): Promise<void>;
 }

@@ -80,19 +80,20 @@ let DutySlipsService = class DutySlipsService {
             if (!vehicle) {
                 throw new common_1.NotFoundException('Vehicle not found');
             }
+            const countBookings = await this.prisma.booking.count();
             let bookingNumber = '';
             let isUnique = false;
-            let attempts = 0;
-            while (!isUnique && attempts < 10) {
-                attempts++;
-                const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-                const randomDigits = Math.floor(1000 + Math.random() * 9000);
-                bookingNumber = `BK-${dateStr}-${randomDigits}`;
+            let currentBkVal = countBookings + 1;
+            while (!isUnique) {
+                bookingNumber = String(currentBkVal);
                 const existing = await this.prisma.booking.findFirst({
                     where: { bookingNumber },
                 });
                 if (!existing) {
                     isUnique = true;
+                }
+                else {
+                    currentBkVal++;
                 }
             }
             const rTime = new Date(dto.reportingTime);
@@ -134,19 +135,20 @@ let DutySlipsService = class DutySlipsService {
                     where: { id: dto.vehicleId },
                     data: { status: 'ON_TRIP' },
                 });
+                const countSlips = await tx.dutySlip.count();
                 let dutySlipNumber = '';
                 let isUniqueSlip = false;
-                let attemptsSlip = 0;
-                while (!isUniqueSlip && attemptsSlip < 10) {
-                    attemptsSlip++;
-                    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-                    const randomDigits = Math.floor(1000 + Math.random() * 9000);
-                    dutySlipNumber = `DS-${dateStr}-${randomDigits}`;
+                let currentDsVal = countSlips + 1;
+                while (!isUniqueSlip) {
+                    dutySlipNumber = String(currentDsVal);
                     const existing = await tx.dutySlip.findFirst({
                         where: { dutySlipNumber },
                     });
                     if (!existing) {
                         isUniqueSlip = true;
+                    }
+                    else {
+                        currentDsVal++;
                     }
                 }
                 const newSlip = await tx.dutySlip.create({
@@ -197,19 +199,20 @@ let DutySlipsService = class DutySlipsService {
         if (!assignment) {
             throw new common_1.BadRequestException('No active resource assignment found for this booking.');
         }
+        const countSlips = await this.prisma.dutySlip.count();
         let dutySlipNumber = '';
         let isUnique = false;
-        let attempts = 0;
-        while (!isUnique && attempts < 10) {
-            attempts++;
-            const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-            const randomDigits = Math.floor(1000 + Math.random() * 9000);
-            dutySlipNumber = `DS-${dateStr}-${randomDigits}`;
+        let currentDsVal = countSlips + 1;
+        while (!isUnique) {
+            dutySlipNumber = String(currentDsVal);
             const existing = await this.prisma.dutySlip.findFirst({
                 where: { dutySlipNumber },
             });
             if (!existing) {
                 isUnique = true;
+            }
+            else {
+                currentDsVal++;
             }
         }
         return this.prisma.dutySlip.create({
@@ -303,6 +306,11 @@ let DutySlipsService = class DutySlipsService {
         const endKm = dto.endKm !== undefined ? dto.endKm : (slip.endKm ? Number(slip.endKm) : undefined);
         if (endKm !== undefined && endKm < startKm) {
             throw new common_1.BadRequestException('End KM cannot be less than Start KM');
+        }
+        const startDt = dto.startDateTime ? new Date(dto.startDateTime) : (slip.startDateTime ? new Date(slip.startDateTime) : null);
+        const endDt = dto.endDateTime ? new Date(dto.endDateTime) : (slip.endDateTime ? new Date(slip.endDateTime) : null);
+        if (startDt && endDt && endDt < startDt) {
+            throw new common_1.BadRequestException('End Date & Time cannot be before Start Date & Time');
         }
         let targetStatus = dto.status ?? slip.status;
         if (dto.endKm !== undefined && targetStatus === client_1.DutySlipStatus.DRAFT) {
@@ -414,14 +422,24 @@ let DutySlipsService = class DutySlipsService {
             doc.on('error', (err) => reject(err));
             const layout = tenant?.pdfHeaderLayout || 'SINGLE_LINE';
             const titleStr = slipTitle.toUpperCase();
-            if (layout === 'SPLIT' && logoBuffer && !tenant?.hideLogoOnPdf) {
-                doc.fillColor(primaryColor).fontSize(16).font(fontBold).text(companyName.toUpperCase(), 50, 30);
-                doc.fillColor('#475569').fontSize(10).font(fontBold).text(titleStr, 50, 52);
-                try {
-                    doc.image(logoBuffer, 460, 25, { width: 85, height: 35, fit: [85, 35] });
+            if (layout === 'SPLIT') {
+                let hasLogo = false;
+                if (logoBuffer && !tenant?.hideLogoOnPdf) {
+                    try {
+                        doc.image(logoBuffer, 50, 25, { width: 85, height: 35, fit: [85, 35] });
+                        hasLogo = true;
+                    }
+                    catch (e) {
+                        console.warn('Failed to draw logo on duty slip:', e);
+                    }
                 }
-                catch (e) {
-                    doc.fillColor('#64748B').fontSize(10).font(fontBold).text('LOGO', 460, 30, { align: 'right', width: 85 });
+                if (hasLogo) {
+                    doc.fillColor(primaryColor).fontSize(16).font(fontBold).text(companyName.toUpperCase(), 150, 25, { align: 'center', width: 295 });
+                    doc.fillColor('#475569').fontSize(10).font(fontBold).text(titleStr, 150, 47, { align: 'center', width: 295 });
+                }
+                else {
+                    doc.fillColor(primaryColor).fontSize(16).font(fontBold).text(companyName.toUpperCase(), 50, 25, { align: 'center', width: 495 });
+                    doc.fillColor('#475569').fontSize(10).font(fontBold).text(titleStr, 50, 47, { align: 'center', width: 495 });
                 }
             }
             else if (layout === 'STACKED') {
@@ -496,17 +514,25 @@ let DutySlipsService = class DutySlipsService {
             doc.text('START DATE & TIME', 285, 407);
             doc.text('END DATE & TIME', 400, 407);
             doc.fontSize(9).font(fontBold);
-            doc.text(`${slip.startKm} KM`, 55, 442);
-            doc.text(slip.endKm !== null ? `${slip.endKm} KM` : '--- KM', 170, 442);
-            const formatDT = (dt) => {
-                if (!dt)
-                    return '---';
-                const d = new Date(dt).toLocaleDateString('en-GB');
-                const t = new Date(dt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
-                return `${d} ${t}`;
-            };
-            doc.text(formatDT(slip.startDateTime), 285, 442);
-            doc.text(formatDT(slip.endDateTime), 400, 442);
+            if (slip.status === 'DRAFT') {
+                doc.text('___________ KM', 55, 442);
+                doc.text('___________ KM', 170, 442);
+                doc.text('___/___/___  ___:___', 285, 442);
+                doc.text('___/___/___  ___:___', 400, 442);
+            }
+            else {
+                doc.text(`${slip.startKm} KM`, 55, 442);
+                doc.text(slip.endKm !== null ? `${slip.endKm} KM` : '--- KM', 170, 442);
+                const formatDT = (dt) => {
+                    if (!dt)
+                        return '---';
+                    const d = new Date(dt).toLocaleDateString('en-GB');
+                    const t = new Date(dt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+                    return `${d} ${t}`;
+                };
+                doc.text(formatDT(slip.startDateTime), 285, 442);
+                doc.text(formatDT(slip.endDateTime), 400, 442);
+            }
             doc.fontSize(12).font(fontBold).text('Tolls & Incidentals Breakdown', 50, 492);
             doc.rect(50, 507, 495, 140).stroke('#E2E8F0');
             doc.moveTo(50, 542).lineTo(545, 542).stroke('#E2E8F0');
@@ -517,22 +543,27 @@ let DutySlipsService = class DutySlipsService {
             }
             doc.fontSize(10).font(fontBold);
             doc.text('Toll Charges:', 60, 519);
-            doc.font(fontRegular).text(`INR ${slip.toll}`, 180, 519);
+            doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.toll}`, 180, 519);
             doc.font(fontBold).text('Parking Charges:', 307, 519);
-            doc.font(fontRegular).text(`INR ${slip.parking}`, 420, 519);
+            doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.parking}`, 420, 519);
             doc.font(fontBold).text('State Tax:', 60, 554);
-            doc.font(fontRegular).text(`INR ${slip.stateTax}`, 180, 554);
+            doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.stateTax}`, 180, 554);
             doc.font(fontBold).text('MCD Toll:', 307, 554);
-            doc.font(fontRegular).text(`INR ${slip.mcd}`, 420, 554);
+            doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.mcd}`, 420, 554);
             doc.font(fontBold).text('Night Surcharge:', 60, 589);
-            doc.font(fontRegular).text(`INR ${slip.nightCharges}`, 180, 589);
+            doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.nightCharges}`, 180, 589);
             doc.font(fontBold).text('Driver Allowance:', 307, 589);
-            doc.font(fontRegular).text(`INR ${slip.driverAllowance}`, 420, 589);
+            doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.driverAllowance}`, 420, 589);
             doc.font(fontBold).text('Extra / Misc Charges:', 60, 624);
-            doc.font(fontRegular).text(`INR ${slip.extraCharges}`, 180, 624);
+            doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.extraCharges}`, 180, 624);
             const totalTolls = Number(slip.toll) + Number(slip.parking) + Number(slip.stateTax) + Number(slip.mcd) + Number(slip.nightCharges) + Number(slip.driverAllowance) + Number(slip.extraCharges);
             doc.font(fontBold).text('Total Incidentals:', 307, 624);
-            doc.font(fontBold).fillColor(primaryColor).text(`INR ${totalTolls.toFixed(2)}`, 420, 624);
+            if (slip.status === 'DRAFT') {
+                doc.font(fontBold).fillColor(primaryColor).text('INR ___________', 420, 624);
+            }
+            else {
+                doc.font(fontBold).fillColor(primaryColor).text(`INR ${totalTolls.toFixed(2)}`, 420, 624);
+            }
             doc.fillColor('#0F172A');
             doc.fontSize(8).font(fontBold);
             doc.text('DRIVER SIGNATURE', 60, 690);

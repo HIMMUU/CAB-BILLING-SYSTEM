@@ -140,6 +140,10 @@ export declare class AssignmentsController {
                     igstRate: import("@prisma/client/runtime/library").Decimal;
                     isRcm: boolean;
                 };
+                dutySlip: {
+                    id: string;
+                    dutySlipNumber: string;
+                } | null;
             } & {
                 id: string;
                 status: import(".prisma/client").$Enums.BookingStatus;
