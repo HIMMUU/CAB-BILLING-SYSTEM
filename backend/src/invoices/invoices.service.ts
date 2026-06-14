@@ -653,10 +653,18 @@ export class InvoicesService {
       let pageNum = 1;
 
       const drawHeader = (pNum: number) => {
+        // Temporarily change bottom margin to prevent PDFKit from triggering a page break on the footer page number
+        const oldBottomMargin = doc.page.margins.bottom;
+        doc.page.margins.bottom = 10;
+
         // Draw page number at the bottom of the page
         doc.fillColor('#64748B').fontSize(7.5).font(fontRegular).text(`Page ${pNum}`, 50, 810, { align: 'right', width: 495 });
 
+        // Restore bottom margin
+        doc.page.margins.bottom = oldBottomMargin;
+
         // Header layout
+
         const titleStr = (tenant?.invoiceTitle || 'TAX INVOICE').toUpperCase();
 
         // Left logo (tenant logo)
