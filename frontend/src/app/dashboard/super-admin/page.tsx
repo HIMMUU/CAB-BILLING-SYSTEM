@@ -258,11 +258,7 @@ export default function SuperAdminPage() {
                           {tenant.slug || '—'}
                         </td>
                         <td className="px-6 py-4 text-[#475569]">
-                          {new Date(tenant.createdAt).toLocaleDateString('en-IN', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })}
+                          {new Date(tenant.createdAt).toLocaleDateString('en-GB')}
                         </td>
                         <td className="px-6 py-4">
                           <select

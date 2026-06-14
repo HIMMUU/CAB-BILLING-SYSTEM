@@ -305,7 +305,7 @@ export default function PaymentsPage() {
                       <div className="text-xs text-[#64748B]">{payment.invoice?.customer?.companyName || 'Individual'}</div>
                     </td>
                     <td className="py-4 px-6 text-[#64748B]">
-                      {new Date(payment.paymentDate).toLocaleDateString()}
+                      {new Date(payment.paymentDate).toLocaleDateString('en-GB')}
                     </td>
                     <td className="py-4 px-6 font-medium text-[#475569]">
                       {formatModeLabel(payment.paymentMode)}

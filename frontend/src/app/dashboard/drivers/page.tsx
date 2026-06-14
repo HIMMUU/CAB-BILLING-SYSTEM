@@ -188,7 +188,7 @@ export default function DriversPage() {
     }
     return {
       style: 'text-[#0F172A]',
-      text: expiry.toLocaleDateString(),
+      text: expiry.toLocaleDateString('en-GB'),
     };
   };
 

@@ -221,7 +221,7 @@ export default function VehiclesPage() {
       <div className="flex flex-col text-left mb-1">
         <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">{name}</span>
         <span className="text-[#0F172A] text-xs font-medium">
-          {expiry.toLocaleDateString()}
+          {expiry.toLocaleDateString('en-GB')}
         </span>
       </div>
     );
@@ -337,7 +337,7 @@ export default function VehiclesPage() {
                         <div className="text-xs text-[#64748B]">{vehicle.seatingCapacity} Seater</div>
                       </td>
                       <td className="py-4 px-6 text-[#64748B] text-xs">
-                        {vehicle.registrationDate ? new Date(vehicle.registrationDate).toLocaleDateString() : 'N/A'}
+                        {vehicle.registrationDate ? new Date(vehicle.registrationDate).toLocaleDateString('en-GB') : 'N/A'}
                       </td>
                       <td className="py-4 px-6 space-y-2">
                         {getExpiryBadge(vehicle.permitExpiry, 'Permit')}

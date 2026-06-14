@@ -731,11 +731,7 @@ export default function RateManagementPage() {
                         </td>
                         {/* Effective & Status */}
                         <td className="py-4 px-4 text-xs text-[#475569]">
-                          {new Date(rc.effectiveFrom).toLocaleDateString('en-IN', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                          })}
+                          {new Date(rc.effectiveFrom).toLocaleDateString('en-GB')}
                         </td>
                         <td className="py-4 px-4">
                           <span className={`inline-block w-2.5 h-2.5 rounded-full ${rc.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-300'}`} title={rc.status} />
@@ -839,11 +835,7 @@ export default function RateManagementPage() {
                       <td className="py-4 px-6 text-center font-mono text-gray-700">{Number(tax.sgst).toFixed(2)}%</td>
                       <td className="py-4 px-6 text-center font-mono text-gray-700">{Number(tax.igst).toFixed(2)}%</td>
                       <td className="py-4 px-6 text-xs text-[#475569]">
-                        {new Date(tax.effectiveFrom).toLocaleDateString('en-IN', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
+                        {new Date(tax.effectiveFrom).toLocaleDateString('en-GB')}
                       </td>
                       <td className="py-4 px-6">
                         {tax.isActive ? (
@@ -1407,13 +1399,7 @@ export default function RateManagementPage() {
                         )}
                       </div>
                       <div className="text-right text-[#64748B] text-[10px] whitespace-nowrap">
-                        {new Date(log.createdAt).toLocaleString('en-IN', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {new Date(log.createdAt).toLocaleDateString('en-GB')} {new Date(log.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
                       </div>
                     </div>
                   ))}

@@ -293,7 +293,7 @@ export default function AssignmentsPage() {
                       </div>
                     </td>
                     <td className="py-3 px-6">
-                      <div className="text-xs text-[#0F172A] font-medium">{new Date(b.pickupDate).toLocaleDateString()}</div>
+                      <div className="text-xs text-[#0F172A] font-medium">{new Date(b.pickupDate).toLocaleDateString('en-GB')}</div>
                       <div className="text-[10px] text-[#64748B] mt-0.5">{b.pickupTime}</div>
                     </td>
                     {canEdit && (
@@ -401,7 +401,7 @@ export default function AssignmentsPage() {
                       </td>
                       <td className="py-4 px-6">
                         <div className="text-xs text-[#0F172A] font-medium">
-                          {a.booking?.pickupDate ? new Date(a.booking.pickupDate).toLocaleDateString() : 'N/A'}
+                          {a.booking?.pickupDate ? new Date(a.booking.pickupDate).toLocaleDateString('en-GB') : 'N/A'}
                         </div>
                         <div className="text-[10px] text-[#64748B] mt-0.5">{a.booking?.pickupTime}</div>
                       </td>
@@ -512,7 +512,7 @@ export default function AssignmentsPage() {
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <span className="font-bold text-[#0F172A] block uppercase tracking-wider text-[10px]">Requested Date/Time:</span>
-                        <span className="text-[#64748B] font-medium">{new Date(selectedBooking.pickupDate).toLocaleDateString()} at {selectedBooking.pickupTime}</span>
+                        <span className="text-[#64748B] font-medium">{new Date(selectedBooking.pickupDate).toLocaleDateString('en-GB')} at {selectedBooking.pickupTime}</span>
                       </div>
                       <div>
                         <span className="font-bold text-[#0F172A] block uppercase tracking-wider text-[10px]">Requested Vehicle Type:</span>

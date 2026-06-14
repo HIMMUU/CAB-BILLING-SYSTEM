@@ -555,7 +555,7 @@ let InvoicesService = class InvoicesService {
             fontRegular = 'Courier';
             fontBold = 'Courier-Bold';
         }
-        const [logoBuffer, badgeBuffer, signatureBuffer] = await Promise.all([
+        const [logoBuffer, badgeBuffer, signatureBuffer, fallbackLogoBuffer] = await Promise.all([
             (async () => {
                 const logoUrl = tenant?.logoUrl || '/logo.png';
                 if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
@@ -620,6 +620,25 @@ let InvoicesService = class InvoicesService {
                 }
                 return null;
             })(),
+            (async () => {
+                try {
+                    const fs = require('fs');
+                    const fallbackPaths = [
+                        path.resolve(__dirname, '..', 'assets', 'logo.png'),
+                        path.resolve(__dirname, '..', '..', 'frontend', 'public', 'logo.png'),
+                        path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'logo.png'),
+                    ];
+                    for (const p of fallbackPaths) {
+                        if (fs.existsSync(p)) {
+                            return await fs.promises.readFile(p);
+                        }
+                    }
+                }
+                catch (e) {
+                    console.warn('Failed to pre-load fallback logo:', e);
+                }
+                return null;
+            })(),
         ]);
         const parsedInvoice = this.recalculateInvoiceFields(invoice);
         return new Promise((resolve, reject) => {
@@ -645,25 +664,9 @@ let InvoicesService = class InvoicesService {
                         console.warn('Failed to draw tenant logo:', e);
                     }
                 }
-                if (!hasDrawnLogo && !tenant?.hideLogoOnPdf) {
+                if (!hasDrawnLogo && fallbackLogoBuffer && !tenant?.hideLogoOnPdf) {
                     try {
-                        const fs = require('fs');
-                        const path = require('path');
-                        const fallbackPaths = [
-                            path.resolve(__dirname, '..', 'assets', 'logo.png'),
-                            path.resolve(__dirname, '..', '..', 'frontend', 'public', 'logo.png'),
-                            path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'logo.png'),
-                        ];
-                        let fallbackBuffer = null;
-                        for (const p of fallbackPaths) {
-                            if (fs.existsSync(p)) {
-                                fallbackBuffer = fs.readFileSync(p);
-                                break;
-                            }
-                        }
-                        if (fallbackBuffer) {
-                            doc.image(fallbackBuffer, 50, 18, { width: 90, height: 42, fit: [90, 42] });
-                        }
+                        doc.image(fallbackLogoBuffer, 50, 18, { width: 90, height: 42, fit: [90, 42] });
                     }
                     catch (fallbackErr) {
                         console.warn('Failed to draw fallback logo:', fallbackErr);

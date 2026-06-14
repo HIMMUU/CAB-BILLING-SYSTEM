@@ -121,7 +121,7 @@ export default function DashboardPage() {
         {chartData.map((d) => {
           const barHeight = (d.bookingsCount / maxVal) * height;
           // Format date string to show day name or simple format
-          const formattedDate = new Date(d.date).toLocaleDateString('en-IN', { weekday: 'short' });
+          const formattedDate = new Date(d.date).toLocaleDateString('en-GB', { weekday: 'short' });
           return (
             <div key={d.date} className="flex flex-col items-center gap-1 w-full group">
               <span className="text-[9px] font-bold text-[#0F172A] opacity-0 group-hover:opacity-100 transition-opacity">
@@ -184,8 +184,8 @@ export default function DashboardPage() {
         </svg>
 
         <div className="flex items-center justify-between text-[9px] text-[#64748B] font-semibold select-none px-1">
-          <span>{new Date(chartData[0].date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</span>
-          <span>{new Date(chartData[chartData.length - 1].date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</span>
+          <span>{new Date(chartData[0].date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}</span>
+          <span>{new Date(chartData[chartData.length - 1].date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}</span>
         </div>
       </div>
     );

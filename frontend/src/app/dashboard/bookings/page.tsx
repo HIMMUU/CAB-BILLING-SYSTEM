@@ -330,7 +330,7 @@ export default function BookingsPage() {
                       </td>
                       <td className="py-4 px-6">
                         <div className="text-[#0F172A] font-medium">
-                          {booking.pickupDate ? new Date(booking.pickupDate).toLocaleDateString() : 'N/A'}
+                          {booking.pickupDate ? new Date(booking.pickupDate).toLocaleDateString('en-GB') : 'N/A'}
                         </div>
                         <div className="text-xs text-[#64748B] mt-0.5">{booking.pickupTime}</div>
                       </td>

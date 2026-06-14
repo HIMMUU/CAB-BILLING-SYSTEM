@@ -186,7 +186,7 @@ export default function CustomerHistoryPage() {
                   <tr key={booking.id} className="hover:bg-[#F8FAFC] transition-colors">
                     <td className="py-4 px-6 font-mono font-medium text-[#0F172A]">{booking.bookingNumber}</td>
                     <td className="py-4 px-6 text-[#0F172A]">
-                      {new Date(booking.pickupDate).toLocaleDateString()} at {booking.pickupTime}
+                      {new Date(booking.pickupDate).toLocaleDateString('en-GB')} at {booking.pickupTime}
                     </td>
                     <td className="py-4 px-6">
                       <div className="text-[#0F172A] truncate max-w-xs" title={booking.pickupLocation}>
