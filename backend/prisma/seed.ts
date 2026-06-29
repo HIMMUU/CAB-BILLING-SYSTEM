@@ -6,54 +6,60 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Starting database seeding...');
 
-  // 1. Clear existing data in reverse order of dependencies
-  console.log('Cleaning existing data...');
-  await prisma.auditLog.deleteMany({});
-  await prisma.payment.deleteMany({});
-  await prisma.invoiceItem.deleteMany({});
-  await prisma.invoice.deleteMany({});
-  await prisma.trip.deleteMany({});
-  await prisma.dutySlip.deleteMany({});
-  await prisma.assignment.deleteMany({});
-  await prisma.booking.deleteMany({});
-  await prisma.vehicle.deleteMany({});
-  await prisma.driverDocument.deleteMany({});
-  await prisma.driver.deleteMany({});
-  await prisma.taxConfiguration.deleteMany({});
-  await prisma.rateCard.deleteMany({});
-  await prisma.vehicleCategory.deleteMany({});
-  await prisma.customer.deleteMany({});
-  await prisma.user.deleteMany({});
-  await prisma.tenant.deleteMany({});
+  // 1. Clear existing data ONLY if FORCE_SEED=true is specified
+  if (process.env.FORCE_SEED === 'true') {
+    console.log('Cleaning existing data (FORCE_SEED=true)...');
+    await prisma.auditLog.deleteMany({});
+    await prisma.payment.deleteMany({});
+    await prisma.invoiceItem.deleteMany({});
+    await prisma.invoice.deleteMany({});
+    await prisma.trip.deleteMany({});
+    await prisma.dutySlip.deleteMany({});
+    await prisma.assignment.deleteMany({});
+    await prisma.booking.deleteMany({});
+    await prisma.vehicle.deleteMany({});
+    await prisma.driverDocument.deleteMany({});
+    await prisma.driver.deleteMany({});
+    await prisma.taxConfiguration.deleteMany({});
+    await prisma.rateCard.deleteMany({});
+    await prisma.vehicleCategory.deleteMany({});
+    await prisma.customer.deleteMany({});
+    await prisma.user.deleteMany({});
+    await prisma.tenant.deleteMany({});
+  } else {
+    console.log('Skipping database wipe (preserving existing production data). Use FORCE_SEED=true to wipe.');
+    const existingTenantCount = await prisma.tenant.count();
+    if (existingTenantCount > 0) {
+      console.log(`🛡️ Production data protection: ${existingTenantCount} tenant(s) already exist. Skipping demo seeding to protect client data.`);
+      return;
+    }
+  }
 
   // Hash default password
   const passwordHash = await bcrypt.hash('Password@123', 10);
 
-  // 2. Create Tenants
+  // 2. Create Tenants (using safe upsert/find)
   console.log('Seeding tenants...');
-  const tenantAcme = await prisma.tenant.create({
-    data: {
-      name: 'Acme Cabs',
-      domain: 'acme.cabbs.local',
-      logoUrl: 'https://placehold.co/200x200?text=Acme+Cabs',
-    },
-  });
+  let tenantAcme = await prisma.tenant.findFirst({ where: { domain: 'acme.cabbs.local' } });
+  if (!tenantAcme) {
+    tenantAcme = await prisma.tenant.create({
+      data: { name: 'Acme Cabs', domain: 'acme.cabbs.local', logoUrl: 'https://placehold.co/200x200?text=Acme+Cabs' },
+    });
+  }
 
-  const tenantExpress = await prisma.tenant.create({
-    data: {
-      name: 'Express Travel',
-      domain: 'express.cabbs.local',
-      logoUrl: 'https://placehold.co/200x200?text=Express+Travel',
-    },
-  });
+  let tenantExpress = await prisma.tenant.findFirst({ where: { domain: 'express.cabbs.local' } });
+  if (!tenantExpress) {
+    tenantExpress = await prisma.tenant.create({
+      data: { name: 'Express Travel', domain: 'express.cabbs.local', logoUrl: 'https://placehold.co/200x200?text=Express+Travel' },
+    });
+  }
 
-  const tenantTdh = await prisma.tenant.create({
-    data: {
-      name: 'Travel Dream Holiday',
-      domain: 'traveldreamholiday.com',
-      logoUrl: '/logo.png',
-    },
-  });
+  let tenantTdh = await prisma.tenant.findFirst({ where: { domain: 'traveldreamholiday.com' } });
+  if (!tenantTdh) {
+    tenantTdh = await prisma.tenant.create({
+      data: { name: 'Travel Dream Holiday', domain: 'traveldreamholiday.com', logoUrl: '/logo.png' },
+    });
+  }
 
   console.log(`Created tenants: ${tenantAcme.name} (${tenantAcme.id}), ${tenantExpress.name} (${tenantExpress.id}), ${tenantTdh.name} (${tenantTdh.id})`);
 

@@ -23,7 +23,7 @@ RUN NODE_ENV=development npm run build
 RUN test -f dist/main.js && echo "✅ dist/main.js exists" || (echo "❌ dist/main.js MISSING — build failed" && exit 1)
 
 # Copy assets for PDF generation
-RUN mkdir -p assets && cp -R src/assets/* assets/ 2>/dev/null || true
+RUN mkdir -p assets dist/assets && cp -R src/assets/* assets/ 2>/dev/null || true && cp -R src/assets/* dist/assets/ 2>/dev/null || true
 
 # Remove dev dependencies for smaller runtime image
 RUN npm prune --omit=dev
