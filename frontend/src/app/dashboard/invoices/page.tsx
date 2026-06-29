@@ -133,6 +133,7 @@ export default function InvoicesPage() {
   const [genError, setGenError] = useState<string | null>(null);
   const [genStep, setGenStep] = useState<number>(1);
   const [genCustomerCategory, setGenCustomerCategory] = useState<string>('');
+  const [partySearchTerm, setPartySearchTerm] = useState<string>('');
   const [genIsRcm, setGenIsRcm] = useState<boolean>(false);
   const [companyGst, setCompanyGst] = useState<string>('');
 
@@ -208,19 +209,15 @@ export default function InvoicesPage() {
     (c) => c.status === 'ACTIVE' || (c as any).status === 'ACTIVE'
   );
 
-  // Filter active customers by category
+  // Filter active customers by search term across all parties
   const categoryFilteredCustomers = activeCustomers.filter((c) => {
-    const type = (c.clientType || '').toUpperCase().replace(/_/g, ' ');
-    if (genCustomerCategory === 'Company') {
-      return type === 'COMPANY';
-    }
-    if (genCustomerCategory === 'Travel Company') {
-      return type === 'TRAVEL COMPANY';
-    }
-    if (genCustomerCategory === 'Individual') {
-      return type === 'INDIVIDUAL' || type === 'INDIVIDUAL CUSTOMER';
-    }
-    return false;
+    if (!partySearchTerm) return true;
+    const term = partySearchTerm.toLowerCase();
+    const nameMatch = (c.name || '').toLowerCase().includes(term);
+    const companyMatch = (c.companyName || '').toLowerCase().includes(term);
+    const phoneMatch = (c.phone || '').toLowerCase().includes(term);
+    const gstMatch = ((c as any).gstin || c.gstNumber || '').toLowerCase().includes(term);
+    return nameMatch || companyMatch || phoneMatch || gstMatch;
   });
 
   // Filter trips by selected customer (only show if customer selected)
@@ -774,56 +771,64 @@ export default function InvoicesPage() {
                   </div>
                 )}
 
-                {/* Step 1: Customer Selection */}
+                {/* Step 1: Customer / Party Selection */}
                 {genStep === 1 && (
-                  <div className="space-y-6">
-                    {/* Category selection card boxes */}
-                    <div className="space-y-2.5">
-                      <label className="block text-xs font-bold text-[#475569] uppercase tracking-wide">Step 1a: Select Customer Category</label>
-                      <div className="grid grid-cols-3 gap-4">
-                        {[
-                          { id: 'Company', title: 'Corporate Client', desc: 'Registered Business / Companies' },
-                          { id: 'Travel Company', title: 'Travel Partner', desc: 'Travel Operators & Agencies' },
-                          { id: 'Individual', title: 'Individual Client', desc: 'Individual Customers / Walk-ins' }
-                        ].map((cat) => (
-                          <div
-                            key={cat.id}
-                            onClick={() => {
-                              setGenCustomerCategory(cat.id);
-                              setGenCustomerFilter(''); // Reset selected customer on category change
-                              setGenSelectedTripIds([]);
-                            }}
-                            className={`border p-4 rounded-xl cursor-pointer transition-all hover:shadow-md ${
-                              genCustomerCategory === cat.id
-                                ? 'border-blue-600 bg-blue-50/20 shadow-sm ring-2 ring-blue-50'
-                                : 'border-[#E2E8F0] bg-white hover:border-blue-300'
-                            }`}
+                  <div className="space-y-5">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-[#475569] uppercase tracking-wide">
+                          Search & Select Party ({categoryFilteredCustomers.length} Available)
+                        </label>
+                        {partySearchTerm && (
+                          <button
+                            type="button"
+                            onClick={() => setPartySearchTerm('')}
+                            className="text-[11px] font-semibold text-blue-600 hover:underline"
                           >
-                            <div className="font-bold text-sm text-[#0F172A]">{cat.title}</div>
-                            <div className="text-[11px] text-[#64748B] mt-1">{cat.desc}</div>
-                          </div>
-                        ))}
+                            Clear Filter
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="🔍 Type to search all parties (Name, Company, GSTIN, Phone)..."
+                          value={partySearchTerm}
+                          onChange={(e) => setPartySearchTerm(e.target.value)}
+                          className="w-full border border-[#E2E8F0] bg-slate-50/70 rounded-xl px-4 py-3 text-xs text-[#0F172A] font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 focus:bg-white transition shadow-sm"
+                        />
                       </div>
                     </div>
 
-                    {/* Customer Selection Dropdown */}
-                    {genCustomerCategory && (
-                      <div className="space-y-2 animate-fade-in">
-                        <label className="block text-xs font-bold text-[#475569] uppercase tracking-wide">Step 1b: Select Active Customer</label>
-                        <select
-                          value={genCustomerFilter}
-                          onChange={(e) => handleCustomerSelect(e.target.value)}
-                          className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2.5 text-xs text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
-                        >
-                          <option value="">— Select Customer —</option>
-                          {categoryFilteredCustomers.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name} {c.companyName ? `(${c.companyName})` : ''}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-[#475569] uppercase tracking-wide">
+                        Select Active Customer / Business
+                      </label>
+                      <select
+                        value={genCustomerFilter}
+                        onChange={(e) => handleCustomerSelect(e.target.value)}
+                        size={8}
+                        className="w-full border border-[#E2E8F0] bg-white rounded-xl p-2 text-xs text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition shadow-sm overflow-y-auto"
+                      >
+                        <option value="" disabled className="text-gray-400 p-2 font-semibold border-b border-gray-100">
+                          — Select a Party below —
+                        </option>
+                        {categoryFilteredCustomers.map((c) => (
+                          <option
+                            key={c.id}
+                            value={c.id}
+                            className="p-2.5 rounded-lg hover:bg-blue-50 hover:text-blue-700 cursor-pointer border-b border-slate-50 font-medium my-0.5"
+                          >
+                            🏢 {c.name} {c.companyName ? `(${c.companyName})` : ''} — 📞 {c.phone || 'N/A'} {c.clientType ? `[${c.clientType}]` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {categoryFilteredCustomers.length === 0 && (
+                        <p className="text-xs text-amber-600 font-medium p-2 bg-amber-50 rounded-lg border border-amber-200">
+                          ⚠️ No parties found matching "{partySearchTerm}". Try clearing your search.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -1330,7 +1335,7 @@ export default function InvoicesPage() {
                 <span className="font-semibold text-[#0F172A]">INR {(Number(selectedInvoice.toll) + Number(selectedInvoice.parking)).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Night Surcharges & Allowances:</span>
+                <span>Night Allowances:</span>
                 <span className="font-semibold text-[#0F172A]">INR {(Number(selectedInvoice.nightCharges) + Number(selectedInvoice.miscCharges)).toFixed(2)}</span>
               </div>
               <div className="h-[1px] bg-gray-200 my-1" />

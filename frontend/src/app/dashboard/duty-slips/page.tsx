@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import DatePicker from '@/components/DatePicker';
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 interface Customer {
@@ -433,13 +434,13 @@ export default function DutySlipsPage() {
         baseKm = thresholdKm;
         baseHours = thresholdHr;
         bilKm = Math.max(actKm, thresholdKm);
-        bilHrs = thresholdHr;
+        bilHrs = Math.max(actHrs, thresholdHr);
       } else {
         calculatedBaseFare = selectedRateCard ? (Number(selectedRateCard.fullDayRate) || 1800) : 1800;
         baseKm = fullKm;
         baseHours = fullHr;
         bilKm = Math.max(actKm, baseKm);
-        bilHrs = baseHours;
+        bilHrs = Math.max(actHrs, baseHours);
       }
 
       calculatedExtraKmRate = selectedRateCard ? (Number(selectedRateCard.extraKmRate) || 12) : 12;
@@ -463,10 +464,10 @@ export default function DutySlipsPage() {
         : 0;
 
       const extraKmChargedVal = f.isManualExtraKmCharged
-        ? (Math.max(0, bilKm - baseKm) > 0 ? f.extraKmCharged : 0)
+        ? f.extraKmCharged
         : (Math.max(0, bilKm - baseKm) * extraKmRateVal);
       const extraHoursChargedVal = f.isManualExtraHoursCharged
-        ? (Math.max(0, actHrs - baseHours) > 0 ? f.extraHoursCharged : 0)
+        ? f.extraHoursCharged
         : (Math.max(0, actHrs - baseHours) * extraHourRateVal);
 
       return {
@@ -1181,7 +1182,15 @@ export default function DutySlipsPage() {
 
               <Field label="Reporting Date & Time *">
                 <div className="flex gap-2">
-                  <input type="text" placeholder="DD/MM/YYYY" maxLength={10} required value={bookingForm.reportingDate} onChange={e => setBookingForm(f => ({ ...f, reportingDate: handleDateChange(e.target.value) }))} className={inp + ' w-2/3'} />
+                  <div className="w-2/3">
+                    <DatePicker
+                      value={bookingForm.reportingDate}
+                      onChange={(val) => setBookingForm(f => ({ ...f, reportingDate: val }))}
+                      format="DD/MM/YYYY"
+                      placeholder="DD/MM/YYYY"
+                      required
+                    />
+                  </div>
                   <input type="text" placeholder="HH:mm" maxLength={5} required value={bookingForm.reportingTime} onChange={e => setBookingForm(f => ({ ...f, reportingTime: handleTimeChange(e.target.value) }))} className={inp + ' w-1/3'} />
                 </div>
               </Field>
@@ -1246,8 +1255,8 @@ export default function DutySlipsPage() {
             <div className="lg:col-span-7 space-y-6">
 
               {/* Customer Information Card */}
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="bg-slate-50 px-5 py-3 border-b border-slate-200">
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
+                <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 rounded-t-xl">
                   <h3 className="text-sm font-bold text-slate-700">Customer & Profile</h3>
                 </div>
                 <div className="p-5 space-y-4">
@@ -1295,8 +1304,8 @@ export default function DutySlipsPage() {
               </div>
 
               {/* Driver & Vehicle Information Card */}
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="bg-slate-50 px-5 py-3 border-b border-slate-200">
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
+                <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 rounded-t-xl">
                   <h3 className="text-sm font-bold text-slate-700">Vehicle & Driver</h3>
                 </div>
                 <div className="p-5 space-y-4">
@@ -1318,7 +1327,7 @@ export default function DutySlipsPage() {
                     <Field label="Car Group">
                       <select value={df.carGroup} onChange={e => setDf(f => ({ ...f, carGroup: e.target.value }))} className={sel}>
                         <option value="">— Select —</option>
-                        {['Sedan', 'SUV', 'MUV', 'Luxury', 'Tempo', 'Bus'].map(g => <option key={g}>{g}</option>)}
+                        {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
                       </select>
                     </Field>
                     <Field label="Car Name">
@@ -1335,7 +1344,15 @@ export default function DutySlipsPage() {
                     </Field>
                     <Field label="Reporting Time *">
                       <div className="flex gap-2">
-                        <input type="text" placeholder="DD/MM/YYYY" maxLength={10} required value={df.reportingDate} onChange={e => setDf(f => ({ ...f, reportingDate: handleDateChange(e.target.value) }))} className={inp + ' w-2/3'} />
+                        <div className="w-2/3">
+                          <DatePicker
+                            value={df.reportingDate}
+                            onChange={(val) => setDf(f => ({ ...f, reportingDate: val }))}
+                            format="DD/MM/YYYY"
+                            placeholder="DD/MM/YYYY"
+                            required
+                          />
+                        </div>
                         <input type="text" placeholder="HH:mm" maxLength={5} required value={df.reportingTime} onChange={e => setDf(f => ({ ...f, reportingTime: handleTimeChange(e.target.value) }))} className={inp + ' w-1/3'} />
                       </div>
                     </Field>
@@ -1356,8 +1373,8 @@ export default function DutySlipsPage() {
               </div>
 
               {/* Duty Timestamps & Meters */}
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="bg-slate-50 px-5 py-3 border-b border-slate-200">
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
+                <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 rounded-t-xl">
                   <h3 className="text-sm font-bold text-slate-700">Duty Start & Closure Metrics</h3>
                 </div>
                 <div className="p-5 space-y-4">
@@ -1366,7 +1383,14 @@ export default function DutySlipsPage() {
                       <p className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />Start Metrics
                       </p>
-                      <Field label="Start Date"><input type="text" placeholder="DD/MM/YYYY" maxLength={10} value={df.dutyStartDate} onChange={e => setDf(f => ({ ...f, dutyStartDate: handleDateChange(e.target.value) }))} className={inp} /></Field>
+                      <Field label="Start Date">
+                        <DatePicker
+                          value={df.dutyStartDate}
+                          onChange={(val) => setDf(f => ({ ...f, dutyStartDate: val }))}
+                          format="DD/MM/YYYY"
+                          placeholder="DD/MM/YYYY"
+                        />
+                      </Field>
                       <Field label="Start Time"><input type="text" placeholder="HH:mm" maxLength={5} value={df.dutyStartTime} onChange={e => setDf(f => ({ ...f, dutyStartTime: handleTimeChange(e.target.value) }))} className={inp} /></Field>
                       <Field label="Start Meter (KM)"><input type="number" min={0} value={df.dutyStartMeter || ''} onChange={e => setDf(f => ({ ...f, dutyStartMeter: parseInt(e.target.value) || 0 }))} className={inp + ' font-mono'} /></Field>
                     </div>
@@ -1374,7 +1398,14 @@ export default function DutySlipsPage() {
                       <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />End Metrics
                       </p>
-                      <Field label="End Date"><input type="text" placeholder="DD/MM/YYYY" maxLength={10} value={df.dutyEndDate} onChange={e => setDf(f => ({ ...f, dutyEndDate: handleDateChange(e.target.value) }))} className={inp} /></Field>
+                      <Field label="End Date">
+                        <DatePicker
+                          value={df.dutyEndDate}
+                          onChange={(val) => setDf(f => ({ ...f, dutyEndDate: val }))}
+                          format="DD/MM/YYYY"
+                          placeholder="DD/MM/YYYY"
+                        />
+                      </Field>
                       <Field label="End Time"><input type="text" placeholder="HH:mm" maxLength={5} value={df.dutyEndTime} onChange={e => setDf(f => ({ ...f, dutyEndTime: handleTimeChange(e.target.value) }))} className={inp} /></Field>
                       <Field label="End Meter (KM)"><input type="number" min={0} value={df.dutyEndMeter || ''} onChange={e => setDf(f => ({ ...f, dutyEndMeter: parseInt(e.target.value) || 0 }))} className={inp + ' font-mono'} /></Field>
                     </div>
@@ -1395,8 +1426,8 @@ export default function DutySlipsPage() {
               </div>
 
               {/* Duty Type Configuration */}
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="bg-slate-50 px-5 py-3 border-b border-slate-200">
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
+                <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 rounded-t-xl">
                   <h3 className="text-sm font-bold text-slate-700">Trip & Billing Mode</h3>
                 </div>
                 <div className="p-5 space-y-4">
@@ -1548,7 +1579,7 @@ export default function DutySlipsPage() {
                         <input type="checkbox" checked={df.includeNightCharges}
                           onChange={e => setDf(f => ({ ...f, includeNightCharges: e.target.checked }))}
                           className="rounded text-blue-600 focus:ring-blue-500 bg-white border-slate-300 w-3.5 h-3.5" />
-                        <span className="text-slate-600 font-medium">Night Surcharges (₹)</span>
+                        <span className="text-slate-600 font-medium">Night Allowance (₹)</span>
                       </div>
                       <input type="number" disabled={!df.includeNightCharges} min={0} value={df.nightChargesOnTime || ''}
                         onChange={e => setDf(f => ({ ...f, nightChargesOnTime: parseFloat(e.target.value) || 0, isManualNightCharges: true }))}

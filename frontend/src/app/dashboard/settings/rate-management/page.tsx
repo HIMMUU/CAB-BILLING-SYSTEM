@@ -688,7 +688,7 @@ export default function RateManagementPage() {
                       <th className="py-2 px-2 text-center">Min KM/Day</th>
                       <th className="py-2 px-2 text-center">Rate/KM</th>
                       <th className="py-2 px-2 text-center">Driver Allow</th>
-                      <th className="py-2 px-2 text-center">Night Charge</th>
+                      <th className="py-2 px-2 text-center">Night Allowance</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E2E8F0]/80 text-sm">
@@ -1113,11 +1113,11 @@ export default function RateManagementPage() {
 
                 {/* Night Charges */}
                 <div>
-                  <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-3 border-b pb-1">Night Surcharges</h4>
+                  <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-3 border-b pb-1">Night Allowance</h4>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
-                        Night Charge (₹)
+                        Night Allowance (₹)
                       </label>
                       <input
                         type="number"

@@ -820,7 +820,7 @@ let InvoicesService = class InvoicesService {
                     }
                     if (Number(trip.nightChargesCharged) > 0) {
                         particularsRows.push({
-                            label: `NIGHT SURCHARGE`,
+                            label: `NIGHT ALLOWANCE`,
                             amount: Number(trip.nightChargesCharged).toFixed(2),
                         });
                     }

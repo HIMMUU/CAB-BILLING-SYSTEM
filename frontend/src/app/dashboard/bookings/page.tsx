@@ -4,12 +4,28 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import DatePicker from '@/components/DatePicker';
 
 interface Customer {
   id: string;
   name: string;
   companyName: string | null;
   type: 'CORPORATE' | 'INDIVIDUAL';
+}
+
+interface Driver {
+  id: string;
+  name: string;
+  mobile: string;
+  status: string;
+}
+
+interface Vehicle {
+  id: string;
+  vehicleNumber: string;
+  vehicleType: string;
+  model: string;
+  status: string;
 }
 
 interface Booking {
@@ -92,6 +108,7 @@ export default function BookingsPage() {
   const [user, setUser] = useState<any>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,6 +123,19 @@ export default function BookingsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Drawer / Assigning Form State
+  const [selectedBookingForAssign, setSelectedBookingForAssign] = useState<Booking | null>(null);
+  const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([]);
+  const [availableVehicles, setAvailableVehicles] = useState<Vehicle[]>([]);
+  const [loadingResources, setLoadingResources] = useState(false);
+  const [isAssignDrawerOpen, setIsAssignDrawerOpen] = useState(false);
+  
+  // Selection
+  const [targetDriverId, setTargetDriverId] = useState('');
+  const [targetVehicleId, setTargetVehicleId] = useState('');
+  const [assigningSubmitting, setAssigningSubmitting] = useState(false);
+  const [drawerError, setDrawerError] = useState<string | null>(null);
 
   // Form inputs
   const [formData, setFormData] = useState({
@@ -124,17 +154,6 @@ export default function BookingsPage() {
     remarks: '',
   });
 
-  useEffect(() => {
-    const token = api.getToken();
-    const currentUser = api.getUser();
-    if (!token || !currentUser) {
-      router.push('/login');
-    } else {
-      setUser(currentUser);
-      fetchCustomers();
-    }
-  }, [router]);
-
   const fetchCustomers = async () => {
     try {
       const res = await api.request('/customers?limit=100');
@@ -143,6 +162,27 @@ export default function BookingsPage() {
       console.error('Failed to load customers list', err);
     }
   };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await api.request('/rate-management/categories');
+      setCategories(res || []);
+    } catch (err) {
+      console.error('Failed to load categories list', err);
+    }
+  };
+
+  useEffect(() => {
+    const token = api.getToken();
+    const currentUser = api.getUser();
+    if (!token || !currentUser) {
+      router.push('/login');
+    } else {
+      setUser(currentUser);
+      fetchCustomers();
+      fetchCategories();
+    }
+  }, [router]);
 
   const fetchBookings = async () => {
     setLoading(true);
@@ -278,6 +318,59 @@ export default function BookingsPage() {
       alert(err.message || 'Failed to delete booking.');
     }
   };
+
+  const handleOpenAssign = async (booking: Booking) => {
+    setSelectedBookingForAssign(booking);
+    setTargetDriverId('');
+    setTargetVehicleId('');
+    setDrawerError(null);
+    setLoadingResources(true);
+    setIsAssignDrawerOpen(true);
+
+    try {
+      const res = await api.request(`/assignments/available-resources?bookingId=${booking.id}`);
+      setAvailableDrivers(res.drivers || []);
+      setAvailableVehicles(res.vehicles || []);
+      
+      // Auto select first entries if available
+      if (res.drivers?.length > 0) setTargetDriverId(res.drivers[0].id);
+      if (res.vehicles?.length > 0) setTargetVehicleId(res.vehicles[0].id);
+    } catch (err: any) {
+      setDrawerError(err.message || 'Failed to load available resources.');
+    } finally {
+      setLoadingResources(false);
+    }
+  };
+
+  const handleAssignSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDrawerError(null);
+
+    if (!selectedBookingForAssign || !targetDriverId || !targetVehicleId) {
+      setDrawerError('Please select both a driver and a vehicle.');
+      return;
+    }
+
+    setAssigningSubmitting(true);
+    try {
+      await api.request('/assignments', {
+        method: 'POST',
+        body: JSON.stringify({
+          bookingId: selectedBookingForAssign.id,
+          driverId: targetDriverId,
+          vehicleId: targetVehicleId,
+        }),
+      });
+
+      setIsAssignDrawerOpen(false);
+      setSelectedBookingForAssign(null);
+      fetchBookings();
+    } catch (err: any) {
+      setDrawerError(err.message || 'Assignment failed.');
+    } finally {
+      setAssigningSubmitting(false);
+    }
+  };
   
   const downloadPdf = async (id: string, num: string) => {
     try {
@@ -295,6 +388,13 @@ export default function BookingsPage() {
   if (!user) return null;
 
   const canEdit = user.role !== 'BILLING_EXECUTIVE';
+
+  // Find info of currently selected vehicle
+  const selectedVehicleObj = availableVehicles.find((v) => v.id === targetVehicleId);
+  const vehicleTypeMismatch = 
+    selectedBookingForAssign && 
+    selectedVehicleObj && 
+    selectedBookingForAssign.vehicleTypeRequired.toLowerCase() !== selectedVehicleObj.vehicleType.toLowerCase();
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -462,6 +562,14 @@ export default function BookingsPage() {
                       </td>
                       {canEdit && (
                         <td className="py-4 px-6 text-right space-x-2">
+                          {booking.status === 'PENDING' && (
+                            <button
+                              onClick={() => handleOpenAssign(booking)}
+                              className="px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 bg-blue-600 border border-blue-500 rounded-lg transition shadow-sm"
+                            >
+                              Assign
+                            </button>
+                          )}
                           {booking.dutySlip && (
                             <button
                               onClick={() => downloadPdf(booking.dutySlip!.id, booking.dutySlip!.dutySlipNumber)}
@@ -684,12 +792,22 @@ export default function BookingsPage() {
                       onChange={(e) => setFormData({ ...formData, vehicleTypeRequired: e.target.value })}
                       className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
                     >
-                      <option value="Sedan">Sedan</option>
-                      <option value="SUV">SUV</option>
-                      <option value="Hatchback">Hatchback</option>
-                      <option value="Luxury">Luxury</option>
-                      <option value="Van">Van</option>
-                      <option value="Bus">Bus</option>
+                      {categories.length > 0 ? (
+                        categories.map((cat) => (
+                          <option key={cat.id} value={cat.name}>
+                            {cat.name}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="Sedan">Sedan</option>
+                          <option value="SUV">SUV</option>
+                          <option value="MUV">MUV</option>
+                          <option value="Luxury">Luxury</option>
+                          <option value="Tempo Traveller">Tempo Traveller</option>
+                          <option value="Bus">Bus</option>
+                        </>
+                      )}
                     </select>
                   </div>
                 </div>
@@ -727,14 +845,12 @@ export default function BookingsPage() {
                     <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
                       Pickup Date
                     </label>
-                    <input
-                      type="text"
-                      placeholder="DD/MM/YYYY"
-                      maxLength={10}
-                      required
+                    <DatePicker
                       value={formData.pickupDate}
-                      onChange={(e) => setFormData({ ...formData, pickupDate: handleDateChange(e.target.value) })}
-                      className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition text-xs"
+                      onChange={(val) => setFormData({ ...formData, pickupDate: val })}
+                      format="DD/MM/YYYY"
+                      placeholder="DD/MM/YYYY"
+                      required
                     />
                   </div>
 
@@ -773,6 +889,147 @@ export default function BookingsPage() {
                 className="w-1/2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition font-semibold flex items-center justify-center shadow-sm"
               >
                 {submitting ? 'Saving...' : 'Save Booking'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dispatch Assignment Drawer */}
+      {isAssignDrawerOpen && selectedBookingForAssign && (
+        <div className="fixed inset-0 z-50 flex items-center justify-end bg-slate-900/40 backdrop-blur-sm">
+          <div className="w-full max-w-[500px] h-full bg-white border-l border-[#E2E8F0] p-6 shadow-2xl overflow-y-auto flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-lg font-bold text-[#0F172A]">Dispatch Assignment</h3>
+                  <p className="text-xs text-[#64748B] mt-0.5">Allocate conflict-free resources for {selectedBookingForAssign.bookingNumber}</p>
+                </div>
+                <button
+                  onClick={() => setIsAssignDrawerOpen(false)}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 transition"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {drawerError && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+                  {drawerError}
+                </div>
+              )}
+
+              {loadingResources ? (
+                <div className="p-12 flex justify-center">
+                  <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
+              ) : (
+                <form onSubmit={handleAssignSubmit} className="space-y-6">
+                  {/* Summary card */}
+                  <div className="p-4 bg-gray-50 border border-[#E2E8F0] rounded-lg text-xs space-y-2">
+                    <div>
+                      <span className="font-bold text-[#0F172A] block uppercase tracking-wider text-[10px]">Customer:</span>
+                      <span className="text-[#64748B] font-medium">{selectedBookingForAssign.customer?.name} {selectedBookingForAssign.customer?.companyName ? `(${selectedBookingForAssign.customer.companyName})` : ''}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="font-bold text-[#0F172A] block uppercase tracking-wider text-[10px]">Requested Date/Time:</span>
+                        <span className="text-[#64748B] font-medium">{new Date(selectedBookingForAssign.pickupDate).toLocaleDateString('en-GB')} at {formatTimeTo24h(selectedBookingForAssign.pickupTime)}</span>
+                      </div>
+                      <div>
+                        <span className="font-bold text-[#0F172A] block uppercase tracking-wider text-[10px]">Requested Vehicle Type:</span>
+                        <span className="text-blue-700 bg-blue-50 border border-blue-100 font-bold px-1.5 py-0.5 rounded text-[10px] w-fit inline-block mt-0.5 uppercase">
+                          {selectedBookingForAssign.vehicleTypeRequired}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="font-bold text-[#0F172A] block uppercase tracking-wider text-[10px]">Route:</span>
+                      <span className="text-[#64748B] font-medium truncate block">{selectedBookingForAssign.pickupLocation} &rarr; {selectedBookingForAssign.dropLocation}</span>
+                    </div>
+                  </div>
+
+                  {/* Driver Dropdown */}
+                  <div>
+                    <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
+                      Select Available Driver
+                    </label>
+                    <select
+                      required
+                      value={targetDriverId}
+                      onChange={(e) => setTargetDriverId(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
+                    >
+                      {availableDrivers.length === 0 ? (
+                        <option value="">No drivers available on this date</option>
+                      ) : (
+                        availableDrivers.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name} ({d.mobile})
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Vehicle Dropdown */}
+                  <div>
+                    <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
+                      Select Available Vehicle
+                    </label>
+                    <select
+                      required
+                      value={targetVehicleId}
+                      onChange={(e) => setTargetVehicleId(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
+                    >
+                      {availableVehicles.length === 0 ? (
+                        <option value="">No vehicles available on this date</option>
+                      ) : (
+                        availableVehicles.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.vehicleNumber} - {v.model} ({v.vehicleType})
+                          </option>
+                        ))
+                      )}
+                    </select>
+
+                    {/* Mismatch Warning alert */}
+                    {vehicleTypeMismatch && (
+                      <div className="mt-2.5 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-[11px] font-semibold flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-amber-600 shrink-0">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                        </svg>
+                        <span>
+                          Vehicle type mismatch! Requested: {selectedBookingForAssign.vehicleTypeRequired}, selected is: {selectedVehicleObj.vehicleType}.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </form>
+              )}
+            </div>
+
+            <div className="mt-8 border-t border-[#E2E8F0] pt-4 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setIsAssignDrawerOpen(false)}
+                className="w-1/2 py-2.5 bg-white border border-[#E2E8F0] text-[#64748B] hover:text-[#0F172A] rounded-lg text-sm transition font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAssignSubmit}
+                disabled={assigningSubmitting || loadingResources || availableDrivers.length === 0 || availableVehicles.length === 0}
+                className="w-1/2 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm transition font-semibold flex items-center justify-center shadow-sm"
+              >
+                {assigningSubmitting ? 'Dispatching...' : 'Dispatch Assignment'}
               </button>
             </div>
           </div>

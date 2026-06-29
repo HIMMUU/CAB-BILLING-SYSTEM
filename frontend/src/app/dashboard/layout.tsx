@@ -138,6 +138,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       ),
     },
     {
+      name: 'Bill Designer',
+      href: '/dashboard/templates/designer',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 0 0-2.536 1.869l-1.209 2.72A.75.75 0 0 0 6.48 21.75h11.04a.75.75 0 0 0 .695-1.039l-1.21-2.72a3 3 0 0 0-2.535-1.869A48.24 48.24 0 0 0 12 16c-1.026 0-2.05.04-3.07.122ZM12 3c-1.38 0-2.5 1.12-2.5 2.5V12c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5.5C14.5 4.12 13.38 3 12 3Z" />
+        </svg>
+      ),
+    },
+    {
       name: 'Company Settings',
       href: '/dashboard/settings',
       icon: (

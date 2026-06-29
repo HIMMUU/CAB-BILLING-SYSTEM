@@ -893,10 +893,10 @@ export class InvoicesService {
             });
           }
 
-          // Night Surcharge Row
+          // Night Allowance Row
           if (Number(trip.nightChargesCharged) > 0) {
             particularsRows.push({
-              label: `NIGHT SURCHARGE`,
+              label: `NIGHT ALLOWANCE`,
               amount: Number(trip.nightChargesCharged).toFixed(2),
             });
           }

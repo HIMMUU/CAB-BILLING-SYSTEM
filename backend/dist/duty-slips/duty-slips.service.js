@@ -550,7 +550,7 @@ let DutySlipsService = class DutySlipsService {
             doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.stateTax}`, 180, 554);
             doc.font(fontBold).text('MCD Toll:', 307, 554);
             doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.mcd}`, 420, 554);
-            doc.font(fontBold).text('Night Surcharge:', 60, 589);
+            doc.font(fontBold).text('Night Allowance:', 60, 589);
             doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.nightCharges}`, 180, 589);
             doc.font(fontBold).text('Driver Allowance:', 307, 589);
             doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.driverAllowance}`, 420, 589);

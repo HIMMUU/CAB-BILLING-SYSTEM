@@ -645,36 +645,18 @@ export default function CustomersPage() {
                     <label className="block text-[11px] font-semibold text-[#64748B] uppercase tracking-wider mb-1.5">
                       Customer Type
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {['INDIVIDUAL', 'CORPORATE'].map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, type: type as any })}
-                          className={`py-1.5 text-center rounded-lg text-xs font-semibold uppercase border transition-all ${
-                            formData.type === type
-                              ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                              : 'bg-white border-[#E2E8F0] text-[#64748B] hover:text-[#0F172A]'
-                          }`}
-                        >
-                          {type.toLowerCase()}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-[#64748B] uppercase tracking-wider mb-1.5">
-                      Client Category Type
-                    </label>
                     <select
                       value={formData.clientType}
-                      onChange={(e) => setFormData({ ...formData, clientType: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const computedType = val === 'Individual' ? 'INDIVIDUAL' : 'CORPORATE';
+                        setFormData({ ...formData, clientType: val, type: computedType });
+                      }}
                       className="w-full px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-xs focus:outline-none focus:border-blue-600 transition"
                     >
+                      <option value="Individual">Individual</option>
                       <option value="Company">Company</option>
                       <option value="Travel Company">Travel Company</option>
-                      <option value="Individual">Individual</option>
                     </select>
                   </div>
 

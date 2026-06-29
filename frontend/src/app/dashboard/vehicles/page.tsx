@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import DatePicker from '@/components/DatePicker';
 
 interface Vehicle {
   id: string;
@@ -49,6 +50,16 @@ export default function VehiclesPage() {
     permitExpiry: '',
     status: 'AVAILABLE' as 'AVAILABLE' | 'ON_TRIP' | 'MAINTENANCE' | 'INACTIVE',
   });
+  const [categories, setCategories] = useState<any[]>([]);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await api.request('/rate-management/categories');
+      setCategories(res || []);
+    } catch (err) {
+      console.error('Failed to load categories', err);
+    }
+  };
 
   useEffect(() => {
     const token = api.getToken();
@@ -57,6 +68,7 @@ export default function VehiclesPage() {
       router.push('/login');
     } else {
       setUser(currentUser);
+      fetchCategories();
     }
   }, [router]);
 
@@ -491,12 +503,22 @@ export default function VehiclesPage() {
                       className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
                     >
                       <option value="">Select Type</option>
-                      <option value="Sedan">Sedan</option>
-                      <option value="SUV">SUV</option>
-                      <option value="Hatchback">Hatchback</option>
-                      <option value="Luxury">Luxury</option>
-                      <option value="Van">Van</option>
-                      <option value="Bus">Bus</option>
+                      {categories.length > 0 ? (
+                        categories.map((cat) => (
+                          <option key={cat.id} value={cat.name}>
+                            {cat.name}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="Sedan">Sedan</option>
+                          <option value="SUV">SUV</option>
+                          <option value="MUV">MUV</option>
+                          <option value="Luxury">Luxury</option>
+                          <option value="Tempo Traveller">Tempo Traveller</option>
+                          <option value="Bus">Bus</option>
+                        </>
+                      )}
                     </select>
                   </div>
 
@@ -520,12 +542,12 @@ export default function VehiclesPage() {
                     <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
                       Registration Date
                     </label>
-                    <input
-                      type="date"
-                      required
+                    <DatePicker
                       value={formData.registrationDate}
-                      onChange={(e) => setFormData({ ...formData, registrationDate: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition text-xs"
+                      onChange={(val) => setFormData({ ...formData, registrationDate: val })}
+                      format="YYYY-MM-DD"
+                      placeholder="YYYY-MM-DD"
+                      required
                     />
                   </div>
 
@@ -533,12 +555,12 @@ export default function VehiclesPage() {
                     <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
                       Permit Expiry Date
                     </label>
-                    <input
-                      type="date"
-                      required
+                    <DatePicker
                       value={formData.permitExpiry}
-                      onChange={(e) => setFormData({ ...formData, permitExpiry: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition text-xs"
+                      onChange={(val) => setFormData({ ...formData, permitExpiry: val })}
+                      format="YYYY-MM-DD"
+                      placeholder="YYYY-MM-DD"
+                      required
                     />
                   </div>
                 </div>
@@ -548,12 +570,12 @@ export default function VehiclesPage() {
                     <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
                       Insurance Expiry Date
                     </label>
-                    <input
-                      type="date"
-                      required
+                    <DatePicker
                       value={formData.insuranceExpiry}
-                      onChange={(e) => setFormData({ ...formData, insuranceExpiry: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition text-xs"
+                      onChange={(val) => setFormData({ ...formData, insuranceExpiry: val })}
+                      format="YYYY-MM-DD"
+                      placeholder="YYYY-MM-DD"
+                      required
                     />
                   </div>
 
@@ -561,12 +583,12 @@ export default function VehiclesPage() {
                     <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
                       Fitness Expiry Date
                     </label>
-                    <input
-                      type="date"
-                      required
+                    <DatePicker
                       value={formData.fitnessExpiry}
-                      onChange={(e) => setFormData({ ...formData, fitnessExpiry: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition text-xs"
+                      onChange={(val) => setFormData({ ...formData, fitnessExpiry: val })}
+                      format="YYYY-MM-DD"
+                      placeholder="YYYY-MM-DD"
+                      required
                     />
                   </div>
                 </div>
