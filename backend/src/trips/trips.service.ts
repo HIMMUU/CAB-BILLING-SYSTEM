@@ -448,7 +448,7 @@ export class TripsService {
       return trip;
     });
     } catch (err: any) {
-      fs.appendFileSync('/Users/mac/.gemini/antigravity-ide/scratch/error.log', `Error in closeTrip: ${err.message}\nStack: ${err.stack}\n`);
+      console.error(`Error in closeTrip: ${err.message}`, err.stack);
       throw err;
     }
   }

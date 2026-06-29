@@ -14,7 +14,7 @@ export class TripsController {
   @Permissions(Permission.CLOSE_TRIP)
   async closeTrip(@Body() closeTripDto: CloseTripDto) {
     try {
-      fs.appendFileSync('/Users/mac/.gemini/antigravity-ide/scratch/error.log', `Received closeTripDto: ${JSON.stringify(closeTripDto)}\n`);
+      console.log('Received closeTripDto:', JSON.stringify(closeTripDto));
       return await this.tripsService.closeTrip(closeTripDto);
     } catch (err: any) {
       console.error('ERROR IN CLOSE TRIP:', err.message, err.stack);

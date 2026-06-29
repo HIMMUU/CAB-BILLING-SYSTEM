@@ -58,11 +58,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
               }
 
               if (tenantId) {
-                // Log operation for debugging
-                try {
-                  fs.appendFileSync('/Users/mac/.gemini/antigravity-ide/scratch/error.log', `[PRISMA INTERCEPT] Model: ${model}, Operation: ${operation}, Args: ${JSON.stringify(args)}\n`);
-                } catch (e) {}
-
                 // Intercept findUnique and findUniqueOrThrow to prevent Prisma validation error when adding tenantId
                 if (operation === 'findUnique' || operation === 'findUniqueOrThrow') {
                   const modelKey = model.charAt(0).toLowerCase() + model.slice(1);
@@ -76,17 +71,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
                     const hasValidUniqueKey = whereKeys.some(key => newArgs.where[key] !== undefined && newArgs.where[key] !== null);
                     
                     if (!hasValidUniqueKey) {
-                      try {
-                        fs.appendFileSync('/Users/mac/.gemini/antigravity-ide/scratch/error.log', `[PRISMA INTERCEPT] Unique key check failed for findUnique/OrThrow\n`);
-                      } catch (e) {}
                       // Let standard query proceed (which will throw Prisma validation error)
                       return query(anyArgs);
                     }
 
                     newArgs.where = { ...(newArgs.where || {}), tenantId };
-                    try {
-                      fs.appendFileSync('/Users/mac/.gemini/antigravity-ide/scratch/error.log', `[PRISMA INTERCEPT] Redirecting to findFirst / findFirstOrThrow: ${JSON.stringify(newArgs)}\n`);
-                    } catch (e) {}
                     if (operation === 'findUnique') {
                       return extendedModel.findFirst(newArgs);
                     } else {
@@ -119,9 +108,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
                       throw error;
                     }
                     // Run the update/delete on the unextended client using only the original unique criteria
-                    try {
-                      fs.appendFileSync('/Users/mac/.gemini/antigravity-ide/scratch/error.log', `[PRISMA INTERCEPT] Executing raw ${operation} on unextended client: ${JSON.stringify(args)}\n`);
-                    } catch (e) {}
                     return dbModel[operation](args);
                   }
                 }
