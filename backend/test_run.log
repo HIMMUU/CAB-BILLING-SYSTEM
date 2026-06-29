@@ -1,0 +1,24 @@
+
+> backend@0.0.1 test:e2e:local
+> DATABASE_URL="postgresql://mac@localhost:5432/cab_billing_system?schema=public" jest --config ./test/jest-e2e.json --runInBand
+
+PASS test/cab-billing.e2e-spec.ts
+  ● Console
+
+    console.log
+      --- TEST DEBUG: SET dutySlipId to: 3de38af7-dbc3-40dd-bed8-042da849eafc
+
+      at Object.<anonymous> (cab-billing.e2e-spec.ts:362:15)
+
+    console.log
+      --- TEST DEBUG: GET dutySlipId as: 3de38af7-dbc3-40dd-bed8-042da849eafc
+
+      at Object.<anonymous> (cab-billing.e2e-spec.ts:400:15)
+
+PASS test/app.e2e-spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       22 passed, 22 total
+Snapshots:   0 total
+Time:        4.942 s, estimated 5 s
+Ran all test suites.

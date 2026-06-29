@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException, BadRequestException }
 import { PrismaService } from '../prisma/prisma.service';
 import { CloseTripDto } from './dto/close-trip.dto';
 import { DutySlipStatus, BookingStatus, DriverStatus, VehicleStatus, TripType } from '@prisma/client';
+import * as fs from 'fs';
 
 @Injectable()
 export class TripsService {
@@ -280,19 +281,20 @@ export class TripsService {
   }
 
   async closeTrip(dto: CloseTripDto) {
-    // 1. Fetch the target duty slip
-    const slip = await this.prisma.dutySlip.findUnique({
-      where: { id: dto.dutySlipId },
-      include: {
-        booking: true,
-      },
-    });
-    if (!slip) {
-      throw new NotFoundException('Duty slip not found');
-    }
+    try {
+      // 1. Fetch the target duty slip
+      const slip = await this.prisma.dutySlip.findUnique({
+        where: { id: dto.dutySlipId },
+        include: {
+          booking: true,
+        },
+      });
+      if (!slip) {
+        throw new NotFoundException('Duty slip not found');
+      }
 
-    // Resolve overrides or defaults for dates
-    const startDateTime = dto.startDateTime ? new Date(dto.startDateTime) : (slip.startDateTime ? new Date(slip.startDateTime) : undefined);
+      // Resolve overrides or defaults for dates
+      const startDateTime = dto.startDateTime ? new Date(dto.startDateTime) : (slip.startDateTime ? new Date(slip.startDateTime) : undefined);
     const endDateTime = dto.endDateTime ? new Date(dto.endDateTime) : (slip.endDateTime ? new Date(slip.endDateTime) : undefined);
 
     // 2. Run charges calculation to establish defaults if not explicitly overridden in DTO
@@ -431,6 +433,10 @@ export class TripsService {
 
       return trip;
     });
+    } catch (err: any) {
+      fs.appendFileSync('/Users/mac/.gemini/antigravity-ide/scratch/error.log', `Error in closeTrip: ${err.message}\nStack: ${err.stack}\n`);
+      throw err;
+    }
   }
 
   async findAll(query: {

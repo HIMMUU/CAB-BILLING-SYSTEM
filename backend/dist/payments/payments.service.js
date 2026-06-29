@@ -29,6 +29,9 @@ let PaymentsService = class PaymentsService {
             if (dueAmount <= 0) {
                 throw new common_1.BadRequestException('Invoice is already fully paid');
             }
+            if (dto.amount > dueAmount) {
+                throw new common_1.BadRequestException('Payment amount exceeds outstanding due amount');
+            }
             const payment = await tx.payment.create({
                 data: {
                     tenantId: invoice.tenantId,

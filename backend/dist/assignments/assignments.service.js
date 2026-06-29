@@ -73,6 +73,18 @@ let AssignmentsService = class AssignmentsService {
             throw new common_1.ConflictException('Vehicle is already assigned to another active trip on this date');
         }
         return this.prisma.$transaction(async (tx) => {
+            await tx.booking.update({
+                where: { id: dto.bookingId },
+                data: { status: client_1.BookingStatus.ASSIGNED },
+            });
+            await tx.driver.update({
+                where: { id: dto.driverId },
+                data: { status: client_1.DriverStatus.ON_TRIP },
+            });
+            await tx.vehicle.update({
+                where: { id: dto.vehicleId },
+                data: { status: client_1.VehicleStatus.ON_TRIP },
+            });
             const assignment = await tx.assignment.create({
                 data: {
                     bookingId: dto.bookingId,
@@ -88,18 +100,6 @@ let AssignmentsService = class AssignmentsService {
                     driver: true,
                     vehicle: true,
                 },
-            });
-            await tx.booking.update({
-                where: { id: dto.bookingId },
-                data: { status: client_1.BookingStatus.ASSIGNED },
-            });
-            await tx.driver.update({
-                where: { id: dto.driverId },
-                data: { status: client_1.DriverStatus.ON_TRIP },
-            });
-            await tx.vehicle.update({
-                where: { id: dto.vehicleId },
-                data: { status: client_1.VehicleStatus.ON_TRIP },
             });
             let repTimeDate = new Date(booking.pickupDate);
             if (booking.pickupTime) {

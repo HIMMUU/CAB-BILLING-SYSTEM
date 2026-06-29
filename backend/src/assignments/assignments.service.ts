@@ -78,24 +78,6 @@ export class AssignmentsService {
 
     // 6. Run assignment within transaction
     return this.prisma.$transaction(async (tx) => {
-      // Create Assignment record
-      const assignment = await tx.assignment.create({
-        data: {
-          bookingId: dto.bookingId,
-          vehicleId: dto.vehicleId,
-          driverId: dto.driverId,
-          assignedById: userId || null,
-          status: AssignmentStatus.ACTIVE,
-        } as any,
-        include: {
-          booking: {
-            include: { customer: true },
-          },
-          driver: true,
-          vehicle: true,
-        },
-      });
-
       // Update Booking status
       await tx.booking.update({
         where: { id: dto.bookingId },
@@ -112,6 +94,24 @@ export class AssignmentsService {
       await tx.vehicle.update({
         where: { id: dto.vehicleId },
         data: { status: VehicleStatus.ON_TRIP },
+      });
+
+      // Create Assignment record
+      const assignment = await tx.assignment.create({
+        data: {
+          bookingId: dto.bookingId,
+          vehicleId: dto.vehicleId,
+          driverId: dto.driverId,
+          assignedById: userId || null,
+          status: AssignmentStatus.ACTIVE,
+        } as any,
+        include: {
+          booking: {
+            include: { customer: true },
+          },
+          driver: true,
+          vehicle: true,
+        },
       });
 
       // Construct reportingTime from booking pickupDate & pickupTime

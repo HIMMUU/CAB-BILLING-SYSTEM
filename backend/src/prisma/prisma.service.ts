@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { TenantContextService } from '../common/context/tenant-context.service';
+import * as fs from 'fs';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -57,13 +58,79 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
               }
 
               if (tenantId) {
+                // Log operation for debugging
+                try {
+                  fs.appendFileSync('/Users/mac/.gemini/antigravity-ide/scratch/error.log', `[PRISMA INTERCEPT] Model: ${model}, Operation: ${operation}, Args: ${JSON.stringify(args)}\n`);
+                } catch (e) {}
+
+                // Intercept findUnique and findUniqueOrThrow to prevent Prisma validation error when adding tenantId
+                if (operation === 'findUnique' || operation === 'findUniqueOrThrow') {
+                  const modelKey = model.charAt(0).toLowerCase() + model.slice(1);
+                  const extendedModel = (self._extendedClient as any)[modelKey];
+                  if (extendedModel) {
+                    const newArgs = { ...args };
+                    // If no valid unique keys are specified (e.g. id is undefined), we do NOT match any record.
+                    // This matches standard Prisma behavior where querying with undefined unique ID throws validation error,
+                    // but we can check it explicitly here to prevent fetching the first record.
+                    const whereKeys = Object.keys(newArgs.where || {});
+                    const hasValidUniqueKey = whereKeys.some(key => newArgs.where[key] !== undefined && newArgs.where[key] !== null);
+                    
+                    if (!hasValidUniqueKey) {
+                      try {
+                        fs.appendFileSync('/Users/mac/.gemini/antigravity-ide/scratch/error.log', `[PRISMA INTERCEPT] Unique key check failed for findUnique/OrThrow\n`);
+                      } catch (e) {}
+                      // Let standard query proceed (which will throw Prisma validation error)
+                      return query(anyArgs);
+                    }
+
+                    newArgs.where = { ...(newArgs.where || {}), tenantId };
+                    try {
+                      fs.appendFileSync('/Users/mac/.gemini/antigravity-ide/scratch/error.log', `[PRISMA INTERCEPT] Redirecting to findFirst / findFirstOrThrow: ${JSON.stringify(newArgs)}\n`);
+                    } catch (e) {}
+                    if (operation === 'findUnique') {
+                      return extendedModel.findFirst(newArgs);
+                    } else {
+                      return extendedModel.findFirstOrThrow(newArgs);
+                    }
+                  }
+                }
+
+                // Intercept update and delete to prevent Prisma validation error when adding tenantId
+                if (operation === 'update' || operation === 'delete') {
+                  const modelKey = model.charAt(0).toLowerCase() + model.slice(1);
+                  const extendedModel = (self._extendedClient as any)[modelKey];
+                  const dbModel = (self as any)[modelKey];
+                  if (extendedModel && dbModel) {
+                    const whereKeys = Object.keys(args?.where || {});
+                    const hasValidUniqueKey = whereKeys.some(key => args.where[key] !== undefined && args.where[key] !== null);
+                    
+                    if (!hasValidUniqueKey) {
+                      return query(anyArgs);
+                    }
+
+                    // Check if record exists under this tenant using extended client (automatically filters by tenantId)
+                    const exists = await extendedModel.findFirst({
+                      where: { ...(args?.where || {}) },
+                      select: { id: true },
+                    });
+                    if (!exists) {
+                      const error = new Error(`Record to ${operation} not found.`);
+                      (error as any).code = 'P2025';
+                      throw error;
+                    }
+                    // Run the update/delete on the unextended client using only the original unique criteria
+                    try {
+                      fs.appendFileSync('/Users/mac/.gemini/antigravity-ide/scratch/error.log', `[PRISMA INTERCEPT] Executing raw ${operation} on unextended client: ${JSON.stringify(args)}\n`);
+                    } catch (e) {}
+                    return dbModel[operation](args);
+                  }
+                }
+
                 // 1. Query filters (read/update/delete)
                 if (
                   [
                     'findFirst',
                     'findMany',
-                    'findUnique',
-                    'findUniqueOrThrow',
                     'findFirstOrThrow',
                     'count',
                     'aggregate',
@@ -72,7 +139,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
                 ) {
                   anyArgs.where = anyArgs.where || {};
                   anyArgs.where.tenantId = tenantId;
-                } else if (['update', 'updateMany', 'delete', 'deleteMany'].includes(operation)) {
+                } else if (['updateMany', 'deleteMany'].includes(operation)) {
                   anyArgs.where = anyArgs.where || {};
                   anyArgs.where.tenantId = tenantId;
                 }

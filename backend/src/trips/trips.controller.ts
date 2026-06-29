@@ -4,14 +4,22 @@ import { CloseTripDto } from './dto/close-trip.dto';
 import { Permissions } from '../common/decorators/permissions.decorator';
 import { Permission } from '../common/constants/permissions';
 
+import * as fs from 'fs';
+
 @Controller('trips')
 export class TripsController {
   constructor(private readonly tripsService: TripsService) {}
 
   @Post()
   @Permissions(Permission.CLOSE_TRIP)
-  closeTrip(@Body() closeTripDto: CloseTripDto) {
-    return this.tripsService.closeTrip(closeTripDto);
+  async closeTrip(@Body() closeTripDto: CloseTripDto) {
+    try {
+      fs.appendFileSync('/Users/mac/.gemini/antigravity-ide/scratch/error.log', `Received closeTripDto: ${JSON.stringify(closeTripDto)}\n`);
+      return await this.tripsService.closeTrip(closeTripDto);
+    } catch (err: any) {
+      console.error('ERROR IN CLOSE TRIP:', err.message, err.stack);
+      throw err;
+    }
   }
 
   @Get('calculate')

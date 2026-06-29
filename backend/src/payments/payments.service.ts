@@ -24,6 +24,10 @@ export class PaymentsService {
         throw new BadRequestException('Invoice is already fully paid');
       }
 
+      if (dto.amount > dueAmount) {
+        throw new BadRequestException('Payment amount exceeds outstanding due amount');
+      }
+
       // 2. Create payment record
       const payment = await tx.payment.create({
         data: {

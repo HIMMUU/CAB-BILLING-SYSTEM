@@ -12,8 +12,13 @@ export class BookingsController {
 
   @Post()
   @Permissions(Permission.CREATE_BOOKING)
-  create(@Body() createBookingDto: CreateBookingDto) {
-    return this.bookingsService.create(createBookingDto);
+  async create(@Body() createBookingDto: CreateBookingDto) {
+    try {
+      return await this.bookingsService.create(createBookingDto);
+    } catch (err: any) {
+      console.error('ERROR IN CREATE BOOKING:', err.message, err.stack);
+      throw err;
+    }
   }
 
   @Get()

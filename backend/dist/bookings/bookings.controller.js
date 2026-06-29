@@ -24,8 +24,14 @@ let BookingsController = class BookingsController {
     constructor(bookingsService) {
         this.bookingsService = bookingsService;
     }
-    create(createBookingDto) {
-        return this.bookingsService.create(createBookingDto);
+    async create(createBookingDto) {
+        try {
+            return await this.bookingsService.create(createBookingDto);
+        }
+        catch (err) {
+            console.error('ERROR IN CREATE BOOKING:', err.message, err.stack);
+            throw err;
+        }
     }
     findAll(page, limit, search, status) {
         return this.bookingsService.findAll({ page, limit, search, status });
@@ -47,7 +53,7 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [create_booking_dto_1.CreateBookingDto]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], BookingsController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(),

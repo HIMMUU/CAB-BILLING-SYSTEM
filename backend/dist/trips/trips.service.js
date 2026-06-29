@@ -1,10 +1,43 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
@@ -13,6 +46,7 @@ exports.TripsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const client_1 = require("@prisma/client");
+const fs = __importStar(require("fs"));
 let TripsService = class TripsService {
     constructor(prisma) {
         this.prisma = prisma;
@@ -242,135 +276,141 @@ let TripsService = class TripsService {
         });
     }
     async closeTrip(dto) {
-        const slip = await this.prisma.dutySlip.findUnique({
-            where: { id: dto.dutySlipId },
-            include: {
-                booking: true,
-            },
-        });
-        if (!slip) {
-            throw new common_1.NotFoundException('Duty slip not found');
-        }
-        const startDateTime = dto.startDateTime ? new Date(dto.startDateTime) : (slip.startDateTime ? new Date(slip.startDateTime) : undefined);
-        const endDateTime = dto.endDateTime ? new Date(dto.endDateTime) : (slip.endDateTime ? new Date(slip.endDateTime) : undefined);
-        const calculations = await this.calculateTripCharges(dto.dutySlipId, dto.endKm, startDateTime, endDateTime);
-        const baseFareCharged = dto.baseFareCharged ?? calculations.baseFareCharged;
-        const extraKmCharged = dto.extraKmCharged ?? calculations.extraKmCharged;
-        const extraHoursCharged = dto.extraHoursCharged ?? calculations.extraHoursCharged;
-        const toll = dto.toll ?? calculations.toll;
-        const parking = dto.parking ?? calculations.parking;
-        const stateTax = dto.stateTax ?? calculations.stateTax;
-        const mcd = dto.mcd ?? calculations.mcd;
-        const driverAllowance = dto.driverAllowance ?? calculations.driverAllowance;
-        const nightChargesCharged = dto.nightCharges ?? calculations.nightCharges;
-        const miscChargesCharged = dto.extraCharges ?? calculations.extraCharges;
-        const totalAmount = dto.totalAmount ??
-            (Number(baseFareCharged) +
-                Number(extraKmCharged) +
-                Number(extraHoursCharged) +
-                Number(toll) +
-                Number(parking) +
-                Number(stateTax) +
-                Number(mcd) +
-                Number(driverAllowance) +
-                Number(nightChargesCharged) +
-                Number(miscChargesCharged));
-        const existingTrip = await this.prisma.trip.findUnique({
-            where: { dutySlipId: dto.dutySlipId },
-            include: {
-                invoiceItems: true,
-            },
-        });
-        return this.prisma.$transaction(async (tx) => {
-            let trip;
-            if (existingTrip) {
-                trip = await tx.trip.update({
-                    where: { id: existingTrip.id },
-                    data: {
-                        endKm: dto.endKm,
-                        totalKm: calculations.totalDistance,
-                        toll,
-                        parking,
-                        driverAllowance,
-                        extraCharges: miscChargesCharged,
-                        baseFareCharged,
-                        extraKmCharged,
-                        extraHoursCharged,
-                        nightChargesCharged,
-                        miscChargesCharged,
-                        totalAmount,
-                        startDateTime,
-                        endDateTime,
-                        totalHours: calculations.totalHours,
-                        totalDays: calculations.totalDays,
-                        stateTaxCharged: stateTax,
-                        mcdCharged: mcd,
-                    },
-                });
-            }
-            else {
-                trip = await tx.trip.create({
-                    data: {
-                        tenantId: slip.tenantId,
-                        dutySlipId: dto.dutySlipId,
-                        bookingId: slip.bookingId,
-                        startKm: slip.startKm,
-                        endKm: dto.endKm,
-                        totalKm: calculations.totalDistance,
-                        toll,
-                        parking,
-                        driverAllowance,
-                        extraCharges: miscChargesCharged,
-                        baseFareCharged,
-                        extraKmCharged,
-                        extraHoursCharged,
-                        nightChargesCharged,
-                        miscChargesCharged,
-                        totalAmount,
-                        startDateTime,
-                        endDateTime,
-                        totalHours: calculations.totalHours,
-                        totalDays: calculations.totalDays,
-                        stateTaxCharged: stateTax,
-                        mcdCharged: mcd,
-                    },
-                });
-            }
-            await tx.dutySlip.update({
+        try {
+            const slip = await this.prisma.dutySlip.findUnique({
                 where: { id: dto.dutySlipId },
-                data: {
-                    status: client_1.DutySlipStatus.CLOSED,
-                    endKm: dto.endKm,
-                    toll,
-                    parking,
-                    driverAllowance,
-                    nightCharges: nightChargesCharged,
-                    extraCharges: miscChargesCharged,
-                    startDateTime,
-                    endDateTime,
-                    stateTax,
-                    mcd,
+                include: {
+                    booking: true,
                 },
             });
-            await tx.booking.update({
-                where: { id: slip.bookingId },
-                data: { status: client_1.BookingStatus.COMPLETED },
-            });
-            await tx.driver.update({
-                where: { id: slip.driverId },
-                data: { status: client_1.DriverStatus.AVAILABLE },
-            });
-            await tx.vehicle.update({
-                where: { id: slip.vehicleId },
-                data: { status: client_1.VehicleStatus.AVAILABLE },
-            });
-            if (existingTrip && existingTrip.invoiceItems.length > 0) {
-                for (const item of existingTrip.invoiceItems) {
-                    await this.recalculateInvoice(item.invoiceId, tx);
-                }
+            if (!slip) {
+                throw new common_1.NotFoundException('Duty slip not found');
             }
-            return trip;
-        });
+            const startDateTime = dto.startDateTime ? new Date(dto.startDateTime) : (slip.startDateTime ? new Date(slip.startDateTime) : undefined);
+            const endDateTime = dto.endDateTime ? new Date(dto.endDateTime) : (slip.endDateTime ? new Date(slip.endDateTime) : undefined);
+            const calculations = await this.calculateTripCharges(dto.dutySlipId, dto.endKm, startDateTime, endDateTime);
+            const baseFareCharged = dto.baseFareCharged ?? calculations.baseFareCharged;
+            const extraKmCharged = dto.extraKmCharged ?? calculations.extraKmCharged;
+            const extraHoursCharged = dto.extraHoursCharged ?? calculations.extraHoursCharged;
+            const toll = dto.toll ?? calculations.toll;
+            const parking = dto.parking ?? calculations.parking;
+            const stateTax = dto.stateTax ?? calculations.stateTax;
+            const mcd = dto.mcd ?? calculations.mcd;
+            const driverAllowance = dto.driverAllowance ?? calculations.driverAllowance;
+            const nightChargesCharged = dto.nightCharges ?? calculations.nightCharges;
+            const miscChargesCharged = dto.extraCharges ?? calculations.extraCharges;
+            const totalAmount = dto.totalAmount ??
+                (Number(baseFareCharged) +
+                    Number(extraKmCharged) +
+                    Number(extraHoursCharged) +
+                    Number(toll) +
+                    Number(parking) +
+                    Number(stateTax) +
+                    Number(mcd) +
+                    Number(driverAllowance) +
+                    Number(nightChargesCharged) +
+                    Number(miscChargesCharged));
+            const existingTrip = await this.prisma.trip.findUnique({
+                where: { dutySlipId: dto.dutySlipId },
+                include: {
+                    invoiceItems: true,
+                },
+            });
+            return this.prisma.$transaction(async (tx) => {
+                let trip;
+                if (existingTrip) {
+                    trip = await tx.trip.update({
+                        where: { id: existingTrip.id },
+                        data: {
+                            endKm: dto.endKm,
+                            totalKm: calculations.totalDistance,
+                            toll,
+                            parking,
+                            driverAllowance,
+                            extraCharges: miscChargesCharged,
+                            baseFareCharged,
+                            extraKmCharged,
+                            extraHoursCharged,
+                            nightChargesCharged,
+                            miscChargesCharged,
+                            totalAmount,
+                            startDateTime,
+                            endDateTime,
+                            totalHours: calculations.totalHours,
+                            totalDays: calculations.totalDays,
+                            stateTaxCharged: stateTax,
+                            mcdCharged: mcd,
+                        },
+                    });
+                }
+                else {
+                    trip = await tx.trip.create({
+                        data: {
+                            tenantId: slip.tenantId,
+                            dutySlipId: dto.dutySlipId,
+                            bookingId: slip.bookingId,
+                            startKm: slip.startKm,
+                            endKm: dto.endKm,
+                            totalKm: calculations.totalDistance,
+                            toll,
+                            parking,
+                            driverAllowance,
+                            extraCharges: miscChargesCharged,
+                            baseFareCharged,
+                            extraKmCharged,
+                            extraHoursCharged,
+                            nightChargesCharged,
+                            miscChargesCharged,
+                            totalAmount,
+                            startDateTime,
+                            endDateTime,
+                            totalHours: calculations.totalHours,
+                            totalDays: calculations.totalDays,
+                            stateTaxCharged: stateTax,
+                            mcdCharged: mcd,
+                        },
+                    });
+                }
+                await tx.dutySlip.update({
+                    where: { id: dto.dutySlipId },
+                    data: {
+                        status: client_1.DutySlipStatus.CLOSED,
+                        endKm: dto.endKm,
+                        toll,
+                        parking,
+                        driverAllowance,
+                        nightCharges: nightChargesCharged,
+                        extraCharges: miscChargesCharged,
+                        startDateTime,
+                        endDateTime,
+                        stateTax,
+                        mcd,
+                    },
+                });
+                await tx.booking.update({
+                    where: { id: slip.bookingId },
+                    data: { status: client_1.BookingStatus.COMPLETED },
+                });
+                await tx.driver.update({
+                    where: { id: slip.driverId },
+                    data: { status: client_1.DriverStatus.AVAILABLE },
+                });
+                await tx.vehicle.update({
+                    where: { id: slip.vehicleId },
+                    data: { status: client_1.VehicleStatus.AVAILABLE },
+                });
+                if (existingTrip && existingTrip.invoiceItems.length > 0) {
+                    for (const item of existingTrip.invoiceItems) {
+                        await this.recalculateInvoice(item.invoiceId, tx);
+                    }
+                }
+                return trip;
+            });
+        }
+        catch (err) {
+            fs.appendFileSync('/Users/mac/.gemini/antigravity-ide/scratch/error.log', `Error in closeTrip: ${err.message}\nStack: ${err.stack}\n`);
+            throw err;
+        }
     }
     async findAll(query) {
         const page = Number(query.page) || 1;
