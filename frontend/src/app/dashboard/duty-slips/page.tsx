@@ -696,21 +696,14 @@ export default function DutySlipsPage() {
       return;
     }
 
-    const startDateTime = mergeDT(df.dutyStartDate, df.dutyStartTime);
-    const endDateTime = mergeDT(df.dutyEndDate, df.dutyEndTime);
-
-    if (startDateTime && endDateTime) {
-      const start = new Date(startDateTime);
-      const end = new Date(endDateTime);
-      if (end < start) {
-        setFormError('End Date & Time cannot be before Start Date & Time.');
-        return;
-      }
-    }
-
     const rdt = df.reportingDate && df.reportingTime
       ? mergeDT(df.reportingDate, df.reportingTime)
       : new Date().toISOString();
+
+    const startD = df.dutyStartDate || df.reportingDate;
+    const startT = df.dutyStartTime || df.reportingTime;
+    const startDateTime = mergeDT(startD, startT) || rdt;
+    const endDateTime = mergeDT(df.dutyEndDate, df.dutyEndTime);
 
     let targetStatus: 'DRAFT' | 'FILLED' | 'CLOSED' = 'DRAFT';
     if (closeStatus) {
@@ -892,8 +885,8 @@ export default function DutySlipsPage() {
       pickupLocation: slip.pickupLocation || '',
       dropLocation: slip.dropLocation || '',
       remarks: slip.booking?.remarks || '',
-      dutyStartDate: s.date || '',
-      dutyStartTime: s.time || '',
+      dutyStartDate: s.date || rep.date || '',
+      dutyStartTime: s.time || rep.time || '',
       dutyStartMeter: Number(slip.startKm) || 0,
       dutyEndDate: e.date || '',
       dutyEndTime: e.time || '',

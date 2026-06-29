@@ -282,6 +282,10 @@ export class TripsService {
 
   async closeTrip(dto: CloseTripDto) {
     try {
+      if (!dto.dutySlipId) {
+        throw new BadRequestException('Duty Slip ID is required to close a trip');
+      }
+
       // 1. Fetch the target duty slip
       const slip = await this.prisma.dutySlip.findUnique({
         where: { id: dto.dutySlipId },
@@ -293,9 +297,19 @@ export class TripsService {
         throw new NotFoundException('Duty slip not found');
       }
 
-      // Resolve overrides or defaults for dates
-      const startDateTime = dto.startDateTime ? new Date(dto.startDateTime) : (slip.startDateTime ? new Date(slip.startDateTime) : undefined);
-    const endDateTime = dto.endDateTime ? new Date(dto.endDateTime) : (slip.endDateTime ? new Date(slip.endDateTime) : undefined);
+      // Resolve overrides or defaults for dates (fallback startDateTime to reportingTime if missing)
+      const startDateTime = dto.startDateTime
+        ? new Date(dto.startDateTime)
+        : slip.startDateTime
+        ? new Date(slip.startDateTime)
+        : slip.reportingTime
+        ? new Date(slip.reportingTime)
+        : undefined;
+      const endDateTime = dto.endDateTime
+        ? new Date(dto.endDateTime)
+        : slip.endDateTime
+        ? new Date(slip.endDateTime)
+        : undefined;
 
     // 2. Run charges calculation to establish defaults if not explicitly overridden in DTO
     const calculations = await this.calculateTripCharges(dto.dutySlipId, dto.endKm, startDateTime, endDateTime);

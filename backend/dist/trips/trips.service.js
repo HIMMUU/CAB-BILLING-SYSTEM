@@ -277,6 +277,9 @@ let TripsService = class TripsService {
     }
     async closeTrip(dto) {
         try {
+            if (!dto.dutySlipId) {
+                throw new common_1.BadRequestException('Duty Slip ID is required to close a trip');
+            }
             const slip = await this.prisma.dutySlip.findUnique({
                 where: { id: dto.dutySlipId },
                 include: {
@@ -286,8 +289,18 @@ let TripsService = class TripsService {
             if (!slip) {
                 throw new common_1.NotFoundException('Duty slip not found');
             }
-            const startDateTime = dto.startDateTime ? new Date(dto.startDateTime) : (slip.startDateTime ? new Date(slip.startDateTime) : undefined);
-            const endDateTime = dto.endDateTime ? new Date(dto.endDateTime) : (slip.endDateTime ? new Date(slip.endDateTime) : undefined);
+            const startDateTime = dto.startDateTime
+                ? new Date(dto.startDateTime)
+                : slip.startDateTime
+                    ? new Date(slip.startDateTime)
+                    : slip.reportingTime
+                        ? new Date(slip.reportingTime)
+                        : undefined;
+            const endDateTime = dto.endDateTime
+                ? new Date(dto.endDateTime)
+                : slip.endDateTime
+                    ? new Date(slip.endDateTime)
+                    : undefined;
             const calculations = await this.calculateTripCharges(dto.dutySlipId, dto.endKm, startDateTime, endDateTime);
             const baseFareCharged = dto.baseFareCharged ?? calculations.baseFareCharged;
             const extraKmCharged = dto.extraKmCharged ?? calculations.extraKmCharged;
