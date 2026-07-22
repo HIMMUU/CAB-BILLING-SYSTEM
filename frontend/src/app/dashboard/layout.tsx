@@ -22,18 +22,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, []);
 
-  // Dynamically update documentElement (root html tag) font size to scale rem units
+  // Dynamically update documentElement (root html tag) font size to scale rem units across all screen sizes
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const root = document.documentElement;
-      if (uiFontSize === 'small') {
-        root.style.fontSize = '14px';
-      } else if (uiFontSize === 'large') {
-        root.style.fontSize = '18px';
-      } else {
-        root.style.fontSize = '16px'; // Default browser base
-      }
+      const updateFontSize = () => {
+        const root = document.documentElement;
+        const isMobile = window.innerWidth < 640;
+
+        if (uiFontSize === 'small') {
+          root.style.fontSize = isMobile ? '15px' : '16px';
+        } else if (uiFontSize === 'large') {
+          root.style.fontSize = isMobile ? '18.5px' : '20px';
+        } else {
+          root.style.fontSize = isMobile ? '16.5px' : '18px'; // Default bigger font base
+        }
+      };
+
+      updateFontSize();
+      window.addEventListener('resize', updateFontSize);
       localStorage.setItem('uiFontSize', uiFontSize);
+
+      return () => {
+        window.removeEventListener('resize', updateFontSize);
+      };
     }
   }, [uiFontSize]);
 
@@ -305,7 +316,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main Panel */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Navbar Header */}
-        <header className="h-16 bg-white border-b border-[#E2E8F0] sticky top-0 z-30 flex items-center justify-between px-6">
+        <header className="min-h-16 bg-white border-b border-[#E2E8F0] sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 py-2.5 flex-wrap gap-3">
           {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-sm">
             <span className="text-[#64748B]">CABBS</span>

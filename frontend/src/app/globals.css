@@ -16,4 +16,30 @@ body {
   color: #0f172a;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-weight: 450; /* Slightly bolder base font for enhanced clarity */
 }
+
+/* Global High-Contrast Dark Text Overrides */
+.text-slate-400, .text-gray-400 {
+  color: #475569 !important; /* Darker slate-600 for secondary text */
+}
+
+.text-slate-500, .text-gray-500, .text-\[\#64748B\] {
+  color: #334155 !important; /* High-contrast slate-700 for subtitles and labels */
+}
+
+.text-slate-600, .text-gray-600 {
+  color: #1e293b !important; /* Ultra-dark slate-800 for headers and body copy */
+}
+
+.text-slate-700, .text-gray-700 {
+  color: #0f172a !important; /* Deep charcoal slate-900 */
+}
+
+/* Form input legibility enhancement */
+input, select, textarea {
+  color: #0f172a !important;
+  font-weight: 500;
+}
+
