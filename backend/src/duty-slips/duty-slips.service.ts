@@ -645,13 +645,12 @@ export class DutySlipsService {
       doc.font(fontBold).text('Pickup Address:', 60, 220);
       doc.font(fontRegular).text(slip.booking.pickupLocation, 150, 220, {
         width: 380,
-        height: 15,
       });
 
       doc.font(fontBold).text('Drop Address:', 60, 237);
       doc
         .font(fontRegular)
-        .text(slip.booking.dropLocation, 150, 237, { width: 380, height: 15 });
+        .text(slip.booking.dropLocation, 150, 237, { width: 380 });
 
       // Section 3: Driver & Vehicle Allocation Details (shifted up to y=292)
       doc.fontSize(12).font(fontBold).text('Allocated Resources', 50, 292);

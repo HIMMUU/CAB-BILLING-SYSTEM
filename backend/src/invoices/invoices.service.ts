@@ -885,14 +885,9 @@ export class InvoicesService {
         doc.text(companyGst.substring(0, 2) || '07', 115, gridY + 35);
         doc.text(serviceCategory, 105, gridY + 45);
 
-        // Column 2: Address
+        // Column 2: Full Address
         doc.fillColor('#334155').font(fontRegular).fontSize(7.5);
-        const addrLines = companyAddress.split('\n');
-        let addrY = gridY + 5;
-        for (const line of addrLines) {
-          doc.text(line, 180, addrY);
-          addrY += 9;
-        }
+        doc.text(companyAddress, 180, gridY + 5, { width: 195 });
         doc
           .fillColor(primaryColor)
           .font(fontBold)
@@ -923,7 +918,7 @@ export class InvoicesService {
           .lineTo(350, billY + 65)
           .stroke('#CBD5E1');
 
-        // Left Column: Client Details
+        // Left Column: Client Details (Full Address)
         doc.fillColor(primaryColor).font(fontBold).fontSize(8);
         doc.text('Client Name :', 55, billY + 5);
         doc.text('Address :', 55, billY + 15);
@@ -935,7 +930,6 @@ export class InvoicesService {
         doc.text(parsedInvoice.customer.name, 115, billY + 5);
         doc.text(parsedInvoice.customer.billingAddress, 115, billY + 15, {
           width: 230,
-          height: 22,
         });
         doc.text(parsedInvoice.customer.gstNumber || 'N/A', 115, billY + 40);
         doc.text(

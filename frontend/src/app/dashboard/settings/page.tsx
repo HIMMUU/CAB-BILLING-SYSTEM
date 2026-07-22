@@ -843,7 +843,7 @@ export default function CompanySettingsPage() {
                             </div>
                             <div>
                               <span className="font-bold text-slate-700 block">Address:</span>
-                              <span className="text-slate-900 leading-tight block truncate">{formData.companyAddress || 'E57/A, HARI NAGAR EXTN, NEW DELHI'}</span>
+                              <span className="text-slate-900 leading-tight block whitespace-pre-line leading-relaxed break-words">{formData.companyAddress || 'E57/A, HARI NAGAR EXTN, NEW DELHI'}</span>
                               <span className="font-bold text-slate-700 block mt-0.5">Email: <span className="font-normal text-slate-900">{formData.companyEmail || 'billing@acmecabs.com'}</span></span>
                             </div>
                             <div>

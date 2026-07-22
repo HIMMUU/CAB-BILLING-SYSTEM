@@ -771,12 +771,7 @@ let InvoicesService = class InvoicesService {
                 doc.text(companyGst.substring(0, 2) || '07', 115, gridY + 35);
                 doc.text(serviceCategory, 105, gridY + 45);
                 doc.fillColor('#334155').font(fontRegular).fontSize(7.5);
-                const addrLines = companyAddress.split('\n');
-                let addrY = gridY + 5;
-                for (const line of addrLines) {
-                    doc.text(line, 180, addrY);
-                    addrY += 9;
-                }
+                doc.text(companyAddress, 180, gridY + 5, { width: 195 });
                 doc
                     .fillColor(primaryColor)
                     .font(fontBold)
@@ -812,7 +807,6 @@ let InvoicesService = class InvoicesService {
                 doc.text(parsedInvoice.customer.name, 115, billY + 5);
                 doc.text(parsedInvoice.customer.billingAddress, 115, billY + 15, {
                     width: 230,
-                    height: 22,
                 });
                 doc.text(parsedInvoice.customer.gstNumber || 'N/A', 115, billY + 40);
                 doc.text(parsedInvoice.customer.gstNumber

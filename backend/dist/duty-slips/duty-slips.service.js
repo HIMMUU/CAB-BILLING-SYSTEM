@@ -564,12 +564,11 @@ let DutySlipsService = class DutySlipsService {
             doc.font(fontBold).text('Pickup Address:', 60, 220);
             doc.font(fontRegular).text(slip.booking.pickupLocation, 150, 220, {
                 width: 380,
-                height: 15,
             });
             doc.font(fontBold).text('Drop Address:', 60, 237);
             doc
                 .font(fontRegular)
-                .text(slip.booking.dropLocation, 150, 237, { width: 380, height: 15 });
+                .text(slip.booking.dropLocation, 150, 237, { width: 380 });
             doc.fontSize(12).font(fontBold).text('Allocated Resources', 50, 292);
             doc.rect(50, 307, 495, 60).stroke('#E2E8F0');
             if (!isRefined) {
