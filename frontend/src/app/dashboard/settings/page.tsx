@@ -91,6 +91,8 @@ export default function CompanySettingsPage() {
         pdfShowBank: settings.pdfShowBank !== false,
         pdfShowTerms: settings.pdfShowTerms !== false,
         pdfHeaderLayout: settings.pdfHeaderLayout || 'SINGLE_LINE',
+        invoicePrefix: settings.invoicePrefix !== undefined ? settings.invoicePrefix : 'INV-2026-',
+        invoiceStartingNumber: settings.invoiceStartingNumber || 1001,
       });
     } catch (err: any) {
       setError(err.message || 'Failed to load company settings');
@@ -632,6 +634,39 @@ export default function CompanySettingsPage() {
                           maxLength={7}
                           className="w-24 border border-[#E2E8F0] bg-white rounded-lg p-1.5 text-xs text-[#0F172A] font-mono uppercase focus:outline-none focus:border-blue-500"
                         />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bill Numbering Configuration Section */}
+                  <div className="p-4 bg-slate-50 border border-[#E2E8F0] rounded-xl space-y-3">
+                    <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">Bill Numbering & Serial Sequence</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-[#475569] uppercase">Bill Number Prefix</label>
+                        <input
+                          type="text"
+                          name="invoicePrefix"
+                          value={formData.invoicePrefix || ''}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          placeholder="e.g. INV-2026-"
+                          className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500 font-mono"
+                        />
+                        <span className="text-[10px] text-slate-500">e.g. INV-2026- will produce INV-2026-1001</span>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-[#475569] uppercase">Bill Starting Serial Number</label>
+                        <input
+                          type="number"
+                          name="invoiceStartingNumber"
+                          value={formData.invoiceStartingNumber || 1001}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          placeholder="1001"
+                          className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500 font-mono"
+                        />
+                        <span className="text-[10px] text-slate-500">Starting sequence counter for new bills</span>
                       </div>
                     </div>
                   </div>

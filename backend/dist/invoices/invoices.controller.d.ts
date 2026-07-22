@@ -208,6 +208,38 @@ export declare class InvoicesController {
         paidAmount: import("@prisma/client/runtime/library").Decimal;
         dueAmount: import("@prisma/client/runtime/library").Decimal;
     }>;
+    cancel(id: string): Promise<{
+        id: string;
+        status: import(".prisma/client").$Enums.InvoiceStatus;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
+        cgstRate: import("@prisma/client/runtime/library").Decimal;
+        sgstRate: import("@prisma/client/runtime/library").Decimal;
+        igstRate: import("@prisma/client/runtime/library").Decimal;
+        isRcm: boolean;
+        customerId: string;
+        s3Url: string | null;
+        toll: import("@prisma/client/runtime/library").Decimal;
+        parking: import("@prisma/client/runtime/library").Decimal;
+        nightCharges: import("@prisma/client/runtime/library").Decimal;
+        stateTax: import("@prisma/client/runtime/library").Decimal;
+        mcd: import("@prisma/client/runtime/library").Decimal;
+        totalAmount: import("@prisma/client/runtime/library").Decimal;
+        invoiceNumber: string;
+        invoiceDate: Date;
+        dueDate: Date;
+        baseFare: import("@prisma/client/runtime/library").Decimal;
+        extraKmCharges: import("@prisma/client/runtime/library").Decimal;
+        miscCharges: import("@prisma/client/runtime/library").Decimal;
+        subtotal: import("@prisma/client/runtime/library").Decimal;
+        cgstAmount: import("@prisma/client/runtime/library").Decimal;
+        sgstAmount: import("@prisma/client/runtime/library").Decimal;
+        igstAmount: import("@prisma/client/runtime/library").Decimal;
+        totalTax: import("@prisma/client/runtime/library").Decimal;
+        paidAmount: import("@prisma/client/runtime/library").Decimal;
+        dueAmount: import("@prisma/client/runtime/library").Decimal;
+    }>;
     remove(id: string): Promise<{
         id: string;
         status: import(".prisma/client").$Enums.InvoiceStatus;

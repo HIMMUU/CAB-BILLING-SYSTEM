@@ -162,15 +162,19 @@ export class InvoicesService {
     const totalAmount = isRcm ? subtotal : subtotal + totalTax;
     const dueAmount = totalAmount;
 
-    // 5. Generate unique invoice number
-    const countInvoices = await this.prisma.invoice.count();
+    // 5. Generate unique invoice number with tenant prefix & starting serial number
+    const startNum = Number(tenant?.invoiceStartingNumber || 1001);
+    const prefix = tenant?.invoicePrefix !== undefined ? tenant.invoicePrefix : 'INV-2026-';
+    const countInvoices = await this.prisma.invoice.count({
+      where: { tenantId: trips[0].tenantId },
+    });
     let invoiceNumber = '';
     let isUnique = false;
-    let currentInvVal = countInvoices + 1;
+    let currentInvVal = Math.max(startNum, countInvoices + startNum);
     while (!isUnique) {
-      invoiceNumber = String(currentInvVal);
+      invoiceNumber = prefix ? `${prefix}${currentInvVal}` : String(currentInvVal);
       const existing = await this.prisma.invoice.findFirst({
-        where: { invoiceNumber },
+        where: { tenantId: trips[0].tenantId, invoiceNumber },
       });
       if (!existing) {
         isUnique = true;
@@ -482,6 +486,9 @@ export class InvoicesService {
             },
           },
         },
+        payments: {
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
 
@@ -562,6 +569,23 @@ export class InvoicesService {
     });
   }
 
+  async cancel(id: string) {
+    const invoice = await this.findOne(id);
+    if (invoice.status === InvoiceStatus.PAID) {
+      throw new BadRequestException(
+        'Fully paid invoices cannot be cancelled directly. Please process a refund or payment adjustment first.',
+      );
+    }
+
+    return this.prisma.invoice.update({
+      where: { id },
+      data: {
+        status: (InvoiceStatus as any).CANCELLED || InvoiceStatus.VOID,
+        dueAmount: 0,
+      },
+    });
+  }
+
   async generatePdf(id: string): Promise<Buffer> {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id },
@@ -585,6 +609,9 @@ export class InvoicesService {
               },
             },
           },
+        },
+        payments: {
+          orderBy: { createdAt: 'desc' },
         },
       },
     });

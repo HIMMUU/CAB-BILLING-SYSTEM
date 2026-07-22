@@ -514,6 +514,19 @@ export default function InvoicesPage() {
     }
   };
 
+  const handleCancelInvoice = async (invoiceId: string) => {
+    if (!confirm('Are you sure you want to CANCEL this bill?')) return;
+    try {
+      await api.request(`/invoices/${invoiceId}/cancel`, { method: 'PATCH' });
+      if (selectedInvoice && selectedInvoice.id === invoiceId) {
+        setSelectedInvoice({ ...selectedInvoice, status: 'CANCELLED', dueAmount: '0.00' });
+      }
+      fetchInvoices();
+    } catch (err: any) {
+      alert(err.message || 'Failed to cancel invoice');
+    }
+  };
+
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'PAID':
@@ -522,8 +535,9 @@ export default function InvoicesPage() {
         return 'bg-amber-50 text-amber-700 border-amber-200';
       case 'UNPAID':
         return 'bg-rose-50 text-rose-700 border-rose-200';
+      case 'CANCELLED':
       case 'VOID':
-        return 'bg-gray-100 text-gray-600 border-gray-300';
+        return 'bg-slate-100 text-slate-700 border-slate-300 font-bold';
       default:
         return 'bg-slate-50 text-slate-700 border-slate-200';
     }
@@ -646,7 +660,33 @@ export default function InvoicesPage() {
                       </span>
                     </td>
                     <td className="py-4 px-6 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="inline-flex gap-2">
+                      <div className="inline-flex gap-1.5 items-center">
+                        {/* Record Payment Button */}
+                        {invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && !isDispatcher && (
+                          <button
+                            onClick={() => {
+                              setSelectedInvoice(invoice);
+                              setPayAmount(Number(invoice.dueAmount).toFixed(2));
+                              setPayError(null);
+                              setPayReference('');
+                              setIsPaymentOpen(true);
+                            }}
+                            className="h-8 px-2 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-xs text-emerald-700 font-semibold rounded-lg transition inline-flex items-center gap-1"
+                            title="Record Payment"
+                          >
+                            💳 Pay
+                          </button>
+                        )}
+                        {/* Cancel Bill Button */}
+                        {invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && !isDispatcher && (
+                          <button
+                            onClick={() => handleCancelInvoice(invoice.id)}
+                            className="h-8 px-2 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-xs text-rose-700 font-semibold rounded-lg transition inline-flex items-center gap-1"
+                            title="Cancel Bill"
+                          >
+                            🚫 Cancel
+                          </button>
+                        )}
                         <button
                           onClick={() => handlePreviewPdf(invoice.id, invoice.invoiceNumber)}
                           className="h-8 px-2.5 bg-blue-50 border border-blue-200 hover:bg-blue-100 text-xs text-blue-600 font-semibold rounded-lg transition inline-flex items-center gap-1"

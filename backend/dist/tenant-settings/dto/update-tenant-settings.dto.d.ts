@@ -16,6 +16,8 @@ export declare class UpdateTenantSettingsDto {
     bankAccountHolder?: string;
     invoiceTitle?: string;
     dutySlipTitle?: string;
+    invoiceStartingNumber?: number;
+    invoicePrefix?: string;
     hideLogoOnPdf?: boolean;
     termsAndConditions?: string;
     pdfTheme?: string;

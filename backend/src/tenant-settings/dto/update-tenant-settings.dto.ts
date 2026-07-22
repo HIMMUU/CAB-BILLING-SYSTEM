@@ -80,6 +80,13 @@ export class UpdateTenantSettingsDto {
   dutySlipTitle?: string;
 
   @IsOptional()
+  invoiceStartingNumber?: number;
+
+  @IsString()
+  @IsOptional()
+  invoicePrefix?: string;
+
+  @IsOptional()
   hideLogoOnPdf?: boolean;
 
   @IsString()

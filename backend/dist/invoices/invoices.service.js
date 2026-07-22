@@ -171,14 +171,18 @@ let InvoicesService = class InvoicesService {
         const isRcm = dto.isRcm !== undefined ? !!dto.isRcm : !!customer.isRcm;
         const totalAmount = isRcm ? subtotal : subtotal + totalTax;
         const dueAmount = totalAmount;
-        const countInvoices = await this.prisma.invoice.count();
+        const startNum = Number(tenant?.invoiceStartingNumber || 1001);
+        const prefix = tenant?.invoicePrefix !== undefined ? tenant.invoicePrefix : 'INV-2026-';
+        const countInvoices = await this.prisma.invoice.count({
+            where: { tenantId: trips[0].tenantId },
+        });
         let invoiceNumber = '';
         let isUnique = false;
-        let currentInvVal = countInvoices + 1;
+        let currentInvVal = Math.max(startNum, countInvoices + startNum);
         while (!isUnique) {
-            invoiceNumber = String(currentInvVal);
+            invoiceNumber = prefix ? `${prefix}${currentInvVal}` : String(currentInvVal);
             const existing = await this.prisma.invoice.findFirst({
-                where: { invoiceNumber },
+                where: { tenantId: trips[0].tenantId, invoiceNumber },
             });
             if (!existing) {
                 isUnique = true;
@@ -453,6 +457,9 @@ let InvoicesService = class InvoicesService {
                         },
                     },
                 },
+                payments: {
+                    orderBy: { createdAt: 'desc' },
+                },
             },
         });
         if (!invoice) {
@@ -521,6 +528,19 @@ let InvoicesService = class InvoicesService {
             where: { id },
         });
     }
+    async cancel(id) {
+        const invoice = await this.findOne(id);
+        if (invoice.status === client_1.InvoiceStatus.PAID) {
+            throw new common_1.BadRequestException('Fully paid invoices cannot be cancelled directly. Please process a refund or payment adjustment first.');
+        }
+        return this.prisma.invoice.update({
+            where: { id },
+            data: {
+                status: client_1.InvoiceStatus.CANCELLED || client_1.InvoiceStatus.VOID,
+                dueAmount: 0,
+            },
+        });
+    }
     async generatePdf(id) {
         const invoice = await this.prisma.invoice.findUnique({
             where: { id },
@@ -544,6 +564,9 @@ let InvoicesService = class InvoicesService {
                             },
                         },
                     },
+                },
+                payments: {
+                    orderBy: { createdAt: 'desc' },
                 },
             },
         });

@@ -54,6 +54,12 @@ export class InvoicesController {
     return this.invoicesService.update(id, updateInvoiceDto);
   }
 
+  @Patch(':id/cancel')
+  @Permissions(Permission.INVOICE_CRUD)
+  cancel(@Param('id') id: string) {
+    return this.invoicesService.cancel(id);
+  }
+
   @Delete(':id')
   @Permissions(Permission.INVOICE_CRUD)
   remove(@Param('id') id: string) {

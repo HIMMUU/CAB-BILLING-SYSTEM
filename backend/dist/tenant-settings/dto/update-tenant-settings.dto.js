@@ -105,6 +105,15 @@ __decorate([
 ], UpdateTenantSettingsDto.prototype, "dutySlipTitle", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateTenantSettingsDto.prototype, "invoiceStartingNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateTenantSettingsDto.prototype, "invoicePrefix", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)
 ], UpdateTenantSettingsDto.prototype, "hideLogoOnPdf", void 0);
 __decorate([

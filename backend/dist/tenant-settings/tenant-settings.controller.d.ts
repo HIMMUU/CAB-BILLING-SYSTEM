@@ -28,6 +28,8 @@ export declare class TenantSettingsController {
         dutySlipTitle: string | null;
         hideLogoOnPdf: boolean;
         termsAndConditions: string | null;
+        invoiceStartingNumber: number | null;
+        invoicePrefix: string | null;
         pdfTheme: string;
         pdfColorPrimary: string;
         pdfColorCompanyName: string | null;
@@ -65,6 +67,8 @@ export declare class TenantSettingsController {
         dutySlipTitle: string | null;
         hideLogoOnPdf: boolean;
         termsAndConditions: string | null;
+        invoiceStartingNumber: number | null;
+        invoicePrefix: string | null;
         pdfTheme: string;
         pdfColorPrimary: string;
         pdfColorCompanyName: string | null;
