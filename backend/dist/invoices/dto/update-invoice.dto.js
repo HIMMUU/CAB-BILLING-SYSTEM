@@ -26,4 +26,34 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], UpdateInvoiceDto.prototype, "paidAmount", void 0);
+__decorate([
+    (0, class_validator_1.IsDateString)({}, { message: 'Invalid invoice date' }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateInvoiceDto.prototype, "invoiceDate", void 0);
+__decorate([
+    (0, class_validator_1.IsDateString)({}, { message: 'Invalid due date' }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateInvoiceDto.prototype, "dueDate", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], UpdateInvoiceDto.prototype, "isRcm", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateInvoiceDto.prototype, "cgstRate", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateInvoiceDto.prototype, "sgstRate", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateInvoiceDto.prototype, "igstRate", void 0);
 //# sourceMappingURL=update-invoice.dto.js.map

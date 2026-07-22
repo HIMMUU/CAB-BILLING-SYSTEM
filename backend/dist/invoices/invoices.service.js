@@ -475,28 +475,57 @@ let InvoicesService = class InvoicesService {
             if (!invoice) {
                 throw new common_1.NotFoundException('Invoice not found');
             }
-            const totalAmount = Number(invoice.totalAmount);
+            const data = {};
+            if (dto.status !== undefined)
+                data.status = dto.status;
+            if (dto.invoiceDate !== undefined)
+                data.invoiceDate = new Date(dto.invoiceDate);
+            if (dto.dueDate !== undefined)
+                data.dueDate = new Date(dto.dueDate);
+            if (dto.isRcm !== undefined)
+                data.isRcm = dto.isRcm;
+            if (dto.cgstRate !== undefined)
+                data.cgstRate = dto.cgstRate;
+            if (dto.sgstRate !== undefined)
+                data.sgstRate = dto.sgstRate;
+            if (dto.igstRate !== undefined)
+                data.igstRate = dto.igstRate;
+            const subtotal = Number(invoice.subtotal);
+            const toll = Number(invoice.toll || 0);
+            const parking = Number(invoice.parking || 0);
+            const mcd = Number(invoice.mcd || 0);
+            const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd));
+            const cgstRate = dto.cgstRate !== undefined ? dto.cgstRate : Number(invoice.cgstRate || 0);
+            const sgstRate = dto.sgstRate !== undefined ? dto.sgstRate : Number(invoice.sgstRate || 0);
+            const igstRate = dto.igstRate !== undefined ? dto.igstRate : Number(invoice.igstRate || 0);
+            const cgstAmount = (gstTaxableAmount * cgstRate) / 100;
+            const sgstAmount = (gstTaxableAmount * sgstRate) / 100;
+            const igstAmount = (gstTaxableAmount * igstRate) / 100;
+            const totalTax = cgstAmount + sgstAmount + igstAmount;
+            data.cgstAmount = cgstAmount;
+            data.sgstAmount = sgstAmount;
+            data.igstAmount = igstAmount;
+            data.totalTax = totalTax;
+            const isRcm = dto.isRcm !== undefined ? dto.isRcm : !!invoice.isRcm;
+            const totalAmount = isRcm ? subtotal : subtotal + totalTax;
+            data.totalAmount = totalAmount;
             const currentPaid = Number(invoice.paidAmount);
             const newPaid = dto.paidAmount !== undefined ? dto.paidAmount : currentPaid;
             const diff = newPaid - currentPaid;
-            const data = {};
-            if (dto.status !== undefined) {
-                data.status = dto.status;
-            }
             if (dto.paidAmount !== undefined) {
                 data.paidAmount = newPaid;
-                const dueAmount = Math.max(0, totalAmount - newPaid);
-                data.dueAmount = dueAmount;
-                if (dto.status === undefined) {
-                    if (dueAmount === 0) {
-                        data.status = client_1.InvoiceStatus.PAID;
-                    }
-                    else if (newPaid > 0) {
-                        data.status = client_1.InvoiceStatus.PARTIALLY_PAID;
-                    }
-                    else {
-                        data.status = client_1.InvoiceStatus.UNPAID;
-                    }
+            }
+            const dueAmount = Math.max(0, totalAmount - newPaid);
+            data.dueAmount = dueAmount;
+            if (dto.status === undefined) {
+                if (dueAmount === 0 && totalAmount > 0) {
+                    data.status = client_1.InvoiceStatus.PAID;
+                }
+                else if (newPaid > 0) {
+                    data.status = client_1.InvoiceStatus.PARTIALLY_PAID;
+                }
+                else if (invoice.status !== client_1.InvoiceStatus.CANCELLED && invoice.status !== client_1.InvoiceStatus.VOID) {
+                    data.status = client_1.InvoiceStatus.UNPAID;
                 }
             }
             const updated = await tx.invoice.update({
@@ -524,8 +553,10 @@ let InvoicesService = class InvoicesService {
     }
     async remove(id) {
         await this.findOne(id);
-        return this.prisma.invoice.delete({
-            where: { id },
+        return this.prisma.$transaction(async (tx) => {
+            await tx.invoiceItem.deleteMany({ where: { invoiceId: id } });
+            await tx.payment.deleteMany({ where: { invoiceId: id } });
+            return tx.invoice.delete({ where: { id } });
         });
     }
     async cancel(id) {

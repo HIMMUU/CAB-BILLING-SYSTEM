@@ -527,6 +527,77 @@ export default function InvoicesPage() {
     }
   };
 
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
+  const [editInvoiceDate, setEditInvoiceDate] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [editStatus, setEditStatus] = useState<string>('UNPAID');
+  const [editIsRcm, setEditIsRcm] = useState(false);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const handleOpenEdit = (invoice: Invoice) => {
+    if (isDispatcher) return;
+    setEditInvoice(invoice);
+    setEditInvoiceDate(invoice.invoiceDate ? invoice.invoiceDate.split('T')[0] : '');
+    setEditDueDate(invoice.dueDate ? invoice.dueDate.split('T')[0] : '');
+    setEditStatus(invoice.status);
+    setEditIsRcm(!!(invoice as any).isRcm);
+    setEditError(null);
+    setIsEditOpen(true);
+  };
+
+  const handleSaveEditInvoice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editInvoice) return;
+
+    setEditSubmitting(true);
+    setEditError(null);
+
+    try {
+      await api.request(`/invoices/${editInvoice.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          invoiceDate: editInvoiceDate ? new Date(editInvoiceDate).toISOString() : undefined,
+          dueDate: editDueDate ? new Date(editDueDate).toISOString() : undefined,
+          status: editStatus,
+          isRcm: editIsRcm,
+        }),
+      });
+
+      setIsEditOpen(false);
+      setEditInvoice(null);
+      fetchInvoices();
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to update invoice');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleDeleteInvoice = async (invoice: Invoice) => {
+    if (isDispatcher) return;
+    if (
+      !confirm(
+        `Are you sure you want to DELETE Invoice ${invoice.invoiceNumber}? This will permanently remove the invoice and restore its duty slips for re-invoicing.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await api.request(`/invoices/${invoice.id}`, {
+        method: 'DELETE',
+      });
+      if (selectedInvoice && selectedInvoice.id === invoice.id) {
+        setSelectedInvoice(null);
+      }
+      fetchInvoices();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete invoice');
+    }
+  };
+
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'PAID':
@@ -685,6 +756,26 @@ export default function InvoicesPage() {
                             title="Cancel Bill"
                           >
                             🚫 Cancel
+                          </button>
+                        )}
+                        {/* Edit Invoice Button */}
+                        {!isDispatcher && (
+                          <button
+                            onClick={() => handleOpenEdit(invoice)}
+                            className="h-8 px-2 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-xs text-amber-700 font-semibold rounded-lg transition inline-flex items-center gap-1"
+                            title="Edit Invoice"
+                          >
+                            ✏️ Edit
+                          </button>
+                        )}
+                        {/* Delete Invoice Button */}
+                        {!isDispatcher && (
+                          <button
+                            onClick={() => handleDeleteInvoice(invoice)}
+                            className="h-8 px-2 bg-red-50 border border-red-200 hover:bg-red-100 text-xs text-red-700 font-semibold rounded-lg transition inline-flex items-center gap-1"
+                            title="Delete Invoice"
+                          >
+                            🗑️ Delete
                           </button>
                         )}
                         <button
@@ -1581,6 +1672,103 @@ export default function InvoicesPage() {
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
             <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Generating PDF Preview...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Invoice Modal */}
+      {isEditOpen && editInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl border border-[#E2E8F0] w-full max-w-lg overflow-hidden animate-scale-up">
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] px-6 py-4 bg-[#FAFBFD]">
+              <h3 className="text-base font-bold text-[#0F172A]">Edit Invoice: {editInvoice.invoiceNumber}</h3>
+              <button
+                onClick={() => setIsEditOpen(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-lg transition"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditInvoice} className="p-6 space-y-4">
+              {editError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 font-semibold">
+                  {editError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#475569] uppercase mb-1">Invoice Date</label>
+                  <input
+                    type="date"
+                    value={editInvoiceDate}
+                    onChange={(e) => setEditInvoiceDate(e.target.value)}
+                    required
+                    className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#475569] uppercase mb-1">Due Date</label>
+                  <input
+                    type="date"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    required
+                    className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#475569] uppercase mb-1">Invoice Status</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                  className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500"
+                >
+                  <option value="UNPAID">UNPAID</option>
+                  <option value="PAID">PAID</option>
+                  <option value="PARTIALLY_PAID">PARTIALLY_PAID</option>
+                  <option value="DRAFT">DRAFT</option>
+                  <option value="SENT">SENT</option>
+                  <option value="CANCELLED">CANCELLED</option>
+                  <option value="VOID">VOID</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="editIsRcm"
+                  checked={editIsRcm}
+                  onChange={(e) => setEditIsRcm(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="editIsRcm" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                  Reverse Charge Mechanism (RCM) Applicable
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-[#E2E8F0]">
+                <button
+                  type="button"
+                  onClick={() => setIsEditOpen(false)}
+                  className="px-4 py-2 border border-[#E2E8F0] text-slate-600 text-sm font-semibold rounded-lg hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editSubmitting}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm transition disabled:opacity-50"
+                >
+                  {editSubmitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
