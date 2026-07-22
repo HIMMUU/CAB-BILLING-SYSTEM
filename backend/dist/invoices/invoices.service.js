@@ -1385,38 +1385,56 @@ let InvoicesService = class InvoicesService {
                     align: 'right',
                 });
             }
+            const paidAmountVal = Number(parsedInvoice.paidAmount || 0);
+            const dueAmountVal = Number(parsedInvoice.dueAmount || 0);
+            const hasPayment = paidAmountVal > 0;
+            const totalBoxHeight = hasPayment ? 42 : 30;
             const totalBoxY = footerY + 70;
-            doc.rect(50, totalBoxY, 495, 30).stroke('#CBD5E1');
+            doc.rect(50, totalBoxY, 495, totalBoxHeight).stroke('#CBD5E1');
             doc
                 .moveTo(350, totalBoxY)
-                .lineTo(350, totalBoxY + 30)
+                .lineTo(350, totalBoxY + totalBoxHeight)
                 .stroke('#CBD5E1');
             const grandTotal = Number(parsedInvoice.totalAmount);
             const amountInWords = numberToWords(grandTotal);
             doc.fillColor('#475569').font(fontBold).fontSize(7.5);
-            doc.text(amountInWords, 55, totalBoxY + 10, { width: 280 });
-            if (isRefined) {
-                doc.rect(350, totalBoxY, 195, 30).fill(primaryColor);
-                doc
-                    .fillColor('#FFFFFF')
-                    .fontSize(9)
-                    .font(fontBold)
-                    .text('NET AMOUNT', 355, totalBoxY + 10);
-                doc.text(grandTotal.toFixed(2), 480, totalBoxY + 10, {
-                    width: 60,
-                    align: 'right',
-                });
+            doc.text(amountInWords, 55, totalBoxY + 8, { width: 285 });
+            if (hasPayment) {
+                doc.fillColor(primaryColor).fontSize(7.5).font(fontBold);
+                doc.text('TOTAL AMOUNT:', 355, totalBoxY + 5);
+                doc.fillColor('#0F172A').text(grandTotal.toFixed(2), 480, totalBoxY + 5, { width: 60, align: 'right' });
+                doc.fillColor('#15803D').fontSize(7.5).font(fontBold);
+                doc.text('LESS: RECEIVED:', 355, totalBoxY + 16);
+                doc.text(`-${paidAmountVal.toFixed(2)}`, 480, totalBoxY + 16, { width: 60, align: 'right' });
+                doc.moveTo(350, totalBoxY + 27).lineTo(545, totalBoxY + 27).stroke('#CBD5E1');
+                doc.fillColor(dueAmountVal > 0 ? '#B91C1C' : '#15803D').fontSize(8.5).font(fontBold);
+                doc.text(dueAmountVal > 0 ? 'BALANCE DUE:' : 'NET DUE (PAID):', 355, totalBoxY + 30);
+                doc.text(dueAmountVal.toFixed(2), 480, totalBoxY + 30, { width: 60, align: 'right' });
             }
             else {
-                doc
-                    .fillColor(primaryColor)
-                    .fontSize(9)
-                    .font(fontBold)
-                    .text('NET AMOUNT', 355, totalBoxY + 10);
-                doc.text(grandTotal.toFixed(2), 480, totalBoxY + 10, {
-                    width: 60,
-                    align: 'right',
-                });
+                if (isRefined) {
+                    doc.rect(350, totalBoxY, 195, 30).fill(primaryColor);
+                    doc
+                        .fillColor('#FFFFFF')
+                        .fontSize(9)
+                        .font(fontBold)
+                        .text('NET AMOUNT', 355, totalBoxY + 10);
+                    doc.text(grandTotal.toFixed(2), 480, totalBoxY + 10, {
+                        width: 60,
+                        align: 'right',
+                    });
+                }
+                else {
+                    doc
+                        .fillColor(primaryColor)
+                        .fontSize(9)
+                        .font(fontBold)
+                        .text('NET AMOUNT', 355, totalBoxY + 10);
+                    doc.text(grandTotal.toFixed(2), 480, totalBoxY + 10, {
+                        width: 60,
+                        align: 'right',
+                    });
+                }
             }
             const termsY = totalBoxY + 35;
             if (showTerms) {

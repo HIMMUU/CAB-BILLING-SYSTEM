@@ -536,7 +536,7 @@ export default function InvoicesPage() {
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  const handleOpenEdit = (invoice: Invoice) => {
+  const handleOpenEdit = async (invoice: Invoice) => {
     if (isDispatcher) return;
     setEditInvoice(invoice);
     setEditInvoiceDate(invoice.invoiceDate ? invoice.invoiceDate.split('T')[0] : '');
@@ -545,6 +545,20 @@ export default function InvoicesPage() {
     setEditIsRcm(!!(invoice as any).isRcm);
     setEditError(null);
     setIsEditOpen(true);
+
+    try {
+      const [fullInvoice, tripsRes] = await Promise.all([
+        api.request(`/invoices/${invoice.id}`),
+        api.request('/invoices/uninvoiced-trips'),
+      ]);
+      setEditInvoice(fullInvoice);
+      const custTrips = (tripsRes || []).filter(
+        (t: ClosedTrip) => t.booking?.customer?.id === invoice.customerId
+      );
+      setAvailableTrips(custTrips);
+    } catch (err: any) {
+      console.error('Failed to load full invoice or available trips', err);
+    }
   };
 
   const handleSaveEditInvoice = async (e: React.FormEvent) => {
@@ -575,21 +589,86 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleDeleteInvoice = async (invoice: Invoice) => {
-    if (isDispatcher) return;
+  const handleRemoveItemInModify = async (itemId: string) => {
+    if (!editInvoice) return;
     if (
       !confirm(
-        `Are you sure you want to DELETE Invoice ${invoice.invoiceNumber}? This will permanently remove the invoice and restore its duty slips for re-invoicing.`
+        'Remove this duty slip from the invoice? The duty slip will be set as unbilled/uninvoiced and available for re-billing.'
       )
     ) {
       return;
     }
-
     try {
-      await api.request(`/invoices/${invoice.id}`, {
+      const updatedInvoice = await api.request(`/invoices/${editInvoice.id}/items/${itemId}`, {
         method: 'DELETE',
       });
-      if (selectedInvoice && selectedInvoice.id === invoice.id) {
+      setEditInvoice(updatedInvoice);
+      if (selectedInvoice && selectedInvoice.id === editInvoice.id) {
+        setSelectedInvoice(updatedInvoice);
+      }
+      const tripsRes = await api.request('/invoices/uninvoiced-trips');
+      const custTrips = (tripsRes || []).filter(
+        (t: ClosedTrip) => t.booking?.customer?.id === editInvoice.customerId
+      );
+      setAvailableTrips(custTrips);
+      fetchInvoices();
+    } catch (err: any) {
+      alert(err.message || 'Failed to remove duty slip from invoice');
+    }
+  };
+
+  const handleAddTripInModify = async (tripId: string) => {
+    if (!editInvoice) return;
+    try {
+      const updatedInvoice = await api.request(`/invoices/${editInvoice.id}/items`, {
+        method: 'POST',
+        body: JSON.stringify({ tripIds: [tripId] }),
+      });
+      setEditInvoice(updatedInvoice);
+      if (selectedInvoice && selectedInvoice.id === editInvoice.id) {
+        setSelectedInvoice(updatedInvoice);
+      }
+      const tripsRes = await api.request('/invoices/uninvoiced-trips');
+      const custTrips = (tripsRes || []).filter(
+        (t: ClosedTrip) => t.booking?.customer?.id === editInvoice.customerId
+      );
+      setAvailableTrips(custTrips);
+      fetchInvoices();
+    } catch (err: any) {
+      alert(err.message || 'Failed to add duty slip to invoice');
+    }
+  };
+
+  const handleCancelInModify = async () => {
+    if (!editInvoice) return;
+    if (!confirm('Are you sure you want to CANCEL this bill? All duty slips will be restored as unbilled.')) return;
+    try {
+      await api.request(`/invoices/${editInvoice.id}/cancel`, { method: 'PATCH' });
+      setIsEditOpen(false);
+      setEditInvoice(null);
+      if (selectedInvoice && selectedInvoice.id === editInvoice.id) {
+        setSelectedInvoice(null);
+      }
+      fetchInvoices();
+    } catch (err: any) {
+      alert(err.message || 'Failed to cancel invoice');
+    }
+  };
+
+  const handleDeleteInModify = async () => {
+    if (!editInvoice) return;
+    if (
+      !confirm(
+        `Are you sure you want to DELETE Invoice ${editInvoice.invoiceNumber}? This will permanently remove the invoice and restore its duty slips.`
+      )
+    ) {
+      return;
+    }
+    try {
+      await api.request(`/invoices/${editInvoice.id}`, { method: 'DELETE' });
+      setIsEditOpen(false);
+      setEditInvoice(null);
+      if (selectedInvoice && selectedInvoice.id === editInvoice.id) {
         setSelectedInvoice(null);
       }
       fetchInvoices();
@@ -799,40 +878,26 @@ export default function InvoicesPage() {
                               setPayReference('');
                               setIsPaymentOpen(true);
                             }}
-                            className="h-8 px-2 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-xs text-emerald-700 font-semibold rounded-lg transition inline-flex items-center gap-1"
+                            className="h-8 px-2.5 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-xs text-emerald-700 font-semibold rounded-lg transition inline-flex items-center gap-1.5"
                             title="Record Payment"
                           >
-                            💳 Pay
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15A2.25 2.25 0 0 0 2.25 6.75v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+                            </svg>
+                            Pay
                           </button>
                         )}
-                        {/* Cancel Bill Button */}
-                        {invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && !isDispatcher && (
-                          <button
-                            onClick={() => handleCancelInvoice(invoice.id)}
-                            className="h-8 px-2 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-xs text-rose-700 font-semibold rounded-lg transition inline-flex items-center gap-1"
-                            title="Cancel Bill"
-                          >
-                            🚫 Cancel
-                          </button>
-                        )}
-                        {/* Edit Invoice Button */}
+                        {/* Unified Modify Bill Button */}
                         {!isDispatcher && (
                           <button
                             onClick={() => handleOpenEdit(invoice)}
-                            className="h-8 px-2 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-xs text-amber-700 font-semibold rounded-lg transition inline-flex items-center gap-1"
-                            title="Edit Invoice"
+                            className="h-8 px-2.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-xs text-amber-800 font-bold rounded-lg transition inline-flex items-center gap-1.5 shadow-sm"
+                            title="Modify Bill (Edit Dates/Status, Add/Remove Duty Slips, Cancel or Delete Bill)"
                           >
-                            ✏️ Edit
-                          </button>
-                        )}
-                        {/* Delete Invoice Button */}
-                        {!isDispatcher && (
-                          <button
-                            onClick={() => handleDeleteInvoice(invoice)}
-                            className="h-8 px-2 bg-red-50 border border-red-200 hover:bg-red-100 text-xs text-red-700 font-semibold rounded-lg transition inline-flex items-center gap-1"
-                            title="Delete Invoice"
-                          >
-                            🗑️ Delete
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                            </svg>
+                            Modify
                           </button>
                         )}
                         <button
@@ -1485,9 +1550,12 @@ export default function InvoicesPage() {
                 {!isDispatcher && selectedInvoice.status !== 'CANCELLED' && selectedInvoice.status !== 'VOID' && (
                   <button
                     onClick={handleOpenAddDutySlip}
-                    className="px-2.5 py-1 bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold rounded-lg transition inline-flex items-center gap-1"
+                    className="px-2.5 py-1 bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold rounded-lg transition inline-flex items-center gap-1.5"
                   >
-                    ➕ Add Duty Slip to Bill
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Add Duty Slip to Bill
                   </button>
                 )}
               </div>
@@ -1511,10 +1579,13 @@ export default function InvoicesPage() {
                             {!isDispatcher && selectedInvoice.status !== 'CANCELLED' && selectedInvoice.status !== 'VOID' && (
                               <button
                                 onClick={() => handleRemoveItemFromInvoice(selectedInvoice.id, item.id)}
-                                className="text-[11px] text-rose-600 hover:text-rose-800 font-bold bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded transition"
+                                className="text-[11px] text-rose-600 hover:text-rose-800 font-bold bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded transition inline-flex items-center gap-1"
                                 title="Remove duty slip from bill (sets as unbilled)"
                               >
-                                ❌ Remove
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                </svg>
+                                Remove
                               </button>
                             )}
                           </div>
@@ -1846,12 +1917,22 @@ export default function InvoicesPage() {
         </div>
       )}
 
-      {/* Edit Invoice Modal */}
+      {/* Consolidated Modify Invoice Modal */}
       {isEditOpen && editInvoice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-fade-in">
-          <div className="bg-white rounded-xl shadow-xl border border-[#E2E8F0] w-full max-w-lg overflow-hidden animate-scale-up">
+          <div className="bg-white rounded-xl shadow-xl border border-[#E2E8F0] w-full max-w-2xl overflow-hidden animate-scale-up flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-[#E2E8F0] px-6 py-4 bg-[#FAFBFD]">
-              <h3 className="text-base font-bold text-[#0F172A]">Edit Invoice: {editInvoice.invoiceNumber}</h3>
+              <div>
+                <h3 className="text-base font-bold text-[#0F172A] flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-blue-600">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                  </svg>
+                  <span>Modify Bill:</span>
+                  <span className="font-mono text-blue-600">{editInvoice.invoiceNumber}</span>
+                </h3>
+                <p className="text-xs text-[#64748B] mt-0.5">Customer: {editInvoice.customer.name}</p>
+              </div>
               <button
                 onClick={() => setIsEditOpen(false)}
                 className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-lg transition"
@@ -1862,83 +1943,205 @@ export default function InvoicesPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditInvoice} className="p-6 space-y-4">
+            <div className="p-6 space-y-6 overflow-y-auto flex-1">
               {editError && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 font-semibold">
                   {editError}
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-[#475569] uppercase mb-1">Invoice Date</label>
-                  <input
-                    type="date"
-                    value={editInvoiceDate}
-                    onChange={(e) => setEditInvoiceDate(e.target.value)}
-                    required
-                    className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500"
-                  />
+              {/* Section 1: Dates & Status */}
+              <div className="space-y-4 bg-slate-50/50 p-4 rounded-xl border border-[#E2E8F0]">
+                <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wide">1. Invoice Dates & Status</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#475569] uppercase mb-1">Invoice Date</label>
+                    <input
+                      type="date"
+                      value={editInvoiceDate}
+                      onChange={(e) => setEditInvoiceDate(e.target.value)}
+                      required
+                      className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-xs text-[#0F172A] focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#475569] uppercase mb-1">Due Date</label>
+                    <input
+                      type="date"
+                      value={editDueDate}
+                      onChange={(e) => setEditDueDate(e.target.value)}
+                      required
+                      className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-xs text-[#0F172A] focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#475569] uppercase mb-1">Invoice Status</label>
+                    <select
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value)}
+                      className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-xs text-[#0F172A] focus:outline-none focus:border-blue-500 font-semibold"
+                    >
+                      <option value="UNPAID">UNPAID</option>
+                      <option value="PAID">PAID</option>
+                      <option value="PARTIALLY_PAID">PARTIALLY PAID</option>
+                      <option value="DRAFT">DRAFT</option>
+                      <option value="SENT">SENT</option>
+                      <option value="CANCELLED">CANCELLED</option>
+                      <option value="VOID">VOID</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#475569] uppercase mb-1">Due Date</label>
+
+                <div className="flex items-center gap-2 pt-1">
                   <input
-                    type="date"
-                    value={editDueDate}
-                    onChange={(e) => setEditDueDate(e.target.value)}
-                    required
-                    className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500"
+                    type="checkbox"
+                    id="editIsRcm"
+                    checked={editIsRcm}
+                    onChange={(e) => setEditIsRcm(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
+                  <label htmlFor="editIsRcm" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                    Reverse Charge Mechanism (RCM) Applicable
+                  </label>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[#475569] uppercase mb-1">Invoice Status</label>
-                <select
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}
-                  className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500"
-                >
-                  <option value="UNPAID">UNPAID</option>
-                  <option value="PAID">PAID</option>
-                  <option value="PARTIALLY_PAID">PARTIALLY_PAID</option>
-                  <option value="DRAFT">DRAFT</option>
-                  <option value="SENT">SENT</option>
-                  <option value="CANCELLED">CANCELLED</option>
-                  <option value="VOID">VOID</option>
-                </select>
+              {/* Section 2: Duty Slips Management (Add / Remove) */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wide">2. Duty Slips in this Bill</h4>
+                  <span className="text-xs text-slate-500 font-semibold">Total Subtotal: ₹{Number(editInvoice.subtotal).toLocaleString()}</span>
+                </div>
+
+                {/* Currently Billed Duty Slips */}
+                <div className="border border-[#E2E8F0] rounded-xl overflow-hidden bg-white">
+                  <div className="bg-slate-100 px-4 py-2 text-[11px] font-bold text-slate-700 flex justify-between border-b border-[#E2E8F0]">
+                    <span>Billed Duty Slip / Route</span>
+                    <span>Amount & Action</span>
+                  </div>
+                  <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                    {editInvoice.items && editInvoice.items.length > 0 ? (
+                      editInvoice.items.map((item) => (
+                        <div key={item.id} className="p-3 text-xs flex items-center justify-between hover:bg-slate-50/50">
+                          <div>
+                            <span className="font-bold text-slate-900 block">{item.description}</span>
+                            {item.trip && (
+                              <span className="text-[11px] text-slate-500">
+                                Slip #{item.trip.dutySlip?.dutySlipNumber} • {item.trip.totalKm} KM
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono font-bold text-slate-900">₹{Number(item.amount).toLocaleString()}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItemInModify(item.id)}
+                              className="text-[11px] font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-1 rounded transition inline-flex items-center gap-1"
+                              title="Remove duty slip from bill (restores as unbilled)"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                              </svg>
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-xs text-slate-400">
+                        No duty slips currently in this bill. Select unbilled slips below to add.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Add Available Unbilled Duty Slips */}
+                <div className="border border-blue-100 bg-blue-50/30 rounded-xl p-4 space-y-3">
+                  <h5 className="text-xs font-bold text-blue-900 uppercase tracking-wide flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 text-blue-600">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Available Unbilled Duty Slips ({availableTrips.length})
+                  </h5>
+                  {availableTrips.length === 0 ? (
+                    <div className="text-xs text-slate-500 italic">No additional unbilled duty slips available for this customer.</div>
+                  ) : (
+                    <div className="divide-y divide-blue-100/60 max-h-40 overflow-y-auto bg-white rounded-lg border border-blue-100">
+                      {availableTrips.map((trip) => (
+                        <div key={trip.id} className="p-2.5 flex items-center justify-between text-xs hover:bg-blue-50/50">
+                          <div>
+                            <span className="font-bold text-slate-800 block">{trip.dutySlip.dutySlipNumber}</span>
+                            <span className="text-[10px] text-slate-500">{trip.booking.pickupLocation} ➔ {trip.booking.dropLocation} ({trip.totalKm} KM)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-blue-700 text-xs">₹{Number(trip.totalAmount).toLocaleString()}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleAddTripInModify(trip.id)}
+                              className="text-[11px] font-bold text-blue-700 hover:text-blue-900 bg-blue-100 hover:bg-blue-200 px-2.5 py-1 rounded transition inline-flex items-center gap-1"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                              </svg>
+                              Add to Bill
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="editIsRcm"
-                  checked={editIsRcm}
-                  onChange={(e) => setEditIsRcm(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <label htmlFor="editIsRcm" className="text-xs font-semibold text-slate-700 cursor-pointer">
-                  Reverse Charge Mechanism (RCM) Applicable
-                </label>
+              {/* Section 3: Bill Actions (Cancel & Delete) */}
+              <div className="bg-rose-50/50 border border-rose-100 rounded-xl p-4 space-y-2">
+                <h4 className="text-xs font-bold text-rose-900 uppercase tracking-wide">3. Bill Status & Actions</h4>
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <span className="text-xs text-rose-700">Cancel or Delete this bill (restores all contained duty slips back to unbilled):</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCancelInModify}
+                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-sm transition inline-flex items-center gap-1.5"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
+                      </svg>
+                      Cancel Bill
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDeleteInModify}
+                      className="px-3 py-1.5 bg-red-700 hover:bg-red-800 text-white text-xs font-bold rounded-lg shadow-sm transition inline-flex items-center gap-1.5"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                      </svg>
+                      Delete Bill
+                    </button>
+                  </div>
+                </div>
               </div>
+            </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-[#E2E8F0]">
-                <button
-                  type="button"
-                  onClick={() => setIsEditOpen(false)}
-                  className="px-4 py-2 border border-[#E2E8F0] text-slate-600 text-sm font-semibold rounded-lg hover:bg-gray-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={editSubmitting}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm transition disabled:opacity-50"
-                >
-                  {editSubmitting ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
+            {/* Modal Footer */}
+            <div className="flex justify-end gap-3 px-6 py-4 bg-[#FAFBFD] border-t border-[#E2E8F0]">
+              <button
+                type="button"
+                onClick={() => setIsEditOpen(false)}
+                className="px-4 py-2 border border-[#E2E8F0] text-slate-600 text-sm font-semibold rounded-lg hover:bg-gray-50 transition"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEditInvoice}
+                disabled={editSubmitting}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm transition disabled:opacity-50"
+              >
+                {editSubmitting ? 'Saving...' : 'Save Invoice Changes'}
+              </button>
+            </div>
           </div>
         </div>
       )}
