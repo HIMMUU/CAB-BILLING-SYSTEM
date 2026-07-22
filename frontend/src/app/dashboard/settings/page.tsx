@@ -1039,6 +1039,41 @@ export default function CompanySettingsPage() {
                             </p>
                           </div>
                         )}
+
+                        {/* Footer: Digital Signature & Authorized Signatory */}
+                        <div className="flex items-end justify-between pt-4 border-t border-slate-200 text-[10px]">
+                          <div className="text-slate-500 space-y-0.5">
+                            <span className="font-bold text-slate-700 block uppercase tracking-wider text-[9px]">
+                              Company Details Verification
+                            </span>
+                            <span className="block text-[9px]">Service Category: {formData.serviceCategory || 'Rent-A-Cab'}</span>
+                            <span className="block text-[9px]">State Code: {formData.companyGst ? formData.companyGst.substring(0, 2) : '07'}</span>
+                          </div>
+
+                          <div className="text-center space-y-1">
+                            {formData.digitalSignatureUrl ? (
+                              <div className="h-12 w-36 border border-dashed border-slate-300 rounded bg-slate-50 p-1 flex items-center justify-center">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={formData.digitalSignatureUrl}
+                                  alt="Digital Signature"
+                                  className="max-h-full max-w-full object-contain"
+                                />
+                              </div>
+                            ) : (
+                              <div className="h-12 w-36 border border-dashed border-slate-300 rounded bg-slate-50 flex flex-col items-center justify-center text-[9px] text-slate-400">
+                                <span>✍️ Digital Signature</span>
+                                <span className="text-[8px] text-slate-400">Upload signature above</span>
+                              </div>
+                            )}
+                            <span
+                              className="font-bold block text-slate-900 uppercase tracking-wider text-[9px] pt-0.5"
+                              style={{ color: formData.pdfColorPrimary || '#1E3A8A' }}
+                            >
+                              Authorized Signatory
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

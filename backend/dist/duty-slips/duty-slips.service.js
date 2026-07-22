@@ -435,6 +435,25 @@ let DutySlipsService = class DutySlipsService {
             }
             return null;
         })();
+        const signatureBuffer = await (async () => {
+            if (!tenant?.digitalSignatureUrl)
+                return null;
+            if (tenant.digitalSignatureUrl.startsWith('http://') ||
+                tenant.digitalSignatureUrl.startsWith('https://')) {
+                try {
+                    const res = await fetch(tenant.digitalSignatureUrl, {
+                        signal: AbortSignal.timeout(2000),
+                    });
+                    if (res.ok) {
+                        return Buffer.from(await res.arrayBuffer());
+                    }
+                }
+                catch (e) {
+                    console.warn('Failed to fetch digital signature from URL:', tenant.digitalSignatureUrl, e.message);
+                }
+            }
+            return null;
+        })();
         return new Promise((resolve, reject) => {
             const doc = new pdfkit_1.default({ margin: 50, size: 'A4' });
             const chunks = [];
@@ -695,7 +714,21 @@ let DutySlipsService = class DutySlipsService {
             doc.font(fontRegular);
             doc.text('-------------------------', 60, 675);
             doc.text('-------------------------', 225, 675);
-            doc.text('-------------------------', 390, 675);
+            if (signatureBuffer) {
+                try {
+                    doc.image(signatureBuffer, 390, 645, {
+                        width: 110,
+                        height: 28,
+                        fit: [110, 28],
+                    });
+                }
+                catch (e) {
+                    doc.text('-------------------------', 390, 675);
+                }
+            }
+            else {
+                doc.text('-------------------------', 390, 675);
+            }
             doc
                 .fontSize(8)
                 .fillColor('#64748B')
