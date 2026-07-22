@@ -48,7 +48,9 @@ let CustomersService = class CustomersService {
                     let catId = card.vehicleCategoryId;
                     if (!catId && card.vehicleCategoryName) {
                         let category = await tx.vehicleCategory.findFirst({
-                            where: { name: { equals: card.vehicleCategoryName, mode: 'insensitive' } },
+                            where: {
+                                name: { equals: card.vehicleCategoryName, mode: 'insensitive' },
+                            },
                         });
                         if (!category) {
                             category = await tx.vehicleCategory.create({
@@ -80,7 +82,9 @@ let CustomersService = class CustomersService {
                                 fullHr: card.fullHr ?? 8,
                                 fullKm: card.fullKm ?? 80,
                                 outstationNightCharge: card.outstationNightCharge ?? 0,
-                                effectiveFrom: card.effectiveFrom ? new Date(card.effectiveFrom) : new Date(),
+                                effectiveFrom: card.effectiveFrom
+                                    ? new Date(card.effectiveFrom)
+                                    : new Date(),
                                 status: card.status || 'ACTIVE',
                             },
                         });
@@ -159,7 +163,9 @@ let CustomersService = class CustomersService {
                     name: dto.name,
                     companyName: dto.companyName,
                     type,
-                    gstNumber: type === client_1.CustomerType.CORPORATE ? (dto.gstNumber ?? customer.gstNumber) : null,
+                    gstNumber: type === client_1.CustomerType.CORPORATE
+                        ? (dto.gstNumber ?? customer.gstNumber)
+                        : null,
                     email: dto.email,
                     phone: dto.phone,
                     billingAddress: dto.billingAddress,
@@ -180,7 +186,9 @@ let CustomersService = class CustomersService {
                     let catId = card.vehicleCategoryId;
                     if (!catId && card.vehicleCategoryName) {
                         let category = await tx.vehicleCategory.findFirst({
-                            where: { name: { equals: card.vehicleCategoryName, mode: 'insensitive' } },
+                            where: {
+                                name: { equals: card.vehicleCategoryName, mode: 'insensitive' },
+                            },
                         });
                         if (!category) {
                             category = await tx.vehicleCategory.create({
@@ -212,7 +220,9 @@ let CustomersService = class CustomersService {
                                 fullHr: card.fullHr ?? 8,
                                 fullKm: card.fullKm ?? 80,
                                 outstationNightCharge: card.outstationNightCharge ?? 0,
-                                effectiveFrom: card.effectiveFrom ? new Date(card.effectiveFrom) : new Date(),
+                                effectiveFrom: card.effectiveFrom
+                                    ? new Date(card.effectiveFrom)
+                                    : new Date(),
                                 status: card.status || 'ACTIVE',
                             },
                         });

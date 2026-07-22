@@ -63,7 +63,9 @@ __decorate([
     __metadata("design:type", Number)
 ], UpdateDutySlipDto.prototype, "extraCharges", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(client_1.DutySlipStatus, { message: 'Status must be DRAFT, FILLED, or CLOSED' }),
+    (0, class_validator_1.IsEnum)(client_1.DutySlipStatus, {
+        message: 'Status must be DRAFT, FILLED, or CLOSED',
+    }),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateDutySlipDto.prototype, "status", void 0);

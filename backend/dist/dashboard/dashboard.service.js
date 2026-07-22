@@ -102,7 +102,11 @@ let DashboardService = class DashboardService {
             const d = new Date();
             d.setDate(today.getDate() - i);
             const dateStr = d.toISOString().slice(0, 10);
-            chartMap.set(dateStr, { date: dateStr, bookingsCount: 0, revenueValue: 0 });
+            chartMap.set(dateStr, {
+                date: dateStr,
+                bookingsCount: 0,
+                revenueValue: 0,
+            });
         }
         for (const b of bookings) {
             const dateStr = new Date(b.createdAt).toISOString().slice(0, 10);

@@ -35,7 +35,9 @@ let TripsService = class TripsService {
         }
         const startDateTime = overrideStartDateTime || slip.startDateTime;
         const endDateTime = overrideEndDateTime || slip.endDateTime;
-        if (startDateTime && endDateTime && new Date(endDateTime) < new Date(startDateTime)) {
+        if (startDateTime &&
+            endDateTime &&
+            new Date(endDateTime) < new Date(startDateTime)) {
             throw new common_1.BadRequestException('End Date & Time cannot be before Start Date & Time');
         }
         let calculatedHours = 0;
@@ -59,7 +61,10 @@ let TripsService = class TripsService {
         let mappedClientType = 'Individual';
         if (slip.booking.customer.type === 'CORPORATE') {
             const lowerName = (slip.booking.customer.companyName || '').toLowerCase();
-            if (lowerName.includes('travel') || lowerName.includes('holiday') || lowerName.includes('resort') || lowerName.includes('tour')) {
+            if (lowerName.includes('travel') ||
+                lowerName.includes('holiday') ||
+                lowerName.includes('resort') ||
+                lowerName.includes('tour')) {
                 mappedClientType = 'Travel Company';
             }
             else {
@@ -104,8 +109,12 @@ let TripsService = class TripsService {
                 baseKm = calculatedDays * minKm;
                 baseFare = baseKm * ratePerKm;
                 extraKmRate = ratePerKm;
-                driverAllowanceAmount = calculatedDays * (Number(rateCard.driverAllowance) || 250);
-                nightChargesAmount = calculatedDays * (Number(rateCard.outstationNightCharge || rateCard.nightCharge) || 200);
+                driverAllowanceAmount =
+                    calculatedDays * (Number(rateCard.driverAllowance) || 250);
+                nightChargesAmount =
+                    calculatedDays *
+                        (Number(rateCard.outstationNightCharge || rateCard.nightCharge) ||
+                            200);
             }
             else {
                 const thresholdHr = Number(rateCard.minHr) || 4;
@@ -149,10 +158,23 @@ let TripsService = class TripsService {
         const parking = Number(slip.parking);
         const stateTax = Number(slip.stateTax);
         const mcd = Number(slip.mcd);
-        const driverAllowance = slip.driverAllowance !== null && Number(slip.driverAllowance) > 0 ? Number(slip.driverAllowance) : driverAllowanceAmount;
-        const nightCharges = slip.nightCharges !== null && Number(slip.nightCharges) > 0 ? Number(slip.nightCharges) : nightChargesAmount;
+        const driverAllowance = slip.driverAllowance !== null && Number(slip.driverAllowance) > 0
+            ? Number(slip.driverAllowance)
+            : driverAllowanceAmount;
+        const nightCharges = slip.nightCharges !== null && Number(slip.nightCharges) > 0
+            ? Number(slip.nightCharges)
+            : nightChargesAmount;
         const extraCharges = Number(slip.extraCharges);
-        const totalAmount = baseFare + extraKmCharged + extraHoursCharged + toll + parking + stateTax + mcd + driverAllowance + nightCharges + extraCharges;
+        const totalAmount = baseFare +
+            extraKmCharged +
+            extraHoursCharged +
+            toll +
+            parking +
+            stateTax +
+            mcd +
+            driverAllowance +
+            nightCharges +
+            extraCharges;
         return {
             baseFareCharged: baseFare,
             extraKmCharged,
@@ -208,7 +230,14 @@ let TripsService = class TripsService {
                     Number(trip.driverAllowance || 0) +
                     Number(trip.miscChargesCharged || trip.extraCharges || 0);
         }
-        const subtotal = baseFare + extraKm + toll + parking + stateTax + mcd + nightCharges + miscCharges;
+        const subtotal = baseFare +
+            extraKm +
+            toll +
+            parking +
+            stateTax +
+            mcd +
+            nightCharges +
+            miscCharges;
         const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd));
         const cgstRate = Number(invoice.cgstRate || 0);
         const sgstRate = Number(invoice.sgstRate || 0);
@@ -218,7 +247,7 @@ let TripsService = class TripsService {
         const igstAmount = (gstTaxableAmount * igstRate) / 100;
         const totalTax = cgstAmount + sgstAmount + igstAmount;
         const isRcm = !!invoice.isRcm;
-        const totalAmount = isRcm ? subtotal : (subtotal + totalTax);
+        const totalAmount = isRcm ? subtotal : subtotal + totalTax;
         const dueAmount = Math.max(0, totalAmount - Number(invoice.paidAmount || 0));
         await tx.invoice.update({
             where: { id: invoiceId },
@@ -279,7 +308,7 @@ let TripsService = class TripsService {
             const nightChargesCharged = dto.nightCharges ?? calculations.nightCharges;
             const miscChargesCharged = dto.extraCharges ?? calculations.extraCharges;
             const totalAmount = dto.totalAmount ??
-                (Number(baseFareCharged) +
+                Number(baseFareCharged) +
                     Number(extraKmCharged) +
                     Number(extraHoursCharged) +
                     Number(toll) +
@@ -288,7 +317,7 @@ let TripsService = class TripsService {
                     Number(mcd) +
                     Number(driverAllowance) +
                     Number(nightChargesCharged) +
-                    Number(miscChargesCharged));
+                    Number(miscChargesCharged);
             const existingTrip = await this.prisma.trip.findUnique({
                 where: { dutySlipId: dto.dutySlipId },
                 include: {

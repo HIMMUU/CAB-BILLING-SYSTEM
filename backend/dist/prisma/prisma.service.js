@@ -42,35 +42,43 @@ let PrismaService = class PrismaService extends client_1.PrismaClient {
                         const anyArgs = args;
                         if (tenantIsolatedModels.includes(model)) {
                             let tenantId = tenantContext.getTenantId();
-                            if (!tenantId && ['create', 'createMany', 'upsert'].includes(operation)) {
+                            if (!tenantId &&
+                                ['create', 'createMany', 'upsert'].includes(operation)) {
                                 let providedTenantId;
                                 if (operation === 'createMany' && Array.isArray(anyArgs.data)) {
                                     providedTenantId = anyArgs.data[0]?.tenantId;
                                 }
                                 else if (operation === 'upsert') {
-                                    providedTenantId = anyArgs.create?.tenantId || anyArgs.create?.tenant?.connect?.id;
+                                    providedTenantId =
+                                        anyArgs.create?.tenantId ||
+                                            anyArgs.create?.tenant?.connect?.id;
                                 }
                                 else {
-                                    providedTenantId = anyArgs.data?.tenantId || anyArgs.data?.tenant?.connect?.id;
+                                    providedTenantId =
+                                        anyArgs.data?.tenantId || anyArgs.data?.tenant?.connect?.id;
                                 }
                                 if (providedTenantId) {
                                     tenantId = providedTenantId;
                                 }
                                 else {
-                                    const firstTenant = await self.tenant.findFirst({ select: { id: true } });
+                                    const firstTenant = await self.tenant.findFirst({
+                                        select: { id: true },
+                                    });
                                     if (firstTenant) {
                                         tenantId = firstTenant.id;
                                     }
                                 }
                             }
                             if (tenantId) {
-                                if (operation === 'findUnique' || operation === 'findUniqueOrThrow') {
+                                if (operation === 'findUnique' ||
+                                    operation === 'findUniqueOrThrow') {
                                     const modelKey = model.charAt(0).toLowerCase() + model.slice(1);
                                     const extendedModel = self._extendedClient[modelKey];
                                     if (extendedModel) {
                                         const newArgs = { ...args };
                                         const whereKeys = Object.keys(newArgs.where || {});
-                                        const hasValidUniqueKey = whereKeys.some(key => newArgs.where[key] !== undefined && newArgs.where[key] !== null);
+                                        const hasValidUniqueKey = whereKeys.some((key) => newArgs.where[key] !== undefined &&
+                                            newArgs.where[key] !== null);
                                         if (!hasValidUniqueKey) {
                                             return query(anyArgs);
                                         }
@@ -89,7 +97,8 @@ let PrismaService = class PrismaService extends client_1.PrismaClient {
                                     const dbModel = self[modelKey];
                                     if (extendedModel && dbModel) {
                                         const whereKeys = Object.keys(args?.where || {});
-                                        const hasValidUniqueKey = whereKeys.some(key => args.where[key] !== undefined && args.where[key] !== null);
+                                        const hasValidUniqueKey = whereKeys.some((key) => args.where[key] !== undefined &&
+                                            args.where[key] !== null);
                                         if (!hasValidUniqueKey) {
                                             return query(anyArgs);
                                         }
@@ -160,8 +169,7 @@ let PrismaService = class PrismaService extends client_1.PrismaClient {
                     'constructor',
                     'then',
                 ];
-                if (typeof prop === 'symbol' ||
-                    localProps.includes(prop)) {
+                if (typeof prop === 'symbol' || localProps.includes(prop)) {
                     const value = Reflect.get(target, prop, receiver);
                     if (typeof value === 'function') {
                         return value.bind(target);

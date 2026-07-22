@@ -56,8 +56,8 @@ let DutySlipsService = class DutySlipsService {
         this.prisma = prisma;
     }
     async create(dto) {
-        let bookingId = dto.bookingId;
-        let employeeId = dto.employeeId;
+        const bookingId = dto.bookingId;
+        const employeeId = dto.employeeId;
         if (!bookingId) {
             if (!dto.customerId || !dto.driverId || !dto.vehicleId) {
                 throw new common_1.BadRequestException('Customer ID, Driver ID, and Vehicle ID are required to create a duty slip without an existing booking');
@@ -303,12 +303,24 @@ let DutySlipsService = class DutySlipsService {
     async update(id, dto) {
         const slip = await this.findOne(id);
         const startKm = dto.startKm !== undefined ? dto.startKm : Number(slip.startKm);
-        const endKm = dto.endKm !== undefined ? dto.endKm : (slip.endKm ? Number(slip.endKm) : undefined);
+        const endKm = dto.endKm !== undefined
+            ? dto.endKm
+            : slip.endKm
+                ? Number(slip.endKm)
+                : undefined;
         if (endKm !== undefined && endKm < startKm) {
             throw new common_1.BadRequestException('End KM cannot be less than Start KM');
         }
-        const startDt = dto.startDateTime ? new Date(dto.startDateTime) : (slip.startDateTime ? new Date(slip.startDateTime) : null);
-        const endDt = dto.endDateTime ? new Date(dto.endDateTime) : (slip.endDateTime ? new Date(slip.endDateTime) : null);
+        const startDt = dto.startDateTime
+            ? new Date(dto.startDateTime)
+            : slip.startDateTime
+                ? new Date(slip.startDateTime)
+                : null;
+        const endDt = dto.endDateTime
+            ? new Date(dto.endDateTime)
+            : slip.endDateTime
+                ? new Date(slip.endDateTime)
+                : null;
         if (startDt && endDt && endDt < startDt) {
             throw new common_1.BadRequestException('End Date & Time cannot be before Start Date & Time');
         }
@@ -316,7 +328,10 @@ let DutySlipsService = class DutySlipsService {
         if (dto.endKm !== undefined && targetStatus === client_1.DutySlipStatus.DRAFT) {
             targetStatus = client_1.DutySlipStatus.FILLED;
         }
-        if (dto.guestName !== undefined || dto.guestSalutation !== undefined || dto.bookingBy !== undefined || dto.remarks !== undefined) {
+        if (dto.guestName !== undefined ||
+            dto.guestSalutation !== undefined ||
+            dto.bookingBy !== undefined ||
+            dto.remarks !== undefined) {
             await this.prisma.booking.update({
                 where: { id: slip.bookingId },
                 data: {
@@ -330,7 +345,9 @@ let DutySlipsService = class DutySlipsService {
         return this.prisma.dutySlip.update({
             where: { id },
             data: {
-                reportingTime: dto.reportingTime ? new Date(dto.reportingTime) : undefined,
+                reportingTime: dto.reportingTime
+                    ? new Date(dto.reportingTime)
+                    : undefined,
                 startKm: dto.startKm,
                 endKm: dto.endKm,
                 toll: dto.toll,
@@ -338,7 +355,9 @@ let DutySlipsService = class DutySlipsService {
                 nightCharges: dto.nightCharges,
                 driverAllowance: dto.driverAllowance,
                 extraCharges: dto.extraCharges,
-                startDateTime: dto.startDateTime ? new Date(dto.startDateTime) : undefined,
+                startDateTime: dto.startDateTime
+                    ? new Date(dto.startDateTime)
+                    : undefined,
                 endDateTime: dto.endDateTime ? new Date(dto.endDateTime) : undefined,
                 stateTax: dto.stateTax,
                 mcd: dto.mcd,
@@ -383,7 +402,9 @@ let DutySlipsService = class DutySlipsService {
             const logoUrl = tenant?.logoUrl || '/logo.png';
             if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
                 try {
-                    const res = await fetch(logoUrl, { signal: AbortSignal.timeout(2000) });
+                    const res = await fetch(logoUrl, {
+                        signal: AbortSignal.timeout(2000),
+                    });
                     if (res.ok) {
                         return Buffer.from(await res.arrayBuffer());
                     }
@@ -426,7 +447,11 @@ let DutySlipsService = class DutySlipsService {
                 let hasLogo = false;
                 if (logoBuffer && !tenant?.hideLogoOnPdf) {
                     try {
-                        doc.image(logoBuffer, 50, 25, { width: 85, height: 35, fit: [85, 35] });
+                        doc.image(logoBuffer, 50, 25, {
+                            width: 85,
+                            height: 35,
+                            fit: [85, 35],
+                        });
                         hasLogo = true;
                     }
                     catch (e) {
@@ -434,25 +459,67 @@ let DutySlipsService = class DutySlipsService {
                     }
                 }
                 if (hasLogo) {
-                    doc.fillColor(primaryColor).fontSize(16).font(fontBold).text(companyName.toUpperCase(), 150, 25, { align: 'center', width: 295 });
-                    doc.fillColor('#475569').fontSize(10).font(fontBold).text(titleStr, 150, 47, { align: 'center', width: 295 });
+                    doc
+                        .fillColor(primaryColor)
+                        .fontSize(16)
+                        .font(fontBold)
+                        .text(companyName.toUpperCase(), 150, 25, {
+                        align: 'center',
+                        width: 295,
+                    });
+                    doc
+                        .fillColor('#475569')
+                        .fontSize(10)
+                        .font(fontBold)
+                        .text(titleStr, 150, 47, { align: 'center', width: 295 });
                 }
                 else {
-                    doc.fillColor(primaryColor).fontSize(16).font(fontBold).text(companyName.toUpperCase(), 50, 25, { align: 'center', width: 495 });
-                    doc.fillColor('#475569').fontSize(10).font(fontBold).text(titleStr, 50, 47, { align: 'center', width: 495 });
+                    doc
+                        .fillColor(primaryColor)
+                        .fontSize(16)
+                        .font(fontBold)
+                        .text(companyName.toUpperCase(), 50, 25, {
+                        align: 'center',
+                        width: 495,
+                    });
+                    doc
+                        .fillColor('#475569')
+                        .fontSize(10)
+                        .font(fontBold)
+                        .text(titleStr, 50, 47, { align: 'center', width: 495 });
                 }
             }
             else if (layout === 'STACKED') {
-                doc.fillColor(primaryColor).fontSize(20).font(fontBold).text(companyName.toUpperCase(), 50, 25);
-                doc.fillColor('#475569').fontSize(11).font(fontBold).text(titleStr, 50, 50);
+                doc
+                    .fillColor(primaryColor)
+                    .fontSize(20)
+                    .font(fontBold)
+                    .text(companyName.toUpperCase(), 50, 25);
+                doc
+                    .fillColor('#475569')
+                    .fontSize(11)
+                    .font(fontBold)
+                    .text(titleStr, 50, 50);
             }
             else {
-                doc.fillColor(primaryColor).fontSize(18).font(fontBold).text(companyName.toUpperCase(), 50, 30);
-                doc.fillColor('#475569').fontSize(11).font(fontBold).text(titleStr, 350, 35, { align: 'right', width: 195 });
+                doc
+                    .fillColor(primaryColor)
+                    .fontSize(18)
+                    .font(fontBold)
+                    .text(companyName.toUpperCase(), 50, 30);
+                doc
+                    .fillColor('#475569')
+                    .fontSize(11)
+                    .font(fontBold)
+                    .text(titleStr, 350, 35, { align: 'right', width: 195 });
             }
             if (isRefined) {
                 doc.moveTo(50, 63).lineTo(545, 63).lineWidth(1).stroke(primaryColor);
-                doc.moveTo(50, 65.5).lineTo(545, 65.5).lineWidth(0.5).stroke(primaryColor);
+                doc
+                    .moveTo(50, 65.5)
+                    .lineTo(545, 65.5)
+                    .lineWidth(0.5)
+                    .stroke(primaryColor);
                 doc.lineWidth(1);
             }
             doc.fillColor('#0F172A').fontSize(10);
@@ -469,13 +536,24 @@ let DutySlipsService = class DutySlipsService {
             doc.font(fontRegular).text(slip.status, 150, 125);
             doc.font(fontBold).text('Trip Date & Time:', 307, 125);
             const repDate = new Date(slip.reportingTime).toLocaleDateString('en-GB');
-            const repTime = new Date(slip.reportingTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+            const repTime = new Date(slip.reportingTime).toLocaleTimeString('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+            });
             doc.font(fontRegular).text(`${repDate} ${repTime}`, 400, 125);
             doc.fontSize(12).font(fontBold).text('Customer & Route Details', 50, 165);
             doc.rect(50, 180, 495, 95).stroke('#E2E8F0');
             doc.fontSize(10).font(fontBold).text('Customer Name:', 60, 188);
-            doc.font(fontRegular).text(slip.booking.customer.name + (slip.booking.customer.companyName ? ` (${slip.booking.customer.companyName})` : ''), 150, 188);
-            const guestDisplay = (slip.booking.guestSalutation ? slip.booking.guestSalutation + ' ' : '') + (slip.booking.guestName || '---');
+            doc
+                .font(fontRegular)
+                .text(slip.booking.customer.name +
+                (slip.booking.customer.companyName
+                    ? ` (${slip.booking.customer.companyName})`
+                    : ''), 150, 188);
+            const guestDisplay = (slip.booking.guestSalutation
+                ? slip.booking.guestSalutation + ' '
+                : '') + (slip.booking.guestName || '---');
             doc.font(fontBold).text('Guest Name:', 307, 188);
             doc.font(fontRegular).text(guestDisplay, 400, 188);
             const empId = slip.employeeId || slip.booking.employeeId;
@@ -484,9 +562,14 @@ let DutySlipsService = class DutySlipsService {
             doc.font(fontBold).text('Booked By:', 307, 203);
             doc.font(fontRegular).text(slip.booking.bookingBy || '---', 400, 203);
             doc.font(fontBold).text('Pickup Address:', 60, 220);
-            doc.font(fontRegular).text(slip.booking.pickupLocation, 150, 220, { width: 380, height: 15 });
+            doc.font(fontRegular).text(slip.booking.pickupLocation, 150, 220, {
+                width: 380,
+                height: 15,
+            });
             doc.font(fontBold).text('Drop Address:', 60, 237);
-            doc.font(fontRegular).text(slip.booking.dropLocation, 150, 237, { width: 380, height: 15 });
+            doc
+                .font(fontRegular)
+                .text(slip.booking.dropLocation, 150, 237, { width: 380, height: 15 });
             doc.fontSize(12).font(fontBold).text('Allocated Resources', 50, 292);
             doc.rect(50, 307, 495, 60).stroke('#E2E8F0');
             if (!isRefined) {
@@ -499,7 +582,9 @@ let DutySlipsService = class DutySlipsService {
             doc.font(fontBold).text('Vehicle Plate:', 307, 317);
             doc.font(fontRegular).text(slip.vehicle.vehicleNumber, 400, 317);
             doc.font(fontBold).text('Model / Type:', 307, 342);
-            doc.font(fontRegular).text(`${slip.vehicle.model} (${slip.vehicle.vehicleType})`, 400, 342);
+            doc
+                .font(fontRegular)
+                .text(`${slip.vehicle.model} (${slip.vehicle.vehicleType})`, 400, 342);
             doc.fontSize(12).font(fontBold).text('Operational Trip Logs', 50, 382);
             doc.rect(50, 397, 495, 80).stroke('#E2E8F0');
             doc.moveTo(50, 427).lineTo(545, 427).stroke('#E2E8F0');
@@ -527,13 +612,20 @@ let DutySlipsService = class DutySlipsService {
                     if (!dt)
                         return '---';
                     const d = new Date(dt).toLocaleDateString('en-GB');
-                    const t = new Date(dt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+                    const t = new Date(dt).toLocaleTimeString('en-GB', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false,
+                    });
                     return `${d} ${t}`;
                 };
                 doc.text(formatDT(slip.startDateTime), 285, 442);
                 doc.text(formatDT(slip.endDateTime), 400, 442);
             }
-            doc.fontSize(12).font(fontBold).text('Tolls & Incidentals Breakdown', 50, 492);
+            doc
+                .fontSize(12)
+                .font(fontBold)
+                .text('Tolls & Incidentals Breakdown', 50, 492);
             doc.rect(50, 507, 495, 140).stroke('#E2E8F0');
             doc.moveTo(50, 542).lineTo(545, 542).stroke('#E2E8F0');
             doc.moveTo(50, 577).lineTo(545, 577).stroke('#E2E8F0');
@@ -543,26 +635,58 @@ let DutySlipsService = class DutySlipsService {
             }
             doc.fontSize(10).font(fontBold);
             doc.text('Toll Charges:', 60, 519);
-            doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.toll}`, 180, 519);
+            doc
+                .font(fontRegular)
+                .text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.toll}`, 180, 519);
             doc.font(fontBold).text('Parking Charges:', 307, 519);
-            doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.parking}`, 420, 519);
+            doc
+                .font(fontRegular)
+                .text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.parking}`, 420, 519);
             doc.font(fontBold).text('State Tax:', 60, 554);
-            doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.stateTax}`, 180, 554);
+            doc
+                .font(fontRegular)
+                .text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.stateTax}`, 180, 554);
             doc.font(fontBold).text('MCD Toll:', 307, 554);
-            doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.mcd}`, 420, 554);
+            doc
+                .font(fontRegular)
+                .text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.mcd}`, 420, 554);
             doc.font(fontBold).text('Night Allowance:', 60, 589);
-            doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.nightCharges}`, 180, 589);
+            doc
+                .font(fontRegular)
+                .text(slip.status === 'DRAFT'
+                ? 'INR ___________'
+                : `INR ${slip.nightCharges}`, 180, 589);
             doc.font(fontBold).text('Driver Allowance:', 307, 589);
-            doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.driverAllowance}`, 420, 589);
+            doc
+                .font(fontRegular)
+                .text(slip.status === 'DRAFT'
+                ? 'INR ___________'
+                : `INR ${slip.driverAllowance}`, 420, 589);
             doc.font(fontBold).text('Extra / Misc Charges:', 60, 624);
-            doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.extraCharges}`, 180, 624);
-            const totalTolls = Number(slip.toll) + Number(slip.parking) + Number(slip.stateTax) + Number(slip.mcd) + Number(slip.nightCharges) + Number(slip.driverAllowance) + Number(slip.extraCharges);
+            doc
+                .font(fontRegular)
+                .text(slip.status === 'DRAFT'
+                ? 'INR ___________'
+                : `INR ${slip.extraCharges}`, 180, 624);
+            const totalTolls = Number(slip.toll) +
+                Number(slip.parking) +
+                Number(slip.stateTax) +
+                Number(slip.mcd) +
+                Number(slip.nightCharges) +
+                Number(slip.driverAllowance) +
+                Number(slip.extraCharges);
             doc.font(fontBold).text('Total Incidentals:', 307, 624);
             if (slip.status === 'DRAFT') {
-                doc.font(fontBold).fillColor(primaryColor).text('INR ___________', 420, 624);
+                doc
+                    .font(fontBold)
+                    .fillColor(primaryColor)
+                    .text('INR ___________', 420, 624);
             }
             else {
-                doc.font(fontBold).fillColor(primaryColor).text(`INR ${totalTolls.toFixed(2)}`, 420, 624);
+                doc
+                    .font(fontBold)
+                    .fillColor(primaryColor)
+                    .text(`INR ${totalTolls.toFixed(2)}`, 420, 624);
             }
             doc.fillColor('#0F172A');
             doc.fontSize(8).font(fontBold);
@@ -573,7 +697,10 @@ let DutySlipsService = class DutySlipsService {
             doc.text('-------------------------', 60, 675);
             doc.text('-------------------------', 225, 675);
             doc.text('-------------------------', 390, 675);
-            doc.fontSize(8).fillColor('#64748B').text('Document digitally generated by CABBS. Valid without seal.', 50, 725, { align: 'center' });
+            doc
+                .fontSize(8)
+                .fillColor('#64748B')
+                .text('Document digitally generated by CABBS. Valid without seal.', 50, 725, { align: 'center' });
             doc.end();
         });
     }

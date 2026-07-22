@@ -16,7 +16,9 @@ class UpdateAssignmentStatusDto {
 }
 exports.UpdateAssignmentStatusDto = UpdateAssignmentStatusDto;
 __decorate([
-    (0, class_validator_1.IsEnum)(client_1.AssignmentStatus, { message: 'Status must be ACTIVE, COMPLETED, or CANCELLED' }),
+    (0, class_validator_1.IsEnum)(client_1.AssignmentStatus, {
+        message: 'Status must be ACTIVE, COMPLETED, or CANCELLED',
+    }),
     (0, class_validator_1.IsNotEmpty)({ message: 'Status is required' }),
     __metadata("design:type", String)
 ], UpdateAssignmentStatusDto.prototype, "status", void 0);

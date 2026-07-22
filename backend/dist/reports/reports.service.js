@@ -276,7 +276,10 @@ let ReportsService = class ReportsService {
             where.customer = { OR: [{ gstNumber: null }, { gstNumber: '' }] };
         }
         if (query.billCoverNo) {
-            where.invoiceNumber = { contains: query.billCoverNo, mode: 'insensitive' };
+            where.invoiceNumber = {
+                contains: query.billCoverNo,
+                mode: 'insensitive',
+            };
         }
         if (query.billDateFrom || query.billDateTo) {
             where.invoiceDate = {};
@@ -303,17 +306,30 @@ let ReportsService = class ReportsService {
                 billingAddress: { contains: query.city, mode: 'insensitive' },
             };
         }
-        if (query.guestName || query.employeeId || query.dutyDateFrom || query.dutyDateTo) {
+        if (query.guestName ||
+            query.employeeId ||
+            query.dutyDateFrom ||
+            query.dutyDateTo) {
             where.items = {
                 some: {
                     trip: {
                         booking: {
-                            guestName: query.guestName ? { contains: query.guestName, mode: 'insensitive' } : undefined,
-                            employeeId: query.employeeId ? { contains: query.employeeId, mode: 'insensitive' } : undefined,
-                            pickupDate: (query.dutyDateFrom || query.dutyDateTo) ? {
-                                gte: query.dutyDateFrom ? new Date(query.dutyDateFrom) : undefined,
-                                lte: query.dutyDateTo ? new Date(query.dutyDateTo) : undefined,
-                            } : undefined,
+                            guestName: query.guestName
+                                ? { contains: query.guestName, mode: 'insensitive' }
+                                : undefined,
+                            employeeId: query.employeeId
+                                ? { contains: query.employeeId, mode: 'insensitive' }
+                                : undefined,
+                            pickupDate: query.dutyDateFrom || query.dutyDateTo
+                                ? {
+                                    gte: query.dutyDateFrom
+                                        ? new Date(query.dutyDateFrom)
+                                        : undefined,
+                                    lte: query.dutyDateTo
+                                        ? new Date(query.dutyDateTo)
+                                        : undefined,
+                                }
+                                : undefined,
                         },
                     },
                 },
@@ -379,15 +395,19 @@ let ReportsService = class ReportsService {
             ? await this.prisma.tenant.findUnique({ where: { id: tenantId } })
             : await this.prisma.tenant.findFirst();
         const companyName = tenant?.name || 'TRAVEL DREAM';
-        const companyAddress = tenant?.companyAddress || 'E57/A,HARI NAGAR EXTN-PART-II\nBADARPUR,NEW DELHI-110044 New Delhi Delhi\n110044';
+        const companyAddress = tenant?.companyAddress ||
+            'E57/A,HARI NAGAR EXTN-PART-II\nBADARPUR,NEW DELHI-110044 New Delhi Delhi\n110044';
         const companyPhone = tenant?.companyPhone || '9310632440 9560352484';
         const companyEmail = tenant?.companyEmail || 'traveldream1812@gmail.com';
         const [logoBuffer, badgeBuffer] = await Promise.all([
             (async () => {
                 const logoUrl = tenant?.logoUrl;
-                if (logoUrl && (logoUrl.startsWith('http://') || logoUrl.startsWith('https://'))) {
+                if (logoUrl &&
+                    (logoUrl.startsWith('http://') || logoUrl.startsWith('https://'))) {
                     try {
-                        const res = await fetch(logoUrl, { signal: AbortSignal.timeout(3000) });
+                        const res = await fetch(logoUrl, {
+                            signal: AbortSignal.timeout(3000),
+                        });
                         if (res.ok)
                             return Buffer.from(await res.arrayBuffer());
                     }
@@ -400,7 +420,9 @@ let ReportsService = class ReportsService {
             (async () => {
                 const badgeUrl = 'https://res.cloudinary.com/dletrtogt/image/upload/v1718363717/satisfaction_guaranteed.png';
                 try {
-                    const res = await fetch(badgeUrl, { signal: AbortSignal.timeout(3000) });
+                    const res = await fetch(badgeUrl, {
+                        signal: AbortSignal.timeout(3000),
+                    });
                     if (res.ok)
                         return Buffer.from(await res.arrayBuffer());
                 }
@@ -411,7 +433,11 @@ let ReportsService = class ReportsService {
             })(),
         ]);
         return new Promise((resolve, reject) => {
-            const doc = new pdfkit_1.default({ margin: 30, size: 'A4', layout: 'landscape' });
+            const doc = new pdfkit_1.default({
+                margin: 30,
+                size: 'A4',
+                layout: 'landscape',
+            });
             const chunks = [];
             doc.on('data', (chunk) => chunks.push(chunk));
             doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -420,20 +446,33 @@ let ReportsService = class ReportsService {
             const drawHeader = (pNum) => {
                 if (logoBuffer) {
                     try {
-                        doc.image(logoBuffer, 30, 20, { width: 90, height: 42, fit: [90, 42] });
+                        doc.image(logoBuffer, 30, 20, {
+                            width: 90,
+                            height: 42,
+                            fit: [90, 42],
+                        });
                     }
                     catch (e) {
                         console.warn('Failed to draw logo on report:', e);
                     }
                 }
-                doc.fillColor('#000000')
+                doc
+                    .fillColor('#000000')
                     .font('Helvetica-Bold')
                     .fontSize(14)
-                    .text(companyName.toUpperCase(), 150, 18, { align: 'center', width: 541 });
-                doc.font('Helvetica')
+                    .text(companyName.toUpperCase(), 150, 18, {
+                    align: 'center',
+                    width: 541,
+                });
+                doc
+                    .font('Helvetica')
                     .fontSize(8.5)
-                    .text(companyAddress.replace(/\n/g, ', '), 150, 36, { align: 'center', width: 541 });
-                doc.font('Helvetica-Bold')
+                    .text(companyAddress.replace(/\n/g, ', '), 150, 36, {
+                    align: 'center',
+                    width: 541,
+                });
+                doc
+                    .font('Helvetica-Bold')
                     .text('Contact No: ', 280, 50, { continued: true })
                     .font('Helvetica')
                     .text(companyPhone.replace(/\n/g, ', '), { continued: true })
@@ -441,31 +480,40 @@ let ReportsService = class ReportsService {
                     .text('  Email: ', { continued: true })
                     .font('Helvetica')
                     .text(companyEmail);
-                doc.font('Helvetica-Bold')
+                doc
+                    .font('Helvetica-Bold')
                     .fontSize(9.5)
                     .text(`Page No  ${pNum}`, 720, 18, { align: 'right', width: 95 });
-                doc.font('Helvetica-Bold')
-                    .fontSize(13)
-                    .text('Bill Register', 700, 38, { align: 'right', width: 115, underline: true });
+                doc.font('Helvetica-Bold').fontSize(13).text('Bill Register', 700, 38, {
+                    align: 'right',
+                    width: 115,
+                    underline: true,
+                });
                 doc.moveTo(30, 68).lineTo(815, 68).lineWidth(0.5).stroke('#000000');
                 let dateFilterStr = 'All Records';
                 if (query.dutyDateFrom || query.dutyDateTo) {
-                    const startFmt = query.dutyDateFrom ? new Date(query.dutyDateFrom).toLocaleDateString('en-GB') : 'Start';
-                    const endFmt = query.dutyDateTo ? new Date(query.dutyDateTo).toLocaleDateString('en-GB') : 'End';
+                    const startFmt = query.dutyDateFrom
+                        ? new Date(query.dutyDateFrom).toLocaleDateString('en-GB')
+                        : 'Start';
+                    const endFmt = query.dutyDateTo
+                        ? new Date(query.dutyDateTo).toLocaleDateString('en-GB')
+                        : 'End';
                     dateFilterStr = `Duty Date From:-  ${startFmt} To  ${endFmt}`;
                 }
                 else if (query.billDateFrom || query.billDateTo) {
-                    const startFmt = query.billDateFrom ? new Date(query.billDateFrom).toLocaleDateString('en-GB') : 'Start';
-                    const endFmt = query.billDateTo ? new Date(query.billDateTo).toLocaleDateString('en-GB') : 'End';
+                    const startFmt = query.billDateFrom
+                        ? new Date(query.billDateFrom).toLocaleDateString('en-GB')
+                        : 'Start';
+                    const endFmt = query.billDateTo
+                        ? new Date(query.billDateTo).toLocaleDateString('en-GB')
+                        : 'End';
                     dateFilterStr = `Bill Date From:-  ${startFmt} To  ${endFmt}`;
                 }
                 else if (query.monthOf) {
                     const parts = query.monthOf.split('-');
                     dateFilterStr = `Month Of:-  ${parts[1]}/${parts[0]}`;
                 }
-                doc.font('Helvetica-Bold')
-                    .fontSize(9.5)
-                    .text(dateFilterStr, 30, 75);
+                doc.font('Helvetica-Bold').fontSize(9.5).text(dateFilterStr, 30, 75);
                 doc.moveTo(30, 90).lineTo(815, 90).lineWidth(1).stroke('#000000');
             };
             const drawTableHeader = (startY) => {
@@ -490,7 +538,10 @@ let ReportsService = class ReportsService {
                         align: col.align,
                     });
                     if (col.x > 30) {
-                        doc.moveTo(col.x, startY).lineTo(col.x, startY + 20).stroke('#000000');
+                        doc
+                            .moveTo(col.x, startY)
+                            .lineTo(col.x, startY + 20)
+                            .stroke('#000000');
                     }
                 });
             };
@@ -512,33 +563,61 @@ let ReportsService = class ReportsService {
                 grandSgst += row.sgst;
                 grandTotal += row.total;
                 doc.fontSize(8);
-                const clientNameHeight = doc.heightOfString(row.clientName, { width: 160 - 6 });
-                const guestNameHeight = doc.heightOfString(row.guestName, { width: 110 - 6 });
+                const clientNameHeight = doc.heightOfString(row.clientName, {
+                    width: 160 - 6,
+                });
+                const guestNameHeight = doc.heightOfString(row.guestName, {
+                    width: 110 - 6,
+                });
                 const rowHeight = Math.max(18, clientNameHeight, guestNameHeight) + 6;
                 if (currentY + rowHeight > 520) {
                     doc.addPage();
                     pageNum++;
                     drawHeader(pageNum);
-                    let tempY = 95;
+                    const tempY = 95;
                     drawTableHeader(tempY);
                     currentY = tempY + 20;
                 }
                 doc.fillColor('#000000').font('Helvetica').fontSize(8);
-                doc.text(row.sn.toString(), 30 + 3, currentY + 4, { width: 25 - 6, align: 'center' });
+                doc.text(row.sn.toString(), 30 + 3, currentY + 4, {
+                    width: 25 - 6,
+                    align: 'center',
+                });
                 doc.text(row.billDate, 55 + 3, currentY + 4, { width: 65 - 6 });
                 doc.text(row.billNo, 120 + 3, currentY + 4, { width: 65 - 6 });
                 doc.text(row.clientName, 185 + 3, currentY + 4, { width: 160 - 6 });
                 doc.text(row.guestName, 345 + 3, currentY + 4, { width: 110 - 6 });
-                doc.text(row.basicAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 455 + 3, currentY + 4, { width: 65 - 6, align: 'right' });
-                doc.text(row.ptTaxes.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 520 + 3, currentY + 4, { width: 65 - 6, align: 'right' });
-                doc.text(row.igst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 585 + 3, currentY + 4, { width: 55 - 6, align: 'right' });
-                doc.text(row.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 640 + 3, currentY + 4, { width: 55 - 6, align: 'right' });
-                doc.text(row.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 695 + 3, currentY + 4, { width: 55 - 6, align: 'right' });
-                doc.text(row.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 750 + 3, currentY + 4, { width: 65 - 6, align: 'right' });
+                doc.text(row.basicAmt.toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                }), 455 + 3, currentY + 4, { width: 65 - 6, align: 'right' });
+                doc.text(row.ptTaxes.toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                }), 520 + 3, currentY + 4, { width: 65 - 6, align: 'right' });
+                doc.text(row.igst.toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                }), 585 + 3, currentY + 4, { width: 55 - 6, align: 'right' });
+                doc.text(row.cgst.toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                }), 640 + 3, currentY + 4, { width: 55 - 6, align: 'right' });
+                doc.text(row.sgst.toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                }), 695 + 3, currentY + 4, { width: 55 - 6, align: 'right' });
+                doc.text(row.total.toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                }), 750 + 3, currentY + 4, { width: 65 - 6, align: 'right' });
                 doc.rect(30, currentY, 785, rowHeight).stroke('#000000');
                 const colsX = [55, 120, 185, 345, 455, 520, 585, 640, 695, 750];
                 colsX.forEach((xCoord) => {
-                    doc.moveTo(xCoord, currentY).lineTo(xCoord, currentY + rowHeight).stroke('#000000');
+                    doc
+                        .moveTo(xCoord, currentY)
+                        .lineTo(xCoord, currentY + rowHeight)
+                        .stroke('#000000');
                 });
                 currentY += rowHeight;
             });
@@ -547,23 +626,50 @@ let ReportsService = class ReportsService {
                 doc.addPage();
                 pageNum++;
                 drawHeader(pageNum);
-                let tempY = 95;
+                const tempY = 95;
                 drawTableHeader(tempY);
                 currentY = tempY + 20;
             }
-            doc.rect(30, currentY, 785, totalRowHeight).fill('#F1F5F9').stroke('#000000');
+            doc
+                .rect(30, currentY, 785, totalRowHeight)
+                .fill('#F1F5F9')
+                .stroke('#000000');
             doc.fillColor('#000000').font('Helvetica-Bold').fontSize(8.5);
-            doc.text('TOTAL', 30 + 3, currentY + 5, { width: 425 - 6, align: 'right' });
+            doc.text('TOTAL', 30 + 3, currentY + 5, {
+                width: 425 - 6,
+                align: 'right',
+            });
             const totalColsX = [55, 120, 185, 345, 455, 520, 585, 640, 695, 750];
             totalColsX.forEach((xCoord) => {
-                doc.moveTo(xCoord, currentY).lineTo(xCoord, currentY + totalRowHeight).stroke('#000000');
+                doc
+                    .moveTo(xCoord, currentY)
+                    .lineTo(xCoord, currentY + totalRowHeight)
+                    .stroke('#000000');
             });
-            doc.text(grandBasicAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 455 + 3, currentY + 5, { width: 65 - 6, align: 'right' });
-            doc.text(grandPtTaxes.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 520 + 3, currentY + 5, { width: 65 - 6, align: 'right' });
-            doc.text(grandIgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 585 + 3, currentY + 5, { width: 55 - 6, align: 'right' });
-            doc.text(grandCgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 640 + 3, currentY + 5, { width: 55 - 6, align: 'right' });
-            doc.text(grandSgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 695 + 3, currentY + 5, { width: 55 - 6, align: 'right' });
-            doc.text(grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 750 + 3, currentY + 5, { width: 65 - 6, align: 'right' });
+            doc.text(grandBasicAmt.toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }), 455 + 3, currentY + 5, { width: 65 - 6, align: 'right' });
+            doc.text(grandPtTaxes.toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }), 520 + 3, currentY + 5, { width: 65 - 6, align: 'right' });
+            doc.text(grandIgst.toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }), 585 + 3, currentY + 5, { width: 55 - 6, align: 'right' });
+            doc.text(grandCgst.toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }), 640 + 3, currentY + 5, { width: 55 - 6, align: 'right' });
+            doc.text(grandSgst.toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }), 695 + 3, currentY + 5, { width: 55 - 6, align: 'right' });
+            doc.text(grandTotal.toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }), 750 + 3, currentY + 5, { width: 65 - 6, align: 'right' });
             doc.end();
         });
     }
@@ -634,10 +740,16 @@ let ReportsService = class ReportsService {
                 where.booking.customerId = query.customerId;
             }
             if (query.guestName) {
-                where.booking.guestName = { contains: query.guestName, mode: 'insensitive' };
+                where.booking.guestName = {
+                    contains: query.guestName,
+                    mode: 'insensitive',
+                };
             }
             if (query.employeeId) {
-                where.booking.employeeId = { contains: query.employeeId, mode: 'insensitive' };
+                where.booking.employeeId = {
+                    contains: query.employeeId,
+                    mode: 'insensitive',
+                };
             }
             if (query.dutyType) {
                 where.booking.tripType = query.dutyType;
@@ -706,14 +818,18 @@ let ReportsService = class ReportsService {
             ? await this.prisma.tenant.findUnique({ where: { id: tenantId } })
             : await this.prisma.tenant.findFirst();
         const companyName = tenant?.name || 'TRAVEL DREAM';
-        const companyAddress = tenant?.companyAddress || 'E57/A,HARI NAGAR EXTN-PART-II\nBADARPUR,NEW DELHI-110044 New Delhi Delhi\n110044';
+        const companyAddress = tenant?.companyAddress ||
+            'E57/A,HARI NAGAR EXTN-PART-II\nBADARPUR,NEW DELHI-110044 New Delhi Delhi\n110044';
         const companyPhone = tenant?.companyPhone || '9310632440 9560352484';
         const companyEmail = tenant?.companyEmail || 'traveldream1812@gmail.com';
         const logoBuffer = await (async () => {
             const logoUrl = tenant?.logoUrl;
-            if (logoUrl && (logoUrl.startsWith('http://') || logoUrl.startsWith('https://'))) {
+            if (logoUrl &&
+                (logoUrl.startsWith('http://') || logoUrl.startsWith('https://'))) {
                 try {
-                    const res = await fetch(logoUrl, { signal: AbortSignal.timeout(3000) });
+                    const res = await fetch(logoUrl, {
+                        signal: AbortSignal.timeout(3000),
+                    });
                     if (res.ok)
                         return Buffer.from(await res.arrayBuffer());
                 }
@@ -724,7 +840,11 @@ let ReportsService = class ReportsService {
             return null;
         })();
         return new Promise((resolve, reject) => {
-            const doc = new pdfkit_1.default({ margin: 30, size: 'A4', layout: 'landscape' });
+            const doc = new pdfkit_1.default({
+                margin: 30,
+                size: 'A4',
+                layout: 'landscape',
+            });
             const chunks = [];
             doc.on('data', (chunk) => chunks.push(chunk));
             doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -733,20 +853,33 @@ let ReportsService = class ReportsService {
             const drawHeader = (pNum) => {
                 if (logoBuffer) {
                     try {
-                        doc.image(logoBuffer, 30, 20, { width: 90, height: 42, fit: [90, 42] });
+                        doc.image(logoBuffer, 30, 20, {
+                            width: 90,
+                            height: 42,
+                            fit: [90, 42],
+                        });
                     }
                     catch (e) {
                         console.warn('Failed to draw logo on report:', e);
                     }
                 }
-                doc.fillColor('#000000')
+                doc
+                    .fillColor('#000000')
                     .font('Helvetica-Bold')
                     .fontSize(14)
-                    .text(companyName.toUpperCase(), 150, 18, { align: 'center', width: 541 });
-                doc.font('Helvetica')
+                    .text(companyName.toUpperCase(), 150, 18, {
+                    align: 'center',
+                    width: 541,
+                });
+                doc
+                    .font('Helvetica')
                     .fontSize(8.5)
-                    .text(companyAddress.replace(/\n/g, ', '), 150, 36, { align: 'center', width: 541 });
-                doc.font('Helvetica-Bold')
+                    .text(companyAddress.replace(/\n/g, ', '), 150, 36, {
+                    align: 'center',
+                    width: 541,
+                });
+                doc
+                    .font('Helvetica-Bold')
                     .text('Contact No: ', 280, 50, { continued: true })
                     .font('Helvetica')
                     .text(companyPhone.replace(/\n/g, ', '), { continued: true })
@@ -754,22 +887,30 @@ let ReportsService = class ReportsService {
                     .text('  Email: ', { continued: true })
                     .font('Helvetica')
                     .text(companyEmail);
-                doc.font('Helvetica-Bold')
+                doc
+                    .font('Helvetica-Bold')
                     .fontSize(9.5)
                     .text(`Page No  ${pNum}`, 720, 18, { align: 'right', width: 95 });
-                doc.font('Helvetica-Bold')
+                doc
+                    .font('Helvetica-Bold')
                     .fontSize(13)
-                    .text('Duty Slip Operational Register', 550, 38, { align: 'right', width: 265, underline: true });
+                    .text('Duty Slip Operational Register', 550, 38, {
+                    align: 'right',
+                    width: 265,
+                    underline: true,
+                });
                 doc.moveTo(30, 68).lineTo(815, 68).lineWidth(0.5).stroke('#000000');
                 let filterStr = 'All Records';
                 if (query.startDate || query.endDate) {
-                    const startFmt = query.startDate ? new Date(query.startDate).toLocaleDateString('en-GB') : 'Start';
-                    const endFmt = query.endDate ? new Date(query.endDate).toLocaleDateString('en-GB') : 'End';
+                    const startFmt = query.startDate
+                        ? new Date(query.startDate).toLocaleDateString('en-GB')
+                        : 'Start';
+                    const endFmt = query.endDate
+                        ? new Date(query.endDate).toLocaleDateString('en-GB')
+                        : 'End';
                     filterStr = `Date range:-  ${startFmt} To  ${endFmt}`;
                 }
-                doc.font('Helvetica-Bold')
-                    .fontSize(9.5)
-                    .text(filterStr, 30, 75);
+                doc.font('Helvetica-Bold').fontSize(9.5).text(filterStr, 30, 75);
                 doc.moveTo(30, 90).lineTo(815, 90).lineWidth(1).stroke('#000000');
             };
             const drawTableHeader = (startY) => {
@@ -794,7 +935,10 @@ let ReportsService = class ReportsService {
                         align: col.align,
                     });
                     if (col.x > 30) {
-                        doc.moveTo(col.x, startY).lineTo(col.x, startY + 20).stroke('#000000');
+                        doc
+                            .moveTo(col.x, startY)
+                            .lineTo(col.x, startY + 20)
+                            .stroke('#000000');
                     }
                 });
             };
@@ -804,34 +948,58 @@ let ReportsService = class ReportsService {
             currentY += 20;
             data.forEach((row) => {
                 doc.fontSize(8);
-                const clientNameHeight = doc.heightOfString(row.clientName, { width: 140 - 6 });
-                const guestNameHeight = doc.heightOfString(row.guestName, { width: 100 - 6 });
-                const driverNameHeight = doc.heightOfString(row.driverName, { width: 100 - 6 });
+                const clientNameHeight = doc.heightOfString(row.clientName, {
+                    width: 140 - 6,
+                });
+                const guestNameHeight = doc.heightOfString(row.guestName, {
+                    width: 100 - 6,
+                });
+                const driverNameHeight = doc.heightOfString(row.driverName, {
+                    width: 100 - 6,
+                });
                 const rowHeight = Math.max(18, clientNameHeight, guestNameHeight, driverNameHeight) + 6;
                 if (currentY + rowHeight > 520) {
                     doc.addPage();
                     pageNum++;
                     drawHeader(pageNum);
-                    let tempY = 95;
+                    const tempY = 95;
                     drawTableHeader(tempY);
                     currentY = tempY + 20;
                 }
                 doc.fillColor('#000000').font('Helvetica').fontSize(8);
-                doc.text(row.sn.toString(), 30 + 3, currentY + 4, { width: 25 - 6, align: 'center' });
+                doc.text(row.sn.toString(), 30 + 3, currentY + 4, {
+                    width: 25 - 6,
+                    align: 'center',
+                });
                 doc.text(row.date, 55 + 3, currentY + 4, { width: 65 - 6 });
                 doc.text(row.slipNo, 120 + 3, currentY + 4, { width: 65 - 6 });
                 doc.text(row.clientName, 185 + 3, currentY + 4, { width: 140 - 6 });
                 doc.text(row.guestName, 325 + 3, currentY + 4, { width: 100 - 6 });
                 doc.text(row.driverName, 425 + 3, currentY + 4, { width: 100 - 6 });
                 doc.text(row.vehicleNo, 525 + 3, currentY + 4, { width: 70 - 6 });
-                doc.text(row.startKm.toString(), 595 + 3, currentY + 4, { width: 50 - 6, align: 'right' });
-                doc.text(row.endKm.toString(), 645 + 3, currentY + 4, { width: 50 - 6, align: 'right' });
-                doc.text(row.runKm.toString(), 695 + 3, currentY + 4, { width: 50 - 6, align: 'right' });
-                doc.text(row.status, 745 + 3, currentY + 4, { width: 70 - 6, align: 'center' });
+                doc.text(row.startKm.toString(), 595 + 3, currentY + 4, {
+                    width: 50 - 6,
+                    align: 'right',
+                });
+                doc.text(row.endKm.toString(), 645 + 3, currentY + 4, {
+                    width: 50 - 6,
+                    align: 'right',
+                });
+                doc.text(row.runKm.toString(), 695 + 3, currentY + 4, {
+                    width: 50 - 6,
+                    align: 'right',
+                });
+                doc.text(row.status, 745 + 3, currentY + 4, {
+                    width: 70 - 6,
+                    align: 'center',
+                });
                 doc.rect(30, currentY, 785, rowHeight).stroke('#000000');
                 const colsX = [55, 120, 185, 325, 425, 525, 595, 645, 695, 745];
                 colsX.forEach((xCoord) => {
-                    doc.moveTo(xCoord, currentY).lineTo(xCoord, currentY + rowHeight).stroke('#000000');
+                    doc
+                        .moveTo(xCoord, currentY)
+                        .lineTo(xCoord, currentY + rowHeight)
+                        .stroke('#000000');
                 });
                 currentY += rowHeight;
             });

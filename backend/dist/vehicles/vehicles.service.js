@@ -52,7 +52,12 @@ let VehiclesService = class VehiclesService {
         }
         if (query.search) {
             where.OR = [
-                { vehicleNumber: { contains: this.cleanVehicleNumber(query.search), mode: 'insensitive' } },
+                {
+                    vehicleNumber: {
+                        contains: this.cleanVehicleNumber(query.search),
+                        mode: 'insensitive',
+                    },
+                },
                 { model: { contains: query.search, mode: 'insensitive' } },
                 { vehicleType: { contains: query.search, mode: 'insensitive' } },
             ];
@@ -107,9 +112,15 @@ let VehiclesService = class VehiclesService {
                 vehicleType: dto.vehicleType,
                 model: dto.model,
                 seatingCapacity: dto.seatingCapacity,
-                registrationDate: dto.registrationDate ? new Date(dto.registrationDate) : undefined,
-                insuranceExpiry: dto.insuranceExpiry ? new Date(dto.insuranceExpiry) : undefined,
-                fitnessExpiry: dto.fitnessExpiry ? new Date(dto.fitnessExpiry) : undefined,
+                registrationDate: dto.registrationDate
+                    ? new Date(dto.registrationDate)
+                    : undefined,
+                insuranceExpiry: dto.insuranceExpiry
+                    ? new Date(dto.insuranceExpiry)
+                    : undefined,
+                fitnessExpiry: dto.fitnessExpiry
+                    ? new Date(dto.fitnessExpiry)
+                    : undefined,
                 permitExpiry: dto.permitExpiry ? new Date(dto.permitExpiry) : undefined,
                 status: dto.status,
             },

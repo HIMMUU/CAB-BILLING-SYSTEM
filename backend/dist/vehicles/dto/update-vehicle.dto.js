@@ -57,7 +57,9 @@ __decorate([
     __metadata("design:type", String)
 ], UpdateVehicleDto.prototype, "permitExpiry", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(client_1.VehicleStatus, { message: 'Status must be AVAILABLE, ON_TRIP, MAINTENANCE, or INACTIVE' }),
+    (0, class_validator_1.IsEnum)(client_1.VehicleStatus, {
+        message: 'Status must be AVAILABLE, ON_TRIP, MAINTENANCE, or INACTIVE',
+    }),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateVehicleDto.prototype, "status", void 0);

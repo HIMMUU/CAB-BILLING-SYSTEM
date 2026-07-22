@@ -27,7 +27,8 @@ let AssignmentsService = class AssignmentsService {
         if (!booking) {
             throw new common_1.NotFoundException('Booking not found');
         }
-        if (booking.status === client_1.BookingStatus.CANCELLED || booking.status === client_1.BookingStatus.COMPLETED) {
+        if (booking.status === client_1.BookingStatus.CANCELLED ||
+            booking.status === client_1.BookingStatus.COMPLETED) {
             throw new common_1.BadRequestException('Cannot assign resources to a completed or cancelled booking');
         }
         const driver = await this.prisma.driver.findUnique({
@@ -45,7 +46,8 @@ let AssignmentsService = class AssignmentsService {
         if (!vehicle) {
             throw new common_1.NotFoundException('Vehicle not found');
         }
-        if (vehicle.status === client_1.VehicleStatus.INACTIVE || vehicle.status === client_1.VehicleStatus.MAINTENANCE) {
+        if (vehicle.status === client_1.VehicleStatus.INACTIVE ||
+            vehicle.status === client_1.VehicleStatus.MAINTENANCE) {
             throw new common_1.BadRequestException(`Selected vehicle is currently ${vehicle.status}`);
         }
         const overlappingDriver = await this.prisma.assignment.findFirst({
@@ -101,7 +103,7 @@ let AssignmentsService = class AssignmentsService {
                     vehicle: true,
                 },
             });
-            let repTimeDate = new Date(booking.pickupDate);
+            const repTimeDate = new Date(booking.pickupDate);
             if (booking.pickupTime) {
                 const timeParts = booking.pickupTime.split(':');
                 if (timeParts.length >= 2) {

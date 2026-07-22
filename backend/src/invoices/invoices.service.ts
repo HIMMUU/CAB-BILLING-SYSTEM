@@ -832,8 +832,9 @@ export class InvoicesService {
             underline: true,
           });
 
+        const companyNameColor = tenant?.pdfColorCompanyName || '#E11D48';
         doc
-          .fillColor('#E11D48') // Red bold brand text
+          .fillColor(companyNameColor)
           .fontSize(22)
           .font(fontBold)
           .text(companyName.toUpperCase(), 150, 30, {
@@ -965,11 +966,13 @@ export class InvoicesService {
           billY + 18,
         );
 
-        // Table Header (Styled Navy with white text)
+        // Table Header (Customizable background and text color)
         const tableHeaderY = 200;
-        doc.rect(50, tableHeaderY, 495, 20).fill(primaryColor);
+        const tableHeaderBg = tenant?.pdfColorTableHeaderBg || primaryColor;
+        const tableHeaderText = tenant?.pdfColorTableHeaderText || '#FFFFFF';
+        doc.rect(50, tableHeaderY, 495, 20).fill(tableHeaderBg);
 
-        doc.fillColor('#FFFFFF').fontSize(8.5).font(fontBold);
+        doc.fillColor(tableHeaderText).fontSize(8.5).font(fontBold);
         doc.text('Date/D.S. No.', 52, tableHeaderY + 6, {
           width: 61,
           align: 'center',

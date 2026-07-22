@@ -22,10 +22,7 @@ let PermissionsGuard = class PermissionsGuard {
         this.tenantContext = tenantContext;
     }
     canActivate(context) {
-        const requiredPermissions = this.reflector.getAllAndOverride(permissions_decorator_1.PERMISSIONS_KEY, [
-            context.getHandler(),
-            context.getClass(),
-        ]);
+        const requiredPermissions = this.reflector.getAllAndOverride(permissions_decorator_1.PERMISSIONS_KEY, [context.getHandler(), context.getClass()]);
         if (!requiredPermissions || requiredPermissions.length === 0) {
             return true;
         }

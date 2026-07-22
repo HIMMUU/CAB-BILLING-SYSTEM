@@ -20,6 +20,9 @@ export declare class UpdateTenantSettingsDto {
     termsAndConditions?: string;
     pdfTheme?: string;
     pdfColorPrimary?: string;
+    pdfColorCompanyName?: string;
+    pdfColorTableHeaderBg?: string;
+    pdfColorTableHeaderText?: string;
     pdfFontFamily?: string;
     pdfShowBank?: boolean;
     pdfShowTerms?: boolean;

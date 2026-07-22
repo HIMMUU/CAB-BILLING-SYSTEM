@@ -126,6 +126,21 @@ __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
+], UpdateTenantSettingsDto.prototype, "pdfColorCompanyName", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateTenantSettingsDto.prototype, "pdfColorTableHeaderBg", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateTenantSettingsDto.prototype, "pdfColorTableHeaderText", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
 ], UpdateTenantSettingsDto.prototype, "pdfFontFamily", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),

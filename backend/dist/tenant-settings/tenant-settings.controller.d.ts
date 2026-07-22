@@ -30,6 +30,9 @@ export declare class TenantSettingsController {
         termsAndConditions: string | null;
         pdfTheme: string;
         pdfColorPrimary: string;
+        pdfColorCompanyName: string | null;
+        pdfColorTableHeaderBg: string | null;
+        pdfColorTableHeaderText: string | null;
         pdfFontFamily: string;
         pdfShowBank: boolean;
         pdfShowTerms: boolean;
@@ -64,6 +67,9 @@ export declare class TenantSettingsController {
         termsAndConditions: string | null;
         pdfTheme: string;
         pdfColorPrimary: string;
+        pdfColorCompanyName: string | null;
+        pdfColorTableHeaderBg: string | null;
+        pdfColorTableHeaderText: string | null;
         pdfFontFamily: string;
         pdfShowBank: boolean;
         pdfShowTerms: boolean;

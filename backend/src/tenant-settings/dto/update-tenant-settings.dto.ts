@@ -96,6 +96,18 @@ export class UpdateTenantSettingsDto {
 
   @IsString()
   @IsOptional()
+  pdfColorCompanyName?: string;
+
+  @IsString()
+  @IsOptional()
+  pdfColorTableHeaderBg?: string;
+
+  @IsString()
+  @IsOptional()
+  pdfColorTableHeaderText?: string;
+
+  @IsString()
+  @IsOptional()
   pdfFontFamily?: string;
 
   @IsOptional()

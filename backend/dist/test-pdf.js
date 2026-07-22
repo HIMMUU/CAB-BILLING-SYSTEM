@@ -83,7 +83,9 @@ async function main() {
             },
         });
     }
-    let customer = await prisma.customer.findFirst({ where: { tenantId: tenant.id } });
+    let customer = await prisma.customer.findFirst({
+        where: { tenantId: tenant.id },
+    });
     if (!customer) {
         console.log('Creating test customer...');
         customer = await prisma.customer.create({
@@ -108,7 +110,9 @@ async function main() {
             },
         });
     }
-    let vehicle = await prisma.vehicle.findFirst({ where: { tenantId: tenant.id } });
+    let vehicle = await prisma.vehicle.findFirst({
+        where: { tenantId: tenant.id },
+    });
     if (!vehicle) {
         console.log('Creating test vehicle...');
         vehicle = await prisma.vehicle.create({
@@ -125,7 +129,9 @@ async function main() {
             },
         });
     }
-    let driver = await prisma.driver.findFirst({ where: { tenantId: tenant.id } });
+    let driver = await prisma.driver.findFirst({
+        where: { tenantId: tenant.id },
+    });
     if (!driver) {
         console.log('Creating test driver...');
         driver = await prisma.driver.create({
@@ -140,7 +146,9 @@ async function main() {
             },
         });
     }
-    let invoice = await prisma.invoice.findFirst({ where: { tenantId: tenant.id } });
+    let invoice = await prisma.invoice.findFirst({
+        where: { tenantId: tenant.id },
+    });
     if (!invoice) {
         console.log('Creating test booking, duty slip, closed trip, and invoice...');
         const booking = await prisma.booking.create({
@@ -179,16 +187,16 @@ async function main() {
                 startKm: 10000,
                 endKm: 10168,
                 totalKm: 168,
-                baseFareCharged: 1400.00,
-                extraKmCharged: 1232.00,
-                extraHoursCharged: 750.00,
-                driverAllowance: 300.00,
-                nightChargesCharged: 0.00,
-                toll: 500.00,
-                parking: 0.00,
-                stateTaxCharged: 120.00,
-                mcdCharged: 0.00,
-                totalAmount: 3382.00,
+                baseFareCharged: 1400.0,
+                extraKmCharged: 1232.0,
+                extraHoursCharged: 750.0,
+                driverAllowance: 300.0,
+                nightChargesCharged: 0.0,
+                toll: 500.0,
+                parking: 0.0,
+                stateTaxCharged: 120.0,
+                mcdCharged: 0.0,
+                totalAmount: 3382.0,
             },
         });
         invoice = await context.runWithContext({ tenantId: tenant.id }, () => service.create({

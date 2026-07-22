@@ -23,41 +23,53 @@ let AuthController = class AuthController {
         this.authService = authService;
     }
     async register(registerDto, response) {
-        const result = await this.authService.register(registerDto);
+        const result = (await this.authService.register(registerDto));
         this.setCookie(response, result.refreshToken);
-        const { refreshToken, ...rest } = result;
-        return rest;
+        return {
+            accessToken: result.accessToken,
+            expiresIn: result.expiresIn,
+            user: result.user,
+        };
     }
     async login(loginDto, response) {
-        const result = await this.authService.login(loginDto);
+        const result = (await this.authService.login(loginDto));
         this.setCookie(response, result.refreshToken);
-        const { refreshToken, ...rest } = result;
-        return rest;
+        return {
+            accessToken: result.accessToken,
+            expiresIn: result.expiresIn,
+            user: result.user,
+        };
     }
     async refresh(request, response) {
-        const refreshToken = request.cookies?.refreshToken;
+        const cookies = request.cookies;
+        const refreshToken = cookies?.refreshToken;
         if (!refreshToken) {
             throw new common_1.UnauthorizedException('Refresh token is missing');
         }
-        const result = await this.authService.refresh(refreshToken);
+        const result = (await this.authService.refresh(refreshToken));
         this.setCookie(response, result.refreshToken);
-        const { refreshToken: _, ...rest } = result;
-        return rest;
+        return {
+            accessToken: result.accessToken,
+            expiresIn: result.expiresIn,
+            user: result.user,
+        };
     }
-    async logout(response) {
+    logout(response) {
+        const isProduction = process.env.NODE_ENV === 'production';
         response.clearCookie('refreshToken', {
             httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
+            secure: isProduction,
+            sameSite: isProduction ? 'none' : 'lax',
             path: '/',
         });
         return { message: 'Logged out successfully' };
     }
     setCookie(response, token) {
+        const isProduction = process.env.NODE_ENV === 'production';
         response.cookie('refreshToken', token, {
             httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
+            secure: isProduction,
+            sameSite: isProduction ? 'none' : 'lax',
             path: '/',
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
@@ -101,7 +113,7 @@ __decorate([
     __param(0, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
+    __metadata("design:returntype", void 0)
 ], AuthController.prototype, "logout", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('auth'),

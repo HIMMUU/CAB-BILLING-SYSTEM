@@ -23,7 +23,9 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)({ message: 'Mobile number is required' }),
-    (0, class_validator_1.Matches)(/^\+?[0-9]{10,15}$/, { message: 'Mobile number must be a valid 10-15 digit string' }),
+    (0, class_validator_1.Matches)(/^\+?[0-9]{10,15}$/, {
+        message: 'Mobile number must be a valid 10-15 digit string',
+    }),
     __metadata("design:type", String)
 ], CreateDriverDto.prototype, "mobile", void 0);
 __decorate([
@@ -47,7 +49,9 @@ __decorate([
     __metadata("design:type", String)
 ], CreateDriverDto.prototype, "emergencyContact", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(client_1.DriverStatus, { message: 'Status must be AVAILABLE, ON_TRIP, or INACTIVE' }),
+    (0, class_validator_1.IsEnum)(client_1.DriverStatus, {
+        message: 'Status must be AVAILABLE, ON_TRIP, or INACTIVE',
+    }),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateDriverDto.prototype, "status", void 0);

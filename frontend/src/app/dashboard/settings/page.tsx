@@ -36,6 +36,9 @@ export default function CompanySettingsPage() {
     termsAndConditions: '',
     pdfTheme: 'MODERN',
     pdfColorPrimary: '#1E3A8A',
+    pdfColorCompanyName: '#E11D48',
+    pdfColorTableHeaderBg: '#1E3A8A',
+    pdfColorTableHeaderText: '#FFFFFF',
     pdfFontFamily: 'Helvetica',
     pdfShowBank: true,
     pdfShowTerms: true,
@@ -81,6 +84,9 @@ export default function CompanySettingsPage() {
         termsAndConditions: settings.termsAndConditions || '',
         pdfTheme: settings.pdfTheme || 'MODERN',
         pdfColorPrimary: settings.pdfColorPrimary || '#1E3A8A',
+        pdfColorCompanyName: settings.pdfColorCompanyName || '#E11D48',
+        pdfColorTableHeaderBg: settings.pdfColorTableHeaderBg || '#1E3A8A',
+        pdfColorTableHeaderText: settings.pdfColorTableHeaderText || '#FFFFFF',
         pdfFontFamily: settings.pdfFontFamily || 'Helvetica',
         pdfShowBank: settings.pdfShowBank !== false,
         pdfShowTerms: settings.pdfShowTerms !== false,
@@ -527,30 +533,106 @@ export default function CompanySettingsPage() {
                 <div className="space-y-4">
                   <h3 className="text-base font-bold text-[#0F172A]">PDF Title & Style Customization</h3>
                   
-                  {/* Hex Color Accent Picker */}
-                  <div className="p-4 bg-gray-50 border border-[#E2E8F0] rounded-xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  {/* Color Customization Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 border border-[#E2E8F0] rounded-xl">
+                    {/* Primary Brand Color */}
                     <div className="space-y-1">
-                      <label className="block text-xs font-bold text-[#475569] uppercase">Primary Brand Color</label>
-                      <span className="text-xs text-[#64748B]">Used for PDF text headers, accents, and summary highlights</span>
+                      <label className="block text-xs font-bold text-[#475569] uppercase">Primary Brand Accent Color</label>
+                      <span className="block text-[10px] text-[#64748B]">Used for totals, borders, and invoice highlights</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="color"
+                          name="pdfColorPrimary"
+                          value={formData.pdfColorPrimary}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          className="h-9 w-12 cursor-pointer border border-[#E2E8F0] rounded bg-transparent p-0.5"
+                        />
+                        <input
+                          type="text"
+                          name="pdfColorPrimary"
+                          value={formData.pdfColorPrimary}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          maxLength={7}
+                          className="w-24 border border-[#E2E8F0] bg-white rounded-lg p-1.5 text-xs text-[#0F172A] font-mono uppercase focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 sm:ml-auto w-full sm:w-auto">
-                      <input
-                        type="color"
-                        name="pdfColorPrimary"
-                        value={formData.pdfColorPrimary}
-                        onChange={handleChange}
-                        disabled={!canEdit}
-                        className="h-10 w-16 cursor-pointer border border-[#E2E8F0] rounded bg-transparent"
-                      />
-                      <input
-                        type="text"
-                        name="pdfColorPrimary"
-                        value={formData.pdfColorPrimary}
-                        onChange={handleChange}
-                        disabled={!canEdit}
-                        maxLength={7}
-                        className="w-24 border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] font-mono focus:outline-none focus:border-blue-500 uppercase"
-                      />
+
+                    {/* Company Name Heading Color */}
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-[#475569] uppercase">Main Company Name Heading Color</label>
+                      <span className="block text-[10px] text-[#64748B]">Used for top company brand title text</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="color"
+                          name="pdfColorCompanyName"
+                          value={formData.pdfColorCompanyName}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          className="h-9 w-12 cursor-pointer border border-[#E2E8F0] rounded bg-transparent p-0.5"
+                        />
+                        <input
+                          type="text"
+                          name="pdfColorCompanyName"
+                          value={formData.pdfColorCompanyName}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          maxLength={7}
+                          className="w-24 border border-[#E2E8F0] bg-white rounded-lg p-1.5 text-xs text-[#0F172A] font-mono uppercase focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Table Column Header Background Color */}
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-[#475569] uppercase">Table Header Bar Background</label>
+                      <span className="block text-[10px] text-[#64748B]">Background fill color for table column header bar</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="color"
+                          name="pdfColorTableHeaderBg"
+                          value={formData.pdfColorTableHeaderBg}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          className="h-9 w-12 cursor-pointer border border-[#E2E8F0] rounded bg-transparent p-0.5"
+                        />
+                        <input
+                          type="text"
+                          name="pdfColorTableHeaderBg"
+                          value={formData.pdfColorTableHeaderBg}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          maxLength={7}
+                          className="w-24 border border-[#E2E8F0] bg-white rounded-lg p-1.5 text-xs text-[#0F172A] font-mono uppercase focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Table Column Header Text Color */}
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-[#475569] uppercase">Table Header Bar Text Color</label>
+                      <span className="block text-[10px] text-[#64748B]">Text color for column headers (e.g. Date, Particulars, Rate)</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="color"
+                          name="pdfColorTableHeaderText"
+                          value={formData.pdfColorTableHeaderText}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          className="h-9 w-12 cursor-pointer border border-[#E2E8F0] rounded bg-transparent p-0.5"
+                        />
+                        <input
+                          type="text"
+                          name="pdfColorTableHeaderText"
+                          value={formData.pdfColorTableHeaderText}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          maxLength={7}
+                          className="w-24 border border-[#E2E8F0] bg-white rounded-lg p-1.5 text-xs text-[#0F172A] font-mono uppercase focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -741,7 +823,7 @@ export default function CompanySettingsPage() {
                               </div>
                               <h2
                                 className="text-2xl font-black tracking-tight uppercase"
-                                style={{ color: formData.pdfColorPrimary || '#1E3A8A' }}
+                                style={{ color: formData.pdfColorCompanyName || '#E11D48' }}
                               >
                                 {formData.name || 'ACME CABS'}
                               </h2>
@@ -792,12 +874,15 @@ export default function CompanySettingsPage() {
                           </div>
                         </div>
 
-                        {/* TABLE SECTION (DYNAMIC BRAND COLOR HEADER BAR) */}
+                        {/* TABLE SECTION (FULLY CUSTOMIZABLE COLOR HEADER BAR & TEXT) */}
                         <div className="border border-slate-200 rounded overflow-hidden">
-                          {/* Table Header Bar with Dynamic Hex Color */}
+                          {/* Table Header Bar with Dynamic Hex Colors */}
                           <div
-                            className="grid grid-cols-12 px-3 py-2 font-bold text-[10px] text-white tracking-wide"
-                            style={{ backgroundColor: formData.pdfColorPrimary || '#1E3A8A' }}
+                            className="grid grid-cols-12 px-3 py-2 font-bold text-[10px] tracking-wide"
+                            style={{
+                              backgroundColor: formData.pdfColorTableHeaderBg || formData.pdfColorPrimary || '#1E3A8A',
+                              color: formData.pdfColorTableHeaderText || '#FFFFFF',
+                            }}
                           >
                             <div className="col-span-2 text-center">Date/D.S. No.</div>
                             <div className="col-span-2 text-center">Vehicle Detail</div>

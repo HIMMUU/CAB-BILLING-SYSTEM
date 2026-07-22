@@ -124,6 +124,9 @@ model Tenant {
   termsAndConditions String?  @map("terms_and_conditions") @db.Text
   pdfTheme          String    @default("MODERN") @map("pdf_theme") @db.VarChar(50)
   pdfColorPrimary   String    @default("#1E3A8A") @map("pdf_color_primary") @db.VarChar(20)
+  pdfColorCompanyName String? @default("#E11D48") @map("pdf_color_company_name") @db.VarChar(20)
+  pdfColorTableHeaderBg String? @default("#1E3A8A") @map("pdf_color_table_header_bg") @db.VarChar(20)
+  pdfColorTableHeaderText String? @default("#FFFFFF") @map("pdf_color_table_header_text") @db.VarChar(20)
   pdfFontFamily     String    @default("Helvetica") @map("pdf_font_family") @db.VarChar(50)
   pdfShowBank       Boolean   @default(true) @map("pdf_show_bank")
   pdfShowTerms      Boolean   @default(true) @map("pdf_show_terms")

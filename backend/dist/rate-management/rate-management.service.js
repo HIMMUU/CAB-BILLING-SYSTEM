@@ -80,12 +80,14 @@ let RateManagementService = class RateManagementService {
                 nightCharge: dto.nightCharge ?? 0,
                 nightStartTime: dto.nightStartTime || '23:00',
                 nightEndTime: dto.nightEndTime || '05:00',
-                minHr: dto.minHr ?? 4.00,
-                minKm: dto.minKm ?? 40.00,
-                fullHr: dto.fullHr ?? 8.00,
-                fullKm: dto.fullKm ?? 80.00,
+                minHr: dto.minHr ?? 4.0,
+                minKm: dto.minKm ?? 40.0,
+                fullHr: dto.fullHr ?? 8.0,
+                fullKm: dto.fullKm ?? 80.0,
                 outstationNightCharge: dto.outstationNightCharge ?? 0,
-                effectiveFrom: dto.effectiveFrom ? new Date(dto.effectiveFrom) : new Date(),
+                effectiveFrom: dto.effectiveFrom
+                    ? new Date(dto.effectiveFrom)
+                    : new Date(),
                 status: dto.status || 'ACTIVE',
             },
             include: {
@@ -356,7 +358,9 @@ let RateManagementService = class RateManagementService {
                     cgst: dto.cgst,
                     sgst: dto.sgst,
                     igst: dto.igst,
-                    effectiveFrom: dto.effectiveFrom ? new Date(dto.effectiveFrom) : new Date(),
+                    effectiveFrom: dto.effectiveFrom
+                        ? new Date(dto.effectiveFrom)
+                        : new Date(),
                     isActive: dto.isActive ?? false,
                 },
             });

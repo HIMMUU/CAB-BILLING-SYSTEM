@@ -70,7 +70,9 @@ let PaymentsService = class PaymentsService {
         }
         if (query.search) {
             where.OR = [
-                { transactionReference: { contains: query.search, mode: 'insensitive' } },
+                {
+                    transactionReference: { contains: query.search, mode: 'insensitive' },
+                },
                 {
                     invoice: {
                         invoiceNumber: { contains: query.search, mode: 'insensitive' },
@@ -140,7 +142,8 @@ let PaymentsService = class PaymentsService {
                 where: { id },
                 data,
             });
-            if (oldStatus !== client_1.PaymentStatus.SUCCESS && newStatus === client_1.PaymentStatus.SUCCESS) {
+            if (oldStatus !== client_1.PaymentStatus.SUCCESS &&
+                newStatus === client_1.PaymentStatus.SUCCESS) {
                 const invoice = payment.invoice;
                 const newPaid = Number(invoice.paidAmount) + Number(payment.amount);
                 const newDue = Math.max(0, Number(invoice.totalAmount) - newPaid);
@@ -153,7 +156,8 @@ let PaymentsService = class PaymentsService {
                     },
                 });
             }
-            else if (oldStatus === client_1.PaymentStatus.SUCCESS && newStatus !== client_1.PaymentStatus.SUCCESS) {
+            else if (oldStatus === client_1.PaymentStatus.SUCCESS &&
+                newStatus !== client_1.PaymentStatus.SUCCESS) {
                 const invoice = payment.invoice;
                 const newPaid = Math.max(0, Number(invoice.paidAmount) - Number(payment.amount));
                 const newDue = Number(invoice.totalAmount) - newPaid;
@@ -162,7 +166,9 @@ let PaymentsService = class PaymentsService {
                     data: {
                         paidAmount: newPaid,
                         dueAmount: newDue,
-                        status: newPaid === 0 ? client_1.InvoiceStatus.UNPAID : client_1.InvoiceStatus.PARTIALLY_PAID,
+                        status: newPaid === 0
+                            ? client_1.InvoiceStatus.UNPAID
+                            : client_1.InvoiceStatus.PARTIALLY_PAID,
                     },
                 });
             }
@@ -187,7 +193,9 @@ let PaymentsService = class PaymentsService {
                     data: {
                         paidAmount: newPaid,
                         dueAmount: newDue,
-                        status: newPaid === 0 ? client_1.InvoiceStatus.UNPAID : client_1.InvoiceStatus.PARTIALLY_PAID,
+                        status: newPaid === 0
+                            ? client_1.InvoiceStatus.UNPAID
+                            : client_1.InvoiceStatus.PARTIALLY_PAID,
                     },
                 });
             }

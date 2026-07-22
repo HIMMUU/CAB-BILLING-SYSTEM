@@ -110,7 +110,9 @@ let DriversService = class DriversService {
                 name: dto.name,
                 mobile: dto.mobile,
                 licenseNumber: dto.licenseNumber,
-                licenseExpiry: dto.licenseExpiry ? new Date(dto.licenseExpiry) : undefined,
+                licenseExpiry: dto.licenseExpiry
+                    ? new Date(dto.licenseExpiry)
+                    : undefined,
                 address: dto.address,
                 emergencyContact: dto.emergencyContact,
                 status: dto.status,

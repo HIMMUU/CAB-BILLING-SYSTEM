@@ -46,7 +46,9 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.Matches)(/^\+?[0-9]{10,15}$/, { message: 'Phone number must be a valid 10-15 digit string' }),
+    (0, class_validator_1.Matches)(/^\+?[0-9]{10,15}$/, {
+        message: 'Phone number must be a valid 10-15 digit string',
+    }),
     __metadata("design:type", String)
 ], UpdateCustomerDto.prototype, "phone", void 0);
 __decorate([

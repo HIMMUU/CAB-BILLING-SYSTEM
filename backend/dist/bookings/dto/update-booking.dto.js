@@ -41,7 +41,9 @@ __decorate([
     __metadata("design:type", String)
 ], UpdateBookingDto.prototype, "pickupTime", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(client_1.TripType, { message: 'Trip type must be LOCAL, AIRPORT_TRANSFER, OUTSTATION, or HOURLY_RENTAL' }),
+    (0, class_validator_1.IsEnum)(client_1.TripType, {
+        message: 'Trip type must be LOCAL, AIRPORT_TRANSFER, OUTSTATION, or HOURLY_RENTAL',
+    }),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateBookingDto.prototype, "tripType", void 0);
@@ -51,7 +53,9 @@ __decorate([
     __metadata("design:type", String)
 ], UpdateBookingDto.prototype, "vehicleTypeRequired", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(client_1.BookingStatus, { message: 'Status must be PENDING, ASSIGNED, STARTED, COMPLETED, or CANCELLED' }),
+    (0, class_validator_1.IsEnum)(client_1.BookingStatus, {
+        message: 'Status must be PENDING, ASSIGNED, STARTED, COMPLETED, or CANCELLED',
+    }),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateBookingDto.prototype, "status", void 0);

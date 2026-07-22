@@ -8,44 +8,20 @@ export declare class AuthController {
     register(registerDto: RegisterDto, response: Response): Promise<{
         accessToken: string;
         expiresIn: number;
-        user: {
-            id: any;
-            firstName: any;
-            lastName: any;
-            email: any;
-            role: any;
-            tenantId: any;
-            tenantName: any;
-        };
+        user: unknown;
     }>;
     login(loginDto: LoginDto, response: Response): Promise<{
         accessToken: string;
         expiresIn: number;
-        user: {
-            id: any;
-            firstName: any;
-            lastName: any;
-            email: any;
-            role: any;
-            tenantId: any;
-            tenantName: any;
-        };
+        user: unknown;
     }>;
     refresh(request: Request, response: Response): Promise<{
         accessToken: string;
         expiresIn: number;
-        user: {
-            id: any;
-            firstName: any;
-            lastName: any;
-            email: any;
-            role: any;
-            tenantId: any;
-            tenantName: any;
-        };
+        user: unknown;
     }>;
-    logout(response: Response): Promise<{
+    logout(response: Response): {
         message: string;
-    }>;
+    };
     private setCookie;
 }
