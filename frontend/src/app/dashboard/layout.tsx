@@ -8,8 +8,43 @@ import api from '@/lib/api';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [user, setUser] = useState<any>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [uiFontSize, setUiFontSize] = useState<'small' | 'medium' | 'large'>('medium');
+
+  // Load font size preference from localStorage on client-side mount
+  useEffect(() => {
+    const saved = localStorage.getItem('uiFontSize') as 'small' | 'medium' | 'large';
+    if (saved && ['small', 'medium', 'large'].includes(saved)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setUiFontSize(saved);
+    }
+  }, []);
+
+  // Dynamically update documentElement (root html tag) font size to scale rem units
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const root = document.documentElement;
+      if (uiFontSize === 'small') {
+        root.style.fontSize = '14px';
+      } else if (uiFontSize === 'large') {
+        root.style.fontSize = '18px';
+      } else {
+        root.style.fontSize = '16px'; // Default browser base
+      }
+      localStorage.setItem('uiFontSize', uiFontSize);
+    }
+  }, [uiFontSize]);
+
+  // Clean up and restore default root font size on unmount
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined') {
+        document.documentElement.style.fontSize = '';
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const token = api.getToken();
@@ -17,6 +52,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!token || !currentUser) {
       router.push('/login');
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUser(currentUser);
     }
   }, [router]);
@@ -290,8 +326,50 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ))}
           </div>
 
-          {/* User Section */}
+          {/* User & Settings Section */}
           <div className="flex items-center gap-4">
+            {/* UI Font Size Scaler */}
+            <div className="flex items-center gap-1 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg p-0.5" title="Adjust Interface Font Size">
+              <button
+                type="button"
+                title="Decrease font size"
+                onClick={() => setUiFontSize('small')}
+                className={`w-7 h-7 flex items-center justify-center text-xs font-bold rounded-md transition-all select-none ${
+                  uiFontSize === 'small'
+                    ? 'bg-white text-blue-600 shadow-sm border border-[#E2E8F0]/40'
+                    : 'text-[#64748B] hover:text-[#0F172A]'
+                }`}
+              >
+                A-
+              </button>
+              <button
+                type="button"
+                title="Reset font size"
+                onClick={() => setUiFontSize('medium')}
+                className={`w-7 h-7 flex items-center justify-center text-xs font-bold rounded-md transition-all select-none ${
+                  uiFontSize === 'medium'
+                    ? 'bg-white text-blue-600 shadow-sm border border-[#E2E8F0]/40'
+                    : 'text-[#64748B] hover:text-[#0F172A]'
+                }`}
+              >
+                A
+              </button>
+              <button
+                type="button"
+                title="Increase font size"
+                onClick={() => setUiFontSize('large')}
+                className={`w-7 h-7 flex items-center justify-center text-xs font-bold rounded-md transition-all select-none ${
+                  uiFontSize === 'large'
+                    ? 'bg-white text-blue-600 shadow-sm border border-[#E2E8F0]/40'
+                    : 'text-[#64748B] hover:text-[#0F172A]'
+                }`}
+              >
+                A+
+              </button>
+            </div>
+
+            <div className="h-8 w-[1px] bg-[#E2E8F0]" />
+
             <div className="flex flex-col text-right">
               <span className="text-xs font-semibold text-[#0F172A]">{user.firstName} {user.lastName}</span>
               <span className="text-[10px] text-blue-600 font-bold tracking-wide uppercase mt-0.5">{user.role.replace('_', ' ')}</span>
