@@ -240,6 +240,8 @@ export declare class InvoicesController {
         paidAmount: import("@prisma/client/runtime/library").Decimal;
         dueAmount: import("@prisma/client/runtime/library").Decimal;
     }>;
+    removeItem(id: string, itemId: string): Promise<any>;
+    addItems(id: string, tripIds: string[]): Promise<any>;
     remove(id: string): Promise<{
         id: string;
         status: import(".prisma/client").$Enums.InvoiceStatus;

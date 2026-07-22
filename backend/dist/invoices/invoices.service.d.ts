@@ -279,5 +279,8 @@ export declare class InvoicesService {
         paidAmount: import("@prisma/client/runtime/library").Decimal;
         dueAmount: import("@prisma/client/runtime/library").Decimal;
     }>;
+    removeItemFromInvoice(invoiceId: string, itemId: string): Promise<any>;
+    addTripsToInvoice(invoiceId: string, tripIds: string[]): Promise<any>;
+    recalculateAndSaveInvoice(invoiceId: string): Promise<any>;
     generatePdf(id: string): Promise<Buffer>;
 }

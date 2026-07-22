@@ -76,6 +76,12 @@ let InvoicesController = class InvoicesController {
     cancel(id) {
         return this.invoicesService.cancel(id);
     }
+    removeItem(id, itemId) {
+        return this.invoicesService.removeItemFromInvoice(id, itemId);
+    }
+    addItems(id, tripIds) {
+        return this.invoicesService.addTripsToInvoice(id, tripIds);
+    }
     remove(id) {
         return this.invoicesService.remove(id);
     }
@@ -139,6 +145,24 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], InvoicesController.prototype, "cancel", null);
+__decorate([
+    (0, common_1.Delete)(':id/items/:itemId'),
+    (0, permissions_decorator_1.Permissions)(permissions_1.Permission.INVOICE_CRUD),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('itemId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], InvoicesController.prototype, "removeItem", null);
+__decorate([
+    (0, common_1.Post)(':id/items'),
+    (0, permissions_decorator_1.Permissions)(permissions_1.Permission.INVOICE_CRUD),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)('tripIds')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Array]),
+    __metadata("design:returntype", void 0)
+], InvoicesController.prototype, "addItems", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     (0, permissions_decorator_1.Permissions)(permissions_1.Permission.INVOICE_CRUD),

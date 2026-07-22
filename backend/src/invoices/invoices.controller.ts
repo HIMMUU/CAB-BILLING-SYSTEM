@@ -60,6 +60,24 @@ export class InvoicesController {
     return this.invoicesService.cancel(id);
   }
 
+  @Delete(':id/items/:itemId')
+  @Permissions(Permission.INVOICE_CRUD)
+  removeItem(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+  ) {
+    return this.invoicesService.removeItemFromInvoice(id, itemId);
+  }
+
+  @Post(':id/items')
+  @Permissions(Permission.INVOICE_CRUD)
+  addItems(
+    @Param('id') id: string,
+    @Body('tripIds') tripIds: string[],
+  ) {
+    return this.invoicesService.addTripsToInvoice(id, tripIds);
+  }
+
   @Delete(':id')
   @Permissions(Permission.INVOICE_CRUD)
   remove(@Param('id') id: string) {

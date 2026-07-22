@@ -598,6 +598,63 @@ export default function InvoicesPage() {
     }
   };
 
+  const [isAddDutySlipOpen, setIsAddDutySlipOpen] = useState(false);
+  const [availableTrips, setAvailableTrips] = useState<ClosedTrip[]>([]);
+  const [selectedAddTripIds, setSelectedAddTripIds] = useState<string[]>([]);
+  const [addDutySlipLoading, setAddDutySlipLoading] = useState(false);
+
+  const handleOpenAddDutySlip = async () => {
+    if (!selectedInvoice) return;
+    setAddDutySlipLoading(true);
+    try {
+      const tripsRes = await api.request('/invoices/uninvoiced-trips');
+      const custTrips = (tripsRes || []).filter(
+        (t: ClosedTrip) => t.booking?.customer?.id === selectedInvoice.customerId
+      );
+      setAvailableTrips(custTrips);
+      setSelectedAddTripIds([]);
+      setIsAddDutySlipOpen(true);
+    } catch (err: any) {
+      alert(err.message || 'Failed to load available duty slips');
+    } finally {
+      setAddDutySlipLoading(false);
+    }
+  };
+
+  const handleAddDutySlipsToInvoice = async () => {
+    if (!selectedInvoice || selectedAddTripIds.length === 0) return;
+    try {
+      const updatedInvoice = await api.request(`/invoices/${selectedInvoice.id}/items`, {
+        method: 'POST',
+        body: JSON.stringify({ tripIds: selectedAddTripIds }),
+      });
+      setSelectedInvoice(updatedInvoice);
+      setIsAddDutySlipOpen(false);
+      fetchInvoices();
+    } catch (err: any) {
+      alert(err.message || 'Failed to add duty slip to invoice');
+    }
+  };
+
+  const handleRemoveItemFromInvoice = async (invoiceId: string, itemId: string) => {
+    if (
+      !confirm(
+        'Remove this duty slip from the invoice? The duty slip will be set as unbilled/uninvoiced and available for re-billing.'
+      )
+    ) {
+      return;
+    }
+    try {
+      const updatedInvoice = await api.request(`/invoices/${invoiceId}/items/${itemId}`, {
+        method: 'DELETE',
+      });
+      setSelectedInvoice(updatedInvoice);
+      fetchInvoices();
+    } catch (err: any) {
+      alert(err.message || 'Failed to remove duty slip from invoice');
+    }
+  };
+
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'PAID':
@@ -1423,29 +1480,56 @@ export default function InvoicesPage() {
 
             {/* Itemized Trip Service Grid */}
             <div className="mb-6">
-              <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-wider mb-2">Itemized Transportation Services</h3>
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Itemized Transportation Services</h3>
+                {!isDispatcher && selectedInvoice.status !== 'CANCELLED' && selectedInvoice.status !== 'VOID' && (
+                  <button
+                    onClick={handleOpenAddDutySlip}
+                    className="px-2.5 py-1 bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold rounded-lg transition inline-flex items-center gap-1"
+                  >
+                    ➕ Add Duty Slip to Bill
+                  </button>
+                )}
+              </div>
               <div className="border border-[#E2E8F0] rounded-xl overflow-hidden">
                 <div className="bg-gray-50 px-4 py-2 text-xs font-bold text-[#475569] flex justify-between border-b border-[#E2E8F0]">
                   <span>Item Description</span>
-                  <span>Amount</span>
+                  <span>Amount & Actions</span>
                 </div>
                 <div className="divide-y divide-[#E2E8F0] bg-white">
-                  {selectedInvoice.items.map((item) => (
-                    <div key={item.id} className="p-4 text-xs space-y-2">
-                      <div className="font-semibold text-[#0F172A] flex justify-between">
-                        <span>{item.description}</span>
-                        <span>INR {Number(item.amount).toFixed(2)}</span>
-                      </div>
-                      {item.trip && (
-                        <div className="grid grid-cols-2 gap-1.5 text-[#64748B] pt-1 border-t border-gray-100">
-                          <div>Duty Slip: <span className="font-semibold text-[#0F172A]">{item.trip.dutySlip.dutySlipNumber}</span></div>
-                          <div>Vehicle: <span className="font-semibold text-[#0F172A]">{item.trip.dutySlip.vehicle.vehicleNumber}</span></div>
-                          <div>Driver: <span className="font-semibold text-[#0F172A]">{item.trip.dutySlip.driver.name}</span></div>
-                          <div>Distance: <span className="font-semibold text-[#0F172A]">{item.trip.totalKm} KM ({item.trip.startKm}-{item.trip.endKm})</span></div>
-                        </div>
-                      )}
+                  {selectedInvoice.items.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-slate-400">
+                      No duty slips linked to this bill. Click "Add Duty Slip to Bill" above to add unbilled slips.
                     </div>
-                  ))}
+                  ) : (
+                    selectedInvoice.items.map((item) => (
+                      <div key={item.id} className="p-4 text-xs space-y-2">
+                        <div className="font-semibold text-[#0F172A] flex justify-between items-center">
+                          <span>{item.description}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold">INR {Number(item.amount).toFixed(2)}</span>
+                            {!isDispatcher && selectedInvoice.status !== 'CANCELLED' && selectedInvoice.status !== 'VOID' && (
+                              <button
+                                onClick={() => handleRemoveItemFromInvoice(selectedInvoice.id, item.id)}
+                                className="text-[11px] text-rose-600 hover:text-rose-800 font-bold bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded transition"
+                                title="Remove duty slip from bill (sets as unbilled)"
+                              >
+                                ❌ Remove
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        {item.trip && (
+                          <div className="grid grid-cols-2 gap-1.5 text-[#64748B] pt-1 border-t border-gray-100">
+                            <div>Duty Slip: <span className="font-semibold text-[#0F172A]">{item.trip.dutySlip.dutySlipNumber}</span></div>
+                            <div>Vehicle: <span className="font-semibold text-[#0F172A]">{item.trip.dutySlip.vehicle.vehicleNumber}</span></div>
+                            <div>Driver: <span className="font-semibold text-[#0F172A]">{item.trip.dutySlip.driver.name}</span></div>
+                            <div>Distance: <span className="font-semibold text-[#0F172A]">{item.trip.totalKm} KM ({item.trip.startKm}-{item.trip.endKm})</span></div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -1672,6 +1756,92 @@ export default function InvoicesPage() {
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
             <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Generating PDF Preview...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Add Duty Slip Modal */}
+      {isAddDutySlipOpen && selectedInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl border border-[#E2E8F0] w-full max-w-xl overflow-hidden animate-scale-up">
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] px-6 py-4 bg-[#FAFBFD]">
+              <div>
+                <h3 className="text-base font-bold text-[#0F172A]">Add Duty Slips to Invoice: {selectedInvoice.invoiceNumber}</h3>
+                <p className="text-xs text-[#64748B] mt-0.5">Select unbilled duty slips for customer: {selectedInvoice.customer.name}</p>
+              </div>
+              <button
+                onClick={() => setIsAddDutySlipOpen(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-lg transition"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              {availableTrips.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  No unbilled duty slips found for {selectedInvoice.customer.name}.
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
+                  {availableTrips.map((trip) => {
+                    const isChecked = selectedAddTripIds.includes(trip.id);
+                    return (
+                      <div
+                        key={trip.id}
+                        onClick={() => {
+                          if (isChecked) {
+                            setSelectedAddTripIds(selectedAddTripIds.filter((id) => id !== trip.id));
+                          } else {
+                            setSelectedAddTripIds([...selectedAddTripIds, trip.id]);
+                          }
+                        }}
+                        className={`p-3.5 flex items-center justify-between text-xs cursor-pointer transition ${
+                          isChecked ? 'bg-blue-50/70 border-l-4 border-l-blue-600' : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}}
+                            className="h-4 w-4 text-blue-600 rounded border-gray-300"
+                          />
+                          <div>
+                            <span className="font-bold text-slate-900 block">{trip.dutySlip.dutySlipNumber}</span>
+                            <span className="text-[11px] text-slate-500 block">Route: {trip.booking.pickupLocation} ➔ {trip.booking.dropLocation}</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-mono font-bold text-blue-700 block">INR {Number(trip.totalAmount).toFixed(2)}</span>
+                          <span className="text-[10px] text-slate-400">{trip.totalKm} KM</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 px-6 py-4 bg-[#FAFBFD] border-t border-[#E2E8F0]">
+              <button
+                type="button"
+                onClick={() => setIsAddDutySlipOpen(false)}
+                className="px-4 py-2 border border-[#E2E8F0] text-slate-600 text-sm font-semibold rounded-lg hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAddDutySlipsToInvoice}
+                disabled={selectedAddTripIds.length === 0}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm transition disabled:opacity-50"
+              >
+                Add {selectedAddTripIds.length} Duty Slip(s) to Bill
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -564,13 +564,187 @@ let InvoicesService = class InvoicesService {
         if (invoice.status === client_1.InvoiceStatus.PAID) {
             throw new common_1.BadRequestException('Fully paid invoices cannot be cancelled directly. Please process a refund or payment adjustment first.');
         }
-        return this.prisma.invoice.update({
-            where: { id },
-            data: {
-                status: client_1.InvoiceStatus.CANCELLED || client_1.InvoiceStatus.VOID,
-                dueAmount: 0,
+        return this.prisma.$transaction(async (tx) => {
+            await tx.invoiceItem.deleteMany({
+                where: { invoiceId: id },
+            });
+            return tx.invoice.update({
+                where: { id },
+                data: {
+                    status: client_1.InvoiceStatus.CANCELLED || client_1.InvoiceStatus.VOID,
+                    subtotal: 0,
+                    cgstAmount: 0,
+                    sgstAmount: 0,
+                    igstAmount: 0,
+                    totalTax: 0,
+                    totalAmount: 0,
+                    dueAmount: 0,
+                },
+            });
+        });
+    }
+    async removeItemFromInvoice(invoiceId, itemId) {
+        const invoice = await this.findOne(invoiceId);
+        if (invoice.status === client_1.InvoiceStatus.CANCELLED || invoice.status === client_1.InvoiceStatus.VOID) {
+            throw new common_1.BadRequestException('Cannot modify items on a cancelled invoice');
+        }
+        const item = await this.prisma.invoiceItem.findFirst({
+            where: { id: itemId, invoiceId },
+        });
+        if (!item) {
+            throw new common_1.NotFoundException('Invoice item not found in this invoice');
+        }
+        await this.prisma.invoiceItem.delete({
+            where: { id: itemId },
+        });
+        return this.recalculateAndSaveInvoice(invoiceId);
+    }
+    async addTripsToInvoice(invoiceId, tripIds) {
+        const invoice = await this.findOne(invoiceId);
+        if (invoice.status === client_1.InvoiceStatus.CANCELLED || invoice.status === client_1.InvoiceStatus.VOID) {
+            throw new common_1.BadRequestException('Cannot add items to a cancelled invoice');
+        }
+        if (!tripIds || tripIds.length === 0) {
+            throw new common_1.BadRequestException('At least one trip ID is required');
+        }
+        const existingItems = await this.prisma.invoiceItem.findMany({
+            where: { tripId: { in: tripIds } },
+        });
+        if (existingItems.length > 0) {
+            const alreadyInvoiced = existingItems.map((i) => i.tripId).join(', ');
+            throw new common_1.BadRequestException(`Trip(s) already invoiced: ${alreadyInvoiced}`);
+        }
+        const trips = await this.prisma.trip.findMany({
+            where: { id: { in: tripIds } },
+            include: {
+                booking: { include: { customer: true } },
+                dutySlip: true,
             },
         });
+        if (trips.length !== tripIds.length) {
+            throw new common_1.NotFoundException('One or more trips not found');
+        }
+        for (const t of trips) {
+            if (t.booking.customerId !== invoice.customerId) {
+                throw new common_1.BadRequestException('Selected trip does not belong to this customer');
+            }
+        }
+        for (const trip of trips) {
+            const tripSubtotal = Number(trip.baseFareCharged) +
+                Number(trip.extraKmCharged) +
+                Number(trip.toll) +
+                Number(trip.parking) +
+                Number(trip.stateTaxCharged || 0) +
+                Number(trip.mcdCharged || 0) +
+                Number(trip.nightChargesCharged) +
+                Number(trip.extraHoursCharged) +
+                Number(trip.driverAllowance) +
+                Number(trip.miscChargesCharged);
+            const description = `Duty Slip: ${trip.dutySlip.dutySlipNumber}, Route: ${trip.booking.pickupLocation} to ${trip.booking.dropLocation}`;
+            await this.prisma.invoiceItem.create({
+                data: {
+                    tenantId: invoice.tenantId,
+                    invoiceId: invoice.id,
+                    tripId: trip.id,
+                    description,
+                    amount: tripSubtotal,
+                },
+            });
+        }
+        return this.recalculateAndSaveInvoice(invoiceId);
+    }
+    async recalculateAndSaveInvoice(invoiceId) {
+        const invoice = await this.prisma.invoice.findUnique({
+            where: { id: invoiceId },
+            include: {
+                customer: true,
+                items: {
+                    include: {
+                        trip: true,
+                    },
+                },
+            },
+        });
+        if (!invoice)
+            throw new common_1.NotFoundException('Invoice not found');
+        let baseFare = 0;
+        let extraKmCharges = 0;
+        let toll = 0;
+        let parking = 0;
+        let stateTax = 0;
+        let mcd = 0;
+        let nightCharges = 0;
+        let miscCharges = 0;
+        for (const item of invoice.items) {
+            const trip = item.trip;
+            if (!trip)
+                continue;
+            baseFare += Number(trip.baseFareCharged || 0);
+            extraKmCharges += Number(trip.extraKmCharged || 0);
+            toll += Number(trip.toll || 0);
+            parking += Number(trip.parking || 0);
+            stateTax += Number(trip.stateTaxCharged || 0);
+            mcd += Number(trip.mcdCharged || 0);
+            nightCharges += Number(trip.nightChargesCharged || 0);
+            miscCharges +=
+                Number(trip.extraHoursCharged || 0) +
+                    Number(trip.driverAllowance || 0) +
+                    Number(trip.miscChargesCharged || trip.extraCharges || 0);
+        }
+        const subtotal = baseFare +
+            extraKmCharges +
+            toll +
+            parking +
+            stateTax +
+            mcd +
+            nightCharges +
+            miscCharges;
+        const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd));
+        const cgstRate = Number(invoice.cgstRate || 0);
+        const sgstRate = Number(invoice.sgstRate || 0);
+        const igstRate = Number(invoice.igstRate || 0);
+        const cgstAmount = (gstTaxableAmount * cgstRate) / 100;
+        const sgstAmount = (gstTaxableAmount * sgstRate) / 100;
+        const igstAmount = (gstTaxableAmount * igstRate) / 100;
+        const totalTax = cgstAmount + sgstAmount + igstAmount;
+        const isRcm = !!invoice.isRcm;
+        const totalAmount = isRcm ? subtotal : subtotal + totalTax;
+        const paidAmount = Number(invoice.paidAmount || 0);
+        const dueAmount = Math.max(0, totalAmount - paidAmount);
+        let status = invoice.status;
+        if (status !== client_1.InvoiceStatus.CANCELLED && status !== client_1.InvoiceStatus.VOID) {
+            if (dueAmount === 0 && totalAmount > 0) {
+                status = client_1.InvoiceStatus.PAID;
+            }
+            else if (paidAmount > 0) {
+                status = client_1.InvoiceStatus.PARTIALLY_PAID;
+            }
+            else {
+                status = client_1.InvoiceStatus.UNPAID;
+            }
+        }
+        await this.prisma.invoice.update({
+            where: { id: invoiceId },
+            data: {
+                baseFare,
+                extraKmCharges,
+                toll,
+                parking,
+                stateTax,
+                mcd,
+                nightCharges,
+                miscCharges,
+                subtotal,
+                cgstAmount,
+                sgstAmount,
+                igstAmount,
+                totalTax,
+                totalAmount,
+                dueAmount,
+                status,
+            },
+        });
+        return this.findOne(invoiceId);
     }
     async generatePdf(id) {
         const invoice = await this.prisma.invoice.findUnique({
