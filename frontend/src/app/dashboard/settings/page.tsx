@@ -689,6 +689,274 @@ export default function CompanySettingsPage() {
                       />
                     </div>
                   </div>
+
+                  {/* LIVE SAMPLE PDF PREVIEW */}
+                  <div className="mt-8 pt-6 border-t border-slate-200 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-bold text-[#0F172A] flex items-center gap-2">
+                          <span>📄</span> Live Sample Invoice PDF Preview
+                        </h4>
+                        <p className="text-xs text-[#64748B] mt-0.5">
+                          Real-time document preview showing your customized brand colors, table header bars, typography, title headers, and footer blocks.
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-bold px-2.5 py-1 bg-blue-50 text-blue-600 rounded-full border border-blue-200/50 uppercase tracking-wider">
+                        Live Preview
+                      </span>
+                    </div>
+
+                    {/* Simulated Paper Document */}
+                    <div className="bg-slate-100 p-4 sm:p-6 rounded-2xl border border-slate-200 overflow-x-auto">
+                      <div
+                        className="bg-white shadow-xl rounded-lg p-6 sm:p-8 max-w-3xl mx-auto border border-slate-200 text-[#0F172A] text-xs space-y-4 transition-all duration-200"
+                        style={{
+                          fontFamily:
+                            formData.pdfFontFamily === 'Times-Roman'
+                              ? 'Georgia, serif'
+                              : formData.pdfFontFamily === 'Courier'
+                              ? 'Courier New, monospace'
+                              : 'Inter, sans-serif',
+                        }}
+                      >
+                        {/* Header Branding */}
+                        <div className="border-b border-slate-200 pb-4 space-y-2">
+                          <div className="flex items-start justify-between gap-4">
+                            {/* Logo */}
+                            {!formData.hideLogoOnPdf && (
+                              <div className="w-20 h-10 bg-slate-100 border border-slate-200 rounded flex items-center justify-center text-[10px] font-bold text-slate-400 shrink-0">
+                                {formData.logoUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={formData.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" />
+                                ) : (
+                                  'LOGO'
+                                )}
+                              </div>
+                            )}
+
+                            {/* Centered Title & Company Name */}
+                            <div className="flex-1 text-center space-y-1">
+                              <div className="text-xs font-bold uppercase tracking-wider text-slate-900 underline">
+                                {formData.invoiceTitle || 'TAX INVOICE'}
+                              </div>
+                              <h2
+                                className="text-2xl font-black tracking-tight uppercase"
+                                style={{ color: formData.pdfColorPrimary || '#1E3A8A' }}
+                              >
+                                {formData.name || 'ACME CABS'}
+                              </h2>
+                            </div>
+
+                            <div className="text-[9px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                              ORIGINAL
+                            </div>
+                          </div>
+
+                          {/* Company Details Strip */}
+                          <div className="grid grid-cols-3 gap-2 text-[10px] bg-slate-50 p-2.5 rounded border border-slate-100">
+                            <div>
+                              <span className="font-bold text-slate-700 block">GSTIN: <span className="font-normal text-slate-900">{formData.companyGst || '07CICPS3802E2ZH'}</span></span>
+                              <span className="font-bold text-slate-700 block">SAC NO.: <span className="font-normal text-slate-900">{formData.sacNo || '9966'}</span></span>
+                              <span className="font-bold text-slate-700 block">PAN NO.: <span className="font-normal text-slate-900">{formData.companyPan || 'CICPS3802E'}</span></span>
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-700 block">Address:</span>
+                              <span className="text-slate-900 leading-tight block truncate">{formData.companyAddress || 'E57/A, HARI NAGAR EXTN, NEW DELHI'}</span>
+                              <span className="font-bold text-slate-700 block mt-0.5">Email: <span className="font-normal text-slate-900">{formData.companyEmail || 'billing@acmecabs.com'}</span></span>
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-700 block">Contact No.:</span>
+                              <span className="text-slate-900 block">{formData.companyPhone || '9310632440'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Client Info Block */}
+                        <div className="grid grid-cols-2 gap-4 bg-slate-50/70 p-3 rounded border border-slate-200 text-[10px]">
+                          <div>
+                            <span className="font-bold text-slate-700">Client Name : </span>
+                            <span className="font-semibold text-slate-900">Acme Corp</span>
+                            <br />
+                            <span className="font-bold text-slate-700">Address : </span>
+                            <span className="text-slate-900">123 Business Tower, Delhi, India</span>
+                            <br />
+                            <span className="font-bold text-slate-700">G.S.T. IN : </span>
+                            <span className="text-slate-900">07AAAAA1111A1Z1</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-bold text-slate-700">Bill No. : </span>
+                            <span className="font-semibold text-slate-900">1</span>
+                            <br />
+                            <span className="font-bold text-slate-700">Bill Date : </span>
+                            <span className="text-slate-900">22/07/2026</span>
+                          </div>
+                        </div>
+
+                        {/* TABLE SECTION (DYNAMIC BRAND COLOR HEADER BAR) */}
+                        <div className="border border-slate-200 rounded overflow-hidden">
+                          {/* Table Header Bar with Dynamic Hex Color */}
+                          <div
+                            className="grid grid-cols-12 px-3 py-2 font-bold text-[10px] text-white tracking-wide"
+                            style={{ backgroundColor: formData.pdfColorPrimary || '#1E3A8A' }}
+                          >
+                            <div className="col-span-2 text-center">Date/D.S. No.</div>
+                            <div className="col-span-2 text-center">Vehicle Detail</div>
+                            <div className="col-span-5">Duty Description / Particulars</div>
+                            <div className="col-span-1 text-right">Rate</div>
+                            <div className="col-span-2 text-right">Amount</div>
+                          </div>
+
+                          {/* Item 1 */}
+                          <div className="grid grid-cols-12 px-3 py-2.5 text-[10px] border-b border-slate-100 bg-white">
+                            <div className="col-span-2 text-center font-bold text-slate-900">
+                              10/06/2026
+                              <span className="block font-normal text-slate-600">1001</span>
+                            </div>
+                            <div className="col-span-2 text-center font-bold text-slate-900">
+                              MARUTI
+                              <span className="block font-normal text-slate-600">1111</span>
+                            </div>
+                            <div className="col-span-5 space-y-0.5 text-slate-800">
+                              <span className="font-semibold block text-slate-900">Guest - Acme Corp</span>
+                              <span className="block text-slate-600 text-[9px]">LOCAL : 85 Kms & 8.00 Hrs. Duty</span>
+                              <div className="pl-2 space-y-0.5 text-[9px]">
+                                <div className="flex justify-between">
+                                  <span>UPTO 80 Kms. & 8 Hrs Duty</span>
+                                  <span className="font-mono">1800.00</span>
+                                </div>
+                                <div className="flex justify-between text-slate-600">
+                                  <span>Extra Km 5.00 @ 14.00</span>
+                                  <span className="font-mono">70.00</span>
+                                </div>
+                                <div className="flex justify-between text-slate-600">
+                                  <span>DRIVER ALLOWANCE 1 @ 250.00</span>
+                                  <span className="font-mono">250.00</span>
+                                </div>
+                                <div className="flex justify-between text-slate-600">
+                                  <span>Parking Charges</span>
+                                  <span className="font-mono">80.00</span>
+                                </div>
+                                <div className="flex justify-between text-slate-600">
+                                  <span>Toll Charges</span>
+                                  <span className="font-mono">120.00</span>
+                                </div>
+                              </div>
+                              <div
+                                className="font-bold pt-1 flex justify-between border-t border-slate-100 mt-1"
+                                style={{ color: formData.pdfColorPrimary || '#1E3A8A' }}
+                              >
+                                <span>DUTY SLIP TOTAL</span>
+                                <span className="font-mono">2320.00</span>
+                              </div>
+                            </div>
+                            <div className="col-span-1 text-right font-mono text-slate-600">1800.00</div>
+                            <div className="col-span-2 text-right font-mono font-bold text-slate-900">2320.00</div>
+                          </div>
+
+                          {/* Item 2 */}
+                          <div className="grid grid-cols-12 px-3 py-2.5 text-[10px] bg-slate-50/50">
+                            <div className="col-span-2 text-center font-bold text-slate-900">
+                              11/06/2026
+                              <span className="block font-normal text-slate-600">1002</span>
+                            </div>
+                            <div className="col-span-2 text-center font-bold text-slate-900">
+                              TOYOTA
+                              <span className="block font-normal text-slate-600">9999</span>
+                            </div>
+                            <div className="col-span-5 space-y-0.5 text-slate-800">
+                              <span className="font-semibold block text-slate-900">Guest - Acme Corp</span>
+                              <span className="block text-slate-600 text-[9px]">LOCAL : 90 Kms & 8.00 Hrs. Duty</span>
+                              <div className="pl-2 space-y-0.5 text-[9px]">
+                                <div className="flex justify-between">
+                                  <span>UPTO 80 Kms. & 8 Hrs Duty</span>
+                                  <span className="font-mono">2400.00</span>
+                                </div>
+                                <div className="flex justify-between text-slate-600">
+                                  <span>Extra Km 10.00 @ 18.00</span>
+                                  <span className="font-mono">180.00</span>
+                                </div>
+                                <div className="flex justify-between text-slate-600">
+                                  <span>DRIVER ALLOWANCE 1 @ 250.00</span>
+                                  <span className="font-mono">250.00</span>
+                                </div>
+                                <div className="flex justify-between text-slate-600">
+                                  <span>Parking Charges</span>
+                                  <span className="font-mono">100.00</span>
+                                </div>
+                                <div className="flex justify-between text-slate-600">
+                                  <span>Toll Charges</span>
+                                  <span className="font-mono">150.00</span>
+                                </div>
+                              </div>
+                              <div
+                                className="font-bold pt-1 flex justify-between border-t border-slate-100 mt-1"
+                                style={{ color: formData.pdfColorPrimary || '#1E3A8A' }}
+                              >
+                                <span>DUTY SLIP TOTAL</span>
+                                <span className="font-mono">3080.00</span>
+                              </div>
+                            </div>
+                            <div className="col-span-1 text-right font-mono text-slate-600">2400.00</div>
+                            <div className="col-span-2 text-right font-mono font-bold text-slate-900">3080.00</div>
+                          </div>
+                        </div>
+
+                        {/* Summary & Totals */}
+                        <div className="flex justify-end text-[10px]">
+                          <div className="w-64 space-y-1 bg-slate-50 p-3 rounded border border-slate-200">
+                            <div className="flex justify-between text-slate-700">
+                              <span>Sub Total:</span>
+                              <span className="font-mono font-semibold">₹5,400.00</span>
+                            </div>
+                            <div className="flex justify-between text-slate-600">
+                              <span>CGST (2.5%):</span>
+                              <span className="font-mono">₹135.00</span>
+                            </div>
+                            <div className="flex justify-between text-slate-600">
+                              <span>SGST (2.5%):</span>
+                              <span className="font-mono">₹135.00</span>
+                            </div>
+                            <div
+                              className="flex justify-between font-bold text-xs pt-1.5 border-t border-slate-300"
+                              style={{ color: formData.pdfColorPrimary || '#1E3A8A' }}
+                            >
+                              <span>Grand Total:</span>
+                              <span className="font-mono">₹5,670.00</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Footer: Bank Details */}
+                        {formData.pdfShowBank && (
+                          <div className="p-3 bg-blue-50/50 border border-blue-100 rounded text-[9px] text-slate-700 space-y-1">
+                            <span className="font-bold uppercase tracking-wider block" style={{ color: formData.pdfColorPrimary || '#1E3A8A' }}>
+                              Bank Account Details
+                            </span>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <span>Bank: <strong className="text-slate-900">{formData.bankName || 'HDFC Bank'}</strong></span>
+                                <span className="block">Branch: {formData.bankBranch || 'Connaught Place'}</span>
+                              </div>
+                              <div>
+                                <span>A/C No: <strong className="text-slate-900">{formData.bankAccountNo || '5010023456789'}</strong></span>
+                                <span className="block">IFSC: {formData.bankIfsc || 'HDFC0000123'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Footer: Terms & Conditions */}
+                        {formData.pdfShowTerms && (
+                          <div className="p-3 bg-slate-50 border border-slate-200 rounded text-[9px] text-slate-600 space-y-0.5">
+                            <span className="font-bold text-slate-900 uppercase block">Terms & Conditions</span>
+                            <p className="whitespace-pre-line leading-relaxed">
+                              {formData.termsAndConditions || '1. Payment due within 15 days of invoice date.\n2. All disputes subject to local jurisdiction.'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
