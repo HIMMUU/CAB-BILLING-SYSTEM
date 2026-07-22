@@ -31,7 +31,9 @@ export class SuperAdminController {
     const tenants = await this.prisma.tenant.findMany();
     const totalTenants = tenants.length;
     const activeTenants = tenants.filter((t) => t.status === 'ACTIVE').length;
-    const suspendedTenants = tenants.filter((t) => t.status === 'SUSPENDED').length;
+    const suspendedTenants = tenants.filter(
+      (t) => t.status === 'SUSPENDED',
+    ).length;
 
     // Calculate MRR based on active plans
     let mrr = 0;

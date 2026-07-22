@@ -1,4 +1,11 @@
-import { IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsDateString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class CreateRateCardDto {
   @IsUUID(4, { message: 'Customer ID must be a valid UUID' })
@@ -57,7 +64,10 @@ export class CreateRateCardDto {
   @IsOptional()
   nightEndTime?: string;
 
-  @IsDateString({}, { message: 'Effective date must be a valid ISO date string' })
+  @IsDateString(
+    {},
+    { message: 'Effective date must be a valid ISO date string' },
+  )
   @IsOptional()
   effectiveFrom?: string;
 

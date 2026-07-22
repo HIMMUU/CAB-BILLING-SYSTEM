@@ -4,7 +4,10 @@ import { TenantContextService } from '../common/context/tenant-context.service';
 import * as fs from 'fs';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   private _extendedClient: any;
 
   constructor(private readonly tenantContext: TenantContextService) {
@@ -37,20 +40,28 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
             if (tenantIsolatedModels.includes(model)) {
               let tenantId = tenantContext.getTenantId();
 
-              if (!tenantId && ['create', 'createMany', 'upsert'].includes(operation)) {
+              if (
+                !tenantId &&
+                ['create', 'createMany', 'upsert'].includes(operation)
+              ) {
                 let providedTenantId: string | undefined;
                 if (operation === 'createMany' && Array.isArray(anyArgs.data)) {
                   providedTenantId = anyArgs.data[0]?.tenantId;
                 } else if (operation === 'upsert') {
-                  providedTenantId = anyArgs.create?.tenantId || anyArgs.create?.tenant?.connect?.id;
+                  providedTenantId =
+                    anyArgs.create?.tenantId ||
+                    anyArgs.create?.tenant?.connect?.id;
                 } else {
-                  providedTenantId = anyArgs.data?.tenantId || anyArgs.data?.tenant?.connect?.id;
+                  providedTenantId =
+                    anyArgs.data?.tenantId || anyArgs.data?.tenant?.connect?.id;
                 }
 
                 if (providedTenantId) {
                   tenantId = providedTenantId;
                 } else {
-                  const firstTenant = await self.tenant.findFirst({ select: { id: true } });
+                  const firstTenant = await self.tenant.findFirst({
+                    select: { id: true },
+                  });
                   if (firstTenant) {
                     tenantId = firstTenant.id;
                   }
@@ -59,17 +70,25 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
               if (tenantId) {
                 // Intercept findUnique and findUniqueOrThrow to prevent Prisma validation error when adding tenantId
-                if (operation === 'findUnique' || operation === 'findUniqueOrThrow') {
-                  const modelKey = model.charAt(0).toLowerCase() + model.slice(1);
-                  const extendedModel = (self._extendedClient as any)[modelKey];
+                if (
+                  operation === 'findUnique' ||
+                  operation === 'findUniqueOrThrow'
+                ) {
+                  const modelKey =
+                    model.charAt(0).toLowerCase() + model.slice(1);
+                  const extendedModel = self._extendedClient[modelKey];
                   if (extendedModel) {
                     const newArgs = { ...args };
                     // If no valid unique keys are specified (e.g. id is undefined), we do NOT match any record.
                     // This matches standard Prisma behavior where querying with undefined unique ID throws validation error,
                     // but we can check it explicitly here to prevent fetching the first record.
                     const whereKeys = Object.keys(newArgs.where || {});
-                    const hasValidUniqueKey = whereKeys.some(key => newArgs.where[key] !== undefined && newArgs.where[key] !== null);
-                    
+                    const hasValidUniqueKey = whereKeys.some(
+                      (key) =>
+                        newArgs.where[key] !== undefined &&
+                        newArgs.where[key] !== null,
+                    );
+
                     if (!hasValidUniqueKey) {
                       // Let standard query proceed (which will throw Prisma validation error)
                       return query(anyArgs);
@@ -86,13 +105,18 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
                 // Intercept update and delete to prevent Prisma validation error when adding tenantId
                 if (operation === 'update' || operation === 'delete') {
-                  const modelKey = model.charAt(0).toLowerCase() + model.slice(1);
-                  const extendedModel = (self._extendedClient as any)[modelKey];
+                  const modelKey =
+                    model.charAt(0).toLowerCase() + model.slice(1);
+                  const extendedModel = self._extendedClient[modelKey];
                   const dbModel = (self as any)[modelKey];
                   if (extendedModel && dbModel) {
                     const whereKeys = Object.keys(args?.where || {});
-                    const hasValidUniqueKey = whereKeys.some(key => args.where[key] !== undefined && args.where[key] !== null);
-                    
+                    const hasValidUniqueKey = whereKeys.some(
+                      (key) =>
+                        args.where[key] !== undefined &&
+                        args.where[key] !== null,
+                    );
+
                     if (!hasValidUniqueKey) {
                       return query(anyArgs);
                     }
@@ -103,7 +127,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
                       select: { id: true },
                     });
                     if (!exists) {
-                      const error = new Error(`Record to ${operation} not found.`);
+                      const error = new Error(
+                        `Record to ${operation} not found.`,
+                      );
                       (error as any).code = 'P2025';
                       throw error;
                     }
@@ -169,10 +195,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           'constructor',
           'then',
         ];
-        if (
-          typeof prop === 'symbol' ||
-          localProps.includes(prop as string)
-        ) {
+        if (typeof prop === 'symbol' || localProps.includes(prop)) {
           const value = Reflect.get(target, prop, receiver);
           if (typeof value === 'function') {
             return value.bind(target);

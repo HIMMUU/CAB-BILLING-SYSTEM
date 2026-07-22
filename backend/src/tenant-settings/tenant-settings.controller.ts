@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Patch, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { TenantSettingsService } from './tenant-settings.service';
 import { UpdateTenantSettingsDto } from './dto/update-tenant-settings.dto';
 import { Permissions } from '../common/decorators/permissions.decorator';
@@ -28,4 +36,3 @@ export class TenantSettingsController {
     return this.tenantSettingsService.uploadImage(file);
   }
 }
-

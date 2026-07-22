@@ -1,8 +1,18 @@
-import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 import { DutySlipStatus } from '@prisma/client';
 
 export class UpdateDutySlipDto {
-  @IsDateString({}, { message: 'Reporting time must be a valid ISO date string' })
+  @IsDateString(
+    {},
+    { message: 'Reporting time must be a valid ISO date string' },
+  )
   @IsOptional()
   reportingTime?: string;
 
@@ -41,15 +51,23 @@ export class UpdateDutySlipDto {
   @IsOptional()
   extraCharges?: number;
 
-  @IsEnum(DutySlipStatus, { message: 'Status must be DRAFT, FILLED, or CLOSED' })
+  @IsEnum(DutySlipStatus, {
+    message: 'Status must be DRAFT, FILLED, or CLOSED',
+  })
   @IsOptional()
   status?: DutySlipStatus;
 
-  @IsDateString({}, { message: 'Start date time must be a valid ISO date string' })
+  @IsDateString(
+    {},
+    { message: 'Start date time must be a valid ISO date string' },
+  )
   @IsOptional()
   startDateTime?: string;
 
-  @IsDateString({}, { message: 'End date time must be a valid ISO date string' })
+  @IsDateString(
+    {},
+    { message: 'End date time must be a valid ISO date string' },
+  )
   @IsOptional()
   endDateTime?: string;
 

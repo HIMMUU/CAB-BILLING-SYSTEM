@@ -105,13 +105,20 @@ export class DashboardService {
     ]);
 
     // Initialize Map with past 7 days
-    const chartMap = new Map<string, { date: string; bookingsCount: number; revenueValue: number }>();
+    const chartMap = new Map<
+      string,
+      { date: string; bookingsCount: number; revenueValue: number }
+    >();
 
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(today.getDate() - i);
       const dateStr = d.toISOString().slice(0, 10);
-      chartMap.set(dateStr, { date: dateStr, bookingsCount: 0, revenueValue: 0 });
+      chartMap.set(dateStr, {
+        date: dateStr,
+        bookingsCount: 0,
+        revenueValue: 0,
+      });
     }
 
     // Populate booking counts

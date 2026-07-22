@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsUUID, Min, IsDateString } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsUUID,
+  Min,
+  IsDateString,
+} from 'class-validator';
 
 export class CloseTripDto {
   @IsUUID(4, { message: 'Duty Slip ID must be a valid UUID' })
@@ -60,11 +67,17 @@ export class CloseTripDto {
   @IsOptional()
   totalAmount?: number;
 
-  @IsDateString({}, { message: 'Start date time must be a valid ISO date string' })
+  @IsDateString(
+    {},
+    { message: 'Start date time must be a valid ISO date string' },
+  )
   @IsOptional()
   startDateTime?: string;
 
-  @IsDateString({}, { message: 'End date time must be a valid ISO date string' })
+  @IsDateString(
+    {},
+    { message: 'End date time must be a valid ISO date string' },
+  )
   @IsOptional()
   endDateTime?: string;
 

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContextService } from '../common/context/tenant-context.service';
 import { UpdateTenantSettingsDto } from './dto/update-tenant-settings.dto';
@@ -8,7 +12,8 @@ import { Readable } from 'stream';
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'dletrtogt',
   api_key: process.env.CLOUDINARY_API_KEY || '332573535758619',
-  api_secret: process.env.CLOUDINARY_API_SECRET || 'NIq4rqo-RcgvVdAndbxfwB5T12s',
+  api_secret:
+    process.env.CLOUDINARY_API_SECRET || 'NIq4rqo-RcgvVdAndbxfwB5T12s',
 });
 
 @Injectable()
@@ -69,10 +74,16 @@ export class TenantSettingsService {
         },
         (error, result) => {
           if (error) {
-            return reject(new BadRequestException(`Cloudinary upload failed: ${error.message}`));
+            return reject(
+              new BadRequestException(
+                `Cloudinary upload failed: ${error.message}`,
+              ),
+            );
           }
           if (!result) {
-            return reject(new BadRequestException('Cloudinary upload returned no result'));
+            return reject(
+              new BadRequestException('Cloudinary upload returned no result'),
+            );
           }
           resolve({ url: result.secure_url });
         },
@@ -85,4 +96,3 @@ export class TenantSettingsService {
     });
   }
 }
-

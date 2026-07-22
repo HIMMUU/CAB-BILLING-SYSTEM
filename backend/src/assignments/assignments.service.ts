@@ -1,9 +1,20 @@
-import { ConflictException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContextService } from '../common/context/tenant-context.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { UpdateAssignmentStatusDto } from './dto/update-assignment-status.dto';
-import { AssignmentStatus, DriverStatus, VehicleStatus, BookingStatus, DutySlipStatus } from '@prisma/client';
+import {
+  AssignmentStatus,
+  DriverStatus,
+  VehicleStatus,
+  BookingStatus,
+  DutySlipStatus,
+} from '@prisma/client';
 
 @Injectable()
 export class AssignmentsService {
@@ -22,8 +33,13 @@ export class AssignmentsService {
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
-    if (booking.status === BookingStatus.CANCELLED || booking.status === BookingStatus.COMPLETED) {
-      throw new BadRequestException('Cannot assign resources to a completed or cancelled booking');
+    if (
+      booking.status === BookingStatus.CANCELLED ||
+      booking.status === BookingStatus.COMPLETED
+    ) {
+      throw new BadRequestException(
+        'Cannot assign resources to a completed or cancelled booking',
+      );
     }
 
     // 2. Fetch driver and verify status
@@ -44,8 +60,13 @@ export class AssignmentsService {
     if (!vehicle) {
       throw new NotFoundException('Vehicle not found');
     }
-    if (vehicle.status === VehicleStatus.INACTIVE || vehicle.status === VehicleStatus.MAINTENANCE) {
-      throw new BadRequestException(`Selected vehicle is currently ${vehicle.status}`);
+    if (
+      vehicle.status === VehicleStatus.INACTIVE ||
+      vehicle.status === VehicleStatus.MAINTENANCE
+    ) {
+      throw new BadRequestException(
+        `Selected vehicle is currently ${vehicle.status}`,
+      );
     }
 
     // 4. Overlap Check: Check if driver already has an ACTIVE assignment on the target booking's date
@@ -59,7 +80,9 @@ export class AssignmentsService {
       },
     });
     if (overlappingDriver) {
-      throw new ConflictException('Driver is already assigned to another active trip on this date');
+      throw new ConflictException(
+        'Driver is already assigned to another active trip on this date',
+      );
     }
 
     // 5. Overlap Check: Check if vehicle already has an ACTIVE assignment on the target booking's date
@@ -73,7 +96,9 @@ export class AssignmentsService {
       },
     });
     if (overlappingVehicle) {
-      throw new ConflictException('Vehicle is already assigned to another active trip on this date');
+      throw new ConflictException(
+        'Vehicle is already assigned to another active trip on this date',
+      );
     }
 
     // 6. Run assignment within transaction
@@ -115,7 +140,7 @@ export class AssignmentsService {
       });
 
       // Construct reportingTime from booking pickupDate & pickupTime
-      let repTimeDate = new Date(booking.pickupDate);
+      const repTimeDate = new Date(booking.pickupDate);
       if (booking.pickupTime) {
         const timeParts = booking.pickupTime.split(':');
         if (timeParts.length >= 2) {
@@ -192,8 +217,12 @@ export class AssignmentsService {
       },
     });
 
-    const busyDriverIds = new Set(activeAssignmentsOnDate.map((a) => a.driverId));
-    const busyVehicleIds = new Set(activeAssignmentsOnDate.map((a) => a.vehicleId));
+    const busyDriverIds = new Set(
+      activeAssignmentsOnDate.map((a) => a.driverId),
+    );
+    const busyVehicleIds = new Set(
+      activeAssignmentsOnDate.map((a) => a.vehicleId),
+    );
 
     const availableDrivers = allDrivers.filter((d) => !busyDriverIds.has(d.id));
 
@@ -204,7 +233,9 @@ export class AssignmentsService {
       },
     });
 
-    const availableVehicles = allVehicles.filter((v) => !busyVehicleIds.has(v.id));
+    const availableVehicles = allVehicles.filter(
+      (v) => !busyVehicleIds.has(v.id),
+    );
 
     return {
       drivers: availableDrivers,
@@ -298,7 +329,9 @@ export class AssignmentsService {
     }
 
     if (assignment.status !== AssignmentStatus.ACTIVE) {
-      throw new BadRequestException('Can only update status of ACTIVE assignments');
+      throw new BadRequestException(
+        'Can only update status of ACTIVE assignments',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {

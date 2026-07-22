@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { TenantContextService } from '../context/tenant-context.service';
@@ -22,7 +27,9 @@ export class TenantGuard implements CanActivate {
 
     const user = this.tenantContext.getUser();
     if (!user) {
-      throw new UnauthorizedException('Authentication token is missing or invalid');
+      throw new UnauthorizedException(
+        'Authentication token is missing or invalid',
+      );
     }
 
     // Tenant-specific check: if user role is not SUPER_ADMIN, they MUST have a tenantId

@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -27,6 +28,12 @@ import { SuperAdminModule } from './super-admin/super-admin.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     PrismaModule,
     AuthModule,
     CustomersModule,
@@ -49,6 +56,10 @@ import { SuperAdminModule } from './super-admin/super-admin.module';
     AppService,
     {
       provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
       useClass: TenantGuard,
     },
     {
@@ -62,9 +73,7 @@ import { SuperAdminModule } from './super-admin/super-admin.module';
   ],
 })
 export class AppModule implements NestModule {
-
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(TenantContextMiddleware).forRoutes('*');
   }
 }
-

@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
@@ -16,7 +21,9 @@ export class AuthService {
     // 1. Enforce 100 tenants limit
     const tenantCount = await this.prisma.tenant.count();
     if (tenantCount >= 100) {
-      throw new BadRequestException('SaaS instance has reached its limit of 100 tenants.');
+      throw new BadRequestException(
+        'SaaS instance has reached its limit of 100 tenants.',
+      );
     }
 
     // 2. Validate email uniqueness globally
@@ -29,12 +36,20 @@ export class AuthService {
       },
     });
     if (existingUser) {
-      throw new ConflictException('A user with this email address already exists.');
+      throw new ConflictException(
+        'A user with this email address already exists.',
+      );
     }
 
     // 3. Create Tenant and User inside a transaction
     const passwordHash = await bcrypt.hash(dto.password, 10);
-    const slug = dto.companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Math.floor(1000 + Math.random() * 9000);
+    const slug =
+      dto.companyName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') +
+      '-' +
+      Math.floor(1000 + Math.random() * 9000);
 
     const result = await this.prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
@@ -57,9 +72,9 @@ export class AuthService {
         data: {
           tenantId: tenant.id,
           taxName: 'GST (Local Cabs)',
-          cgst: 2.50,
-          sgst: 2.50,
-          igst: 5.00,
+          cgst: 2.5,
+          sgst: 2.5,
+          igst: 5.0,
           isActive: true,
           effectiveFrom: new Date(),
         },
@@ -104,10 +119,15 @@ export class AuthService {
     }
 
     if (user.status !== 'ACTIVE') {
-      throw new UnauthorizedException(`User account is ${user.status.toLowerCase()}`);
+      throw new UnauthorizedException(
+        `User account is ${user.status.toLowerCase()}`,
+      );
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(
+      dto.password,
+      user.passwordHash,
+    );
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
@@ -156,7 +176,9 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(accessPayload);
-    const refreshToken = this.jwtService.sign(refreshPayload, { expiresIn: '7d' });
+    const refreshToken = this.jwtService.sign(refreshPayload, {
+      expiresIn: '7d',
+    });
 
     return {
       accessToken,

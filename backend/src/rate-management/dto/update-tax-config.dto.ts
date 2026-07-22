@@ -1,4 +1,12 @@
-import { IsBoolean, IsDateString, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class UpdateTaxConfigDto {
   @IsString()
@@ -23,7 +31,10 @@ export class UpdateTaxConfigDto {
   @IsOptional()
   igst?: number;
 
-  @IsDateString({}, { message: 'Effective date must be a valid ISO date string' })
+  @IsDateString(
+    {},
+    { message: 'Effective date must be a valid ISO date string' },
+  )
   @IsOptional()
   effectiveFrom?: string;
 

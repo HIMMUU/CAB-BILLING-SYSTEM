@@ -1,11 +1,22 @@
-import { IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+} from 'class-validator';
 
 export class CreateDutySlipDto {
   @IsUUID(4, { message: 'Booking ID must be a valid UUID' })
   @IsOptional()
   bookingId?: string;
 
-  @IsDateString({}, { message: 'Reporting time must be a valid ISO date string' })
+  @IsDateString(
+    {},
+    { message: 'Reporting time must be a valid ISO date string' },
+  )
   @IsNotEmpty({ message: 'Reporting time is required' })
   reportingTime: string;
 

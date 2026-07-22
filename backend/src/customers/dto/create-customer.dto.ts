@@ -1,4 +1,12 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, Matches, ValidateIf } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  ValidateIf,
+} from 'class-validator';
 import { CustomerType } from '@prisma/client';
 
 export class CreateCustomerDto {
@@ -26,7 +34,9 @@ export class CreateCustomerDto {
 
   @IsString()
   @IsNotEmpty({ message: 'Phone number is required' })
-  @Matches(/^\+?[0-9]{10,15}$/, { message: 'Phone number must be a valid 10-15 digit string' })
+  @Matches(/^\+?[0-9]{10,15}$/, {
+    message: 'Phone number must be a valid 10-15 digit string',
+  })
   phone: string;
 
   @IsString()

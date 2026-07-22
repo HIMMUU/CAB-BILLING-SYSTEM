@@ -29,7 +29,6 @@ export class TenantContextMiddleware implements NestMiddleware {
         // Attach user to req for current-user decorator and standard NestJS guards
         (req as any).user = store.user;
         return this.tenantContextService.runWithContext(store, () => next());
-
       } catch (error) {
         // Token verification failed or expired - run with empty context, guard will catch
         return this.tenantContextService.runWithContext({}, () => next());

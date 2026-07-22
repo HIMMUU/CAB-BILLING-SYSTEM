@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
@@ -14,7 +18,9 @@ export class DriversService {
       where: { mobile: dto.mobile },
     });
     if (existingMobile) {
-      throw new ConflictException('A driver with this mobile number already exists');
+      throw new ConflictException(
+        'A driver with this mobile number already exists',
+      );
     }
 
     // Check license uniqueness per tenant
@@ -22,7 +28,9 @@ export class DriversService {
       where: { licenseNumber: dto.licenseNumber },
     });
     if (existingLicense) {
-      throw new ConflictException('A driver with this license number already exists');
+      throw new ConflictException(
+        'A driver with this license number already exists',
+      );
     }
 
     return this.prisma.driver.create({
@@ -105,7 +113,9 @@ export class DriversService {
         where: { mobile: dto.mobile },
       });
       if (existingMobile) {
-        throw new ConflictException('A driver with this mobile number already exists');
+        throw new ConflictException(
+          'A driver with this mobile number already exists',
+        );
       }
     }
 
@@ -114,7 +124,9 @@ export class DriversService {
         where: { licenseNumber: dto.licenseNumber },
       });
       if (existingLicense) {
-        throw new ConflictException('A driver with this license number already exists');
+        throw new ConflictException(
+          'A driver with this license number already exists',
+        );
       }
     }
 
@@ -124,7 +136,9 @@ export class DriversService {
         name: dto.name,
         mobile: dto.mobile,
         licenseNumber: dto.licenseNumber,
-        licenseExpiry: dto.licenseExpiry ? new Date(dto.licenseExpiry) : undefined,
+        licenseExpiry: dto.licenseExpiry
+          ? new Date(dto.licenseExpiry)
+          : undefined,
         address: dto.address,
         emergencyContact: dto.emergencyContact,
         status: dto.status,

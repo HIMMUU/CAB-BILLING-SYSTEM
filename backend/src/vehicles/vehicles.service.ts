@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
@@ -20,7 +24,9 @@ export class VehiclesService {
     });
 
     if (existing) {
-      throw new ConflictException('A vehicle with this registration plate already exists');
+      throw new ConflictException(
+        'A vehicle with this registration plate already exists',
+      );
     }
 
     return this.prisma.vehicle.create({
@@ -56,7 +62,12 @@ export class VehiclesService {
 
     if (query.search) {
       where.OR = [
-        { vehicleNumber: { contains: this.cleanVehicleNumber(query.search), mode: 'insensitive' } },
+        {
+          vehicleNumber: {
+            contains: this.cleanVehicleNumber(query.search),
+            mode: 'insensitive',
+          },
+        },
         { model: { contains: query.search, mode: 'insensitive' } },
         { vehicleType: { contains: query.search, mode: 'insensitive' } },
       ];
@@ -109,7 +120,9 @@ export class VehiclesService {
         });
 
         if (existing) {
-          throw new ConflictException('A vehicle with this registration plate already exists');
+          throw new ConflictException(
+            'A vehicle with this registration plate already exists',
+          );
         }
       }
     }
@@ -121,9 +134,15 @@ export class VehiclesService {
         vehicleType: dto.vehicleType,
         model: dto.model,
         seatingCapacity: dto.seatingCapacity,
-        registrationDate: dto.registrationDate ? new Date(dto.registrationDate) : undefined,
-        insuranceExpiry: dto.insuranceExpiry ? new Date(dto.insuranceExpiry) : undefined,
-        fitnessExpiry: dto.fitnessExpiry ? new Date(dto.fitnessExpiry) : undefined,
+        registrationDate: dto.registrationDate
+          ? new Date(dto.registrationDate)
+          : undefined,
+        insuranceExpiry: dto.insuranceExpiry
+          ? new Date(dto.insuranceExpiry)
+          : undefined,
+        fitnessExpiry: dto.fitnessExpiry
+          ? new Date(dto.fitnessExpiry)
+          : undefined,
         permitExpiry: dto.permitExpiry ? new Date(dto.permitExpiry) : undefined,
         status: dto.status,
       },

@@ -13,7 +13,8 @@ export interface TenantContextStore {
 
 @Injectable()
 export class TenantContextService {
-  private static readonly asyncLocalStorage = new AsyncLocalStorage<TenantContextStore>();
+  private static readonly asyncLocalStorage =
+    new AsyncLocalStorage<TenantContextStore>();
 
   runWithContext<T>(store: TenantContextStore, callback: () => T): T {
     return TenantContextService.asyncLocalStorage.run(store, callback);

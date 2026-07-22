@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContextService } from '../common/context/tenant-context.service';
 import { CreateRateCardDto } from './dto/create-rate-card.dto';
@@ -95,12 +100,14 @@ export class RateManagementService {
         nightCharge: dto.nightCharge ?? 0,
         nightStartTime: dto.nightStartTime || '23:00',
         nightEndTime: dto.nightEndTime || '05:00',
-        minHr: dto.minHr ?? 4.00,
-        minKm: dto.minKm ?? 40.00,
-        fullHr: dto.fullHr ?? 8.00,
-        fullKm: dto.fullKm ?? 80.00,
+        minHr: dto.minHr ?? 4.0,
+        minKm: dto.minKm ?? 40.0,
+        fullHr: dto.fullHr ?? 8.0,
+        fullKm: dto.fullKm ?? 80.0,
         outstationNightCharge: dto.outstationNightCharge ?? 0,
-        effectiveFrom: dto.effectiveFrom ? new Date(dto.effectiveFrom) : new Date(),
+        effectiveFrom: dto.effectiveFrom
+          ? new Date(dto.effectiveFrom)
+          : new Date(),
         status: dto.status || 'ACTIVE',
       },
       include: {
@@ -109,7 +116,13 @@ export class RateManagementService {
       },
     });
 
-    await this.writeAuditLog('RATE_CARD_CREATE', 'rate_cards', rateCard.id, null, rateCard);
+    await this.writeAuditLog(
+      'RATE_CARD_CREATE',
+      'rate_cards',
+      rateCard.id,
+      null,
+      rateCard,
+    );
     return rateCard;
   }
 
@@ -202,26 +215,35 @@ export class RateManagementService {
     const oldRateCard = await this.findOneRateCard(id);
 
     const updateData: any = {};
-    if (dto.customerId !== undefined) updateData.customerId = dto.customerId || null;
+    if (dto.customerId !== undefined)
+      updateData.customerId = dto.customerId || null;
     if (dto.clientType !== undefined) updateData.clientType = dto.clientType;
-    if (dto.vehicleCategoryId !== undefined) updateData.vehicleCategoryId = dto.vehicleCategoryId;
+    if (dto.vehicleCategoryId !== undefined)
+      updateData.vehicleCategoryId = dto.vehicleCategoryId;
     if (dto.halfDayRate !== undefined) updateData.halfDayRate = dto.halfDayRate;
     if (dto.fullDayRate !== undefined) updateData.fullDayRate = dto.fullDayRate;
     if (dto.includedKm !== undefined) updateData.includedKm = dto.includedKm;
     if (dto.extraKmRate !== undefined) updateData.extraKmRate = dto.extraKmRate;
-    if (dto.extraHourRate !== undefined) updateData.extraHourRate = dto.extraHourRate;
+    if (dto.extraHourRate !== undefined)
+      updateData.extraHourRate = dto.extraHourRate;
     if (dto.minKmPerDay !== undefined) updateData.minKmPerDay = dto.minKmPerDay;
-    if (dto.outstationRatePerKm !== undefined) updateData.outstationRatePerKm = dto.outstationRatePerKm;
-    if (dto.driverAllowance !== undefined) updateData.driverAllowance = dto.driverAllowance;
+    if (dto.outstationRatePerKm !== undefined)
+      updateData.outstationRatePerKm = dto.outstationRatePerKm;
+    if (dto.driverAllowance !== undefined)
+      updateData.driverAllowance = dto.driverAllowance;
     if (dto.nightCharge !== undefined) updateData.nightCharge = dto.nightCharge;
-    if (dto.nightStartTime !== undefined) updateData.nightStartTime = dto.nightStartTime;
-    if (dto.nightEndTime !== undefined) updateData.nightEndTime = dto.nightEndTime;
+    if (dto.nightStartTime !== undefined)
+      updateData.nightStartTime = dto.nightStartTime;
+    if (dto.nightEndTime !== undefined)
+      updateData.nightEndTime = dto.nightEndTime;
     if (dto.minHr !== undefined) updateData.minHr = dto.minHr;
     if (dto.minKm !== undefined) updateData.minKm = dto.minKm;
     if (dto.fullHr !== undefined) updateData.fullHr = dto.fullHr;
     if (dto.fullKm !== undefined) updateData.fullKm = dto.fullKm;
-    if (dto.outstationNightCharge !== undefined) updateData.outstationNightCharge = dto.outstationNightCharge;
-    if (dto.effectiveFrom !== undefined) updateData.effectiveFrom = new Date(dto.effectiveFrom);
+    if (dto.outstationNightCharge !== undefined)
+      updateData.outstationNightCharge = dto.outstationNightCharge;
+    if (dto.effectiveFrom !== undefined)
+      updateData.effectiveFrom = new Date(dto.effectiveFrom);
     if (dto.status !== undefined) updateData.status = dto.status;
 
     const rateCard = await this.prisma.rateCard.update({
@@ -233,7 +255,13 @@ export class RateManagementService {
       },
     });
 
-    await this.writeAuditLog('RATE_CARD_UPDATE', 'rate_cards', id, oldRateCard, rateCard);
+    await this.writeAuditLog(
+      'RATE_CARD_UPDATE',
+      'rate_cards',
+      id,
+      oldRateCard,
+      rateCard,
+    );
     return rateCard;
   }
 
@@ -272,7 +300,13 @@ export class RateManagementService {
       },
     });
 
-    await this.writeAuditLog('RATE_CARD_CLONE', 'rate_cards', cloned.id, rateCard, cloned);
+    await this.writeAuditLog(
+      'RATE_CARD_CLONE',
+      'rate_cards',
+      cloned.id,
+      rateCard,
+      cloned,
+    );
     return cloned;
   }
 
@@ -285,14 +319,17 @@ export class RateManagementService {
         where: { customerId: rateCard.customerId },
       });
       if (invoicesCount > 0) {
-        throw new BadRequestException('This rate card cannot be deleted because invoices have been issued for this customer.');
+        throw new BadRequestException(
+          'This rate card cannot be deleted because invoices have been issued for this customer.',
+        );
       }
     } else {
       // Default rate card check: check if any invoices are present in the system for this customer clientType and vehicle category
       const invoicesCount = await this.prisma.invoice.count({
         where: {
           customer: {
-            type: rateCard.clientType === 'Individual' ? 'INDIVIDUAL' : 'CORPORATE',
+            type:
+              rateCard.clientType === 'Individual' ? 'INDIVIDUAL' : 'CORPORATE',
           },
           items: {
             some: {
@@ -308,7 +345,9 @@ export class RateManagementService {
         },
       });
       if (invoicesCount > 0) {
-        throw new BadRequestException('This rate card cannot be deleted because invoices have been generated using this default vehicle category rate.');
+        throw new BadRequestException(
+          'This rate card cannot be deleted because invoices have been generated using this default vehicle category rate.',
+        );
       }
     }
 
@@ -316,7 +355,13 @@ export class RateManagementService {
       where: { id },
     });
 
-    await this.writeAuditLog('RATE_CARD_DELETE', 'rate_cards', id, rateCard, null);
+    await this.writeAuditLog(
+      'RATE_CARD_DELETE',
+      'rate_cards',
+      id,
+      rateCard,
+      null,
+    );
     return { success: true };
   }
 
@@ -365,7 +410,9 @@ export class RateManagementService {
 
     const csvContent = [
       headers.join(','),
-      ...rows.map((row) => row.map((val) => `"${val.replace(/"/g, '""')}"`).join(',')),
+      ...rows.map((row) =>
+        row.map((val) => `"${val.replace(/"/g, '""')}"`).join(','),
+      ),
     ].join('\n');
 
     return csvContent;
@@ -394,12 +441,20 @@ export class RateManagementService {
           cgst: dto.cgst,
           sgst: dto.sgst,
           igst: dto.igst,
-          effectiveFrom: dto.effectiveFrom ? new Date(dto.effectiveFrom) : new Date(),
+          effectiveFrom: dto.effectiveFrom
+            ? new Date(dto.effectiveFrom)
+            : new Date(),
           isActive: dto.isActive ?? false,
         },
       });
 
-      await this.writeAuditLog('TAX_CONFIG_CREATE', 'tax_configurations', taxConfig.id, null, taxConfig);
+      await this.writeAuditLog(
+        'TAX_CONFIG_CREATE',
+        'tax_configurations',
+        taxConfig.id,
+        null,
+        taxConfig,
+      );
       return taxConfig;
     });
   }
@@ -438,7 +493,8 @@ export class RateManagementService {
       if (dto.cgst !== undefined) updateData.cgst = dto.cgst;
       if (dto.sgst !== undefined) updateData.sgst = dto.sgst;
       if (dto.igst !== undefined) updateData.igst = dto.igst;
-      if (dto.effectiveFrom !== undefined) updateData.effectiveFrom = new Date(dto.effectiveFrom);
+      if (dto.effectiveFrom !== undefined)
+        updateData.effectiveFrom = new Date(dto.effectiveFrom);
       if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
 
       const taxConfig = await tx.taxConfiguration.update({
@@ -446,7 +502,13 @@ export class RateManagementService {
         data: updateData,
       });
 
-      await this.writeAuditLog('TAX_CONFIG_UPDATE', 'tax_configurations', id, oldTaxConfig, taxConfig);
+      await this.writeAuditLog(
+        'TAX_CONFIG_UPDATE',
+        'tax_configurations',
+        id,
+        oldTaxConfig,
+        taxConfig,
+      );
       return taxConfig;
     });
   }
@@ -471,7 +533,13 @@ export class RateManagementService {
         data: { isActive: true },
       });
 
-      await this.writeAuditLog('TAX_CONFIG_ACTIVATE', 'tax_configurations', id, oldTaxConfig, taxConfig);
+      await this.writeAuditLog(
+        'TAX_CONFIG_ACTIVATE',
+        'tax_configurations',
+        id,
+        oldTaxConfig,
+        taxConfig,
+      );
       return taxConfig;
     });
   }
@@ -479,14 +547,22 @@ export class RateManagementService {
   async removeTaxConfig(id: string) {
     const taxConfig = await this.findOneTaxConfig(id);
     if (taxConfig.isActive) {
-      throw new BadRequestException('Active tax configurations cannot be deleted. Activate another configuration first.');
+      throw new BadRequestException(
+        'Active tax configurations cannot be deleted. Activate another configuration first.',
+      );
     }
 
     await this.prisma.taxConfiguration.delete({
       where: { id },
     });
 
-    await this.writeAuditLog('TAX_CONFIG_DELETE', 'tax_configurations', id, taxConfig, null);
+    await this.writeAuditLog(
+      'TAX_CONFIG_DELETE',
+      'tax_configurations',
+      id,
+      taxConfig,
+      null,
+    );
     return { success: true };
   }
 

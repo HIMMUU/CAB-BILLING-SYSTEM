@@ -1,4 +1,13 @@
-import { IsBoolean, IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class CreateTaxConfigDto {
   @IsString()
@@ -20,7 +29,10 @@ export class CreateTaxConfigDto {
   @Max(100)
   igst: number;
 
-  @IsDateString({}, { message: 'Effective date must be a valid ISO date string' })
+  @IsDateString(
+    {},
+    { message: 'Effective date must be a valid ISO date string' },
+  )
   @IsOptional()
   effectiveFrom?: string;
 

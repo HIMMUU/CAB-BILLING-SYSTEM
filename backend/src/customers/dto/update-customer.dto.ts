@@ -1,4 +1,11 @@
-import { IsEmail, IsEnum, IsOptional, IsString, Matches, ValidateIf } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsString,
+  Matches,
+  ValidateIf,
+} from 'class-validator';
 import { CustomerType } from '@prisma/client';
 
 export class UpdateCustomerDto {
@@ -27,7 +34,9 @@ export class UpdateCustomerDto {
 
   @IsString()
   @IsOptional()
-  @Matches(/^\+?[0-9]{10,15}$/, { message: 'Phone number must be a valid 10-15 digit string' })
+  @Matches(/^\+?[0-9]{10,15}$/, {
+    message: 'Phone number must be a valid 10-15 digit string',
+  })
   phone?: string;
 
   @IsString()

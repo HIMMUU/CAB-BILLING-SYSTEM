@@ -1,4 +1,10 @@
-import { IsDateString, IsEnum, IsOptional, IsString, Matches } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+  Matches,
+} from 'class-validator';
 import { DriverStatus } from '@prisma/client';
 
 export class UpdateDriverDto {
@@ -8,14 +14,19 @@ export class UpdateDriverDto {
 
   @IsString()
   @IsOptional()
-  @Matches(/^\+?[0-9]{10,15}$/, { message: 'Mobile number must be a valid 10-15 digit string' })
+  @Matches(/^\+?[0-9]{10,15}$/, {
+    message: 'Mobile number must be a valid 10-15 digit string',
+  })
   mobile?: string;
 
   @IsString()
   @IsOptional()
   licenseNumber?: string;
 
-  @IsDateString({}, { message: 'License expiry must be a valid ISO date string' })
+  @IsDateString(
+    {},
+    { message: 'License expiry must be a valid ISO date string' },
+  )
   @IsOptional()
   licenseExpiry?: string;
 
@@ -27,7 +38,9 @@ export class UpdateDriverDto {
   @IsOptional()
   emergencyContact?: string;
 
-  @IsEnum(DriverStatus, { message: 'Status must be AVAILABLE, ON_TRIP, or INACTIVE' })
+  @IsEnum(DriverStatus, {
+    message: 'Status must be AVAILABLE, ON_TRIP, or INACTIVE',
+  })
   @IsOptional()
   status?: DriverStatus;
 }

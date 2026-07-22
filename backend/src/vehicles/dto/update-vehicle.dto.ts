@@ -1,4 +1,11 @@
-import { IsDateString, IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 import { VehicleStatus } from '@prisma/client';
 
 export class UpdateVehicleDto {
@@ -19,23 +26,37 @@ export class UpdateVehicleDto {
   @IsOptional()
   seatingCapacity?: number;
 
-  @IsDateString({}, { message: 'Registration date must be a valid ISO date string' })
+  @IsDateString(
+    {},
+    { message: 'Registration date must be a valid ISO date string' },
+  )
   @IsOptional()
   registrationDate?: string;
 
-  @IsDateString({}, { message: 'Insurance expiry date must be a valid ISO date string' })
+  @IsDateString(
+    {},
+    { message: 'Insurance expiry date must be a valid ISO date string' },
+  )
   @IsOptional()
   insuranceExpiry?: string;
 
-  @IsDateString({}, { message: 'Fitness expiry date must be a valid ISO date string' })
+  @IsDateString(
+    {},
+    { message: 'Fitness expiry date must be a valid ISO date string' },
+  )
   @IsOptional()
   fitnessExpiry?: string;
 
-  @IsDateString({}, { message: 'Permit expiry date must be a valid ISO date string' })
+  @IsDateString(
+    {},
+    { message: 'Permit expiry date must be a valid ISO date string' },
+  )
   @IsOptional()
   permitExpiry?: string;
 
-  @IsEnum(VehicleStatus, { message: 'Status must be AVAILABLE, ON_TRIP, MAINTENANCE, or INACTIVE' })
+  @IsEnum(VehicleStatus, {
+    message: 'Status must be AVAILABLE, ON_TRIP, MAINTENANCE, or INACTIVE',
+  })
   @IsOptional()
   status?: VehicleStatus;
 }

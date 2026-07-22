@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Header } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Header,
+} from '@nestjs/common';
 import { RateManagementService } from './rate-management.service';
 import { CreateRateCardDto } from './dto/create-rate-card.dto';
 import { UpdateRateCardDto } from './dto/update-rate-card.dto';
@@ -69,7 +79,10 @@ export class RateManagementController {
 
   @Patch('rate-cards/:id')
   @Permissions(Permission.RATE_CRUD)
-  updateRateCard(@Param('id') id: string, @Body() updateRateCardDto: UpdateRateCardDto) {
+  updateRateCard(
+    @Param('id') id: string,
+    @Body() updateRateCardDto: UpdateRateCardDto,
+  ) {
     return this.rateManagementService.updateRateCard(id, updateRateCardDto);
   }
 
@@ -109,7 +122,10 @@ export class RateManagementController {
 
   @Patch('tax-configs/:id')
   @Permissions(Permission.RATE_CRUD)
-  updateTaxConfig(@Param('id') id: string, @Body() updateTaxConfigDto: UpdateTaxConfigDto) {
+  updateTaxConfig(
+    @Param('id') id: string,
+    @Body() updateTaxConfigDto: UpdateTaxConfigDto,
+  ) {
     return this.rateManagementService.updateTaxConfig(id, updateTaxConfigDto);
   }
 

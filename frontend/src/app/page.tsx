@@ -13,6 +13,7 @@ export default function LandingPage() {
   useEffect(() => {
     const token = api.getToken();
     if (token) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsAuthenticated(true);
     }
     setLoading(false);
@@ -73,9 +74,6 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="flex-1 max-w-7xl mx-auto w-full px-6 pt-16 pb-20 flex flex-col lg:flex-row items-center gap-12">
         <div className="flex-1 space-y-6 text-center lg:text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200/50 rounded-full text-[10px] font-bold text-blue-600 uppercase tracking-wide">
-            🚀 Capped Instance (100 Active Tenants Max)
-          </div>
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-tight text-[#0F172A]">
             The Quantum Leap in{' '}
             <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
@@ -248,10 +246,6 @@ export default function LandingPage() {
               C
             </div>
             <span>© 2026 CABBS Cab Billing System. All rights reserved.</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span>Powered by</span>
-            <span className="font-bold text-white tracking-wide">Antigravity AI Platform</span>
           </div>
         </div>
       </footer>

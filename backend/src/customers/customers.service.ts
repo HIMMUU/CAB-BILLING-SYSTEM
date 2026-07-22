@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
@@ -14,7 +18,9 @@ export class CustomersService {
     });
 
     if (existing) {
-      throw new ConflictException('A customer with this phone number already exists');
+      throw new ConflictException(
+        'A customer with this phone number already exists',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -42,7 +48,9 @@ export class CustomersService {
           let catId = card.vehicleCategoryId;
           if (!catId && card.vehicleCategoryName) {
             let category = await tx.vehicleCategory.findFirst({
-              where: { name: { equals: card.vehicleCategoryName, mode: 'insensitive' } },
+              where: {
+                name: { equals: card.vehicleCategoryName, mode: 'insensitive' },
+              },
             });
             if (!category) {
               category = await tx.vehicleCategory.create({
@@ -75,7 +83,9 @@ export class CustomersService {
                 fullHr: card.fullHr ?? 8,
                 fullKm: card.fullKm ?? 80,
                 outstationNightCharge: card.outstationNightCharge ?? 0,
-                effectiveFrom: card.effectiveFrom ? new Date(card.effectiveFrom) : new Date(),
+                effectiveFrom: card.effectiveFrom
+                  ? new Date(card.effectiveFrom)
+                  : new Date(),
                 status: card.status || 'ACTIVE',
               },
             });
@@ -86,7 +96,6 @@ export class CustomersService {
       return customer;
     });
   }
-
 
   async findAll(query: {
     page?: number;
@@ -163,7 +172,9 @@ export class CustomersService {
       });
 
       if (existing) {
-        throw new ConflictException('A customer with this phone number already exists');
+        throw new ConflictException(
+          'A customer with this phone number already exists',
+        );
       }
     }
 
@@ -176,7 +187,10 @@ export class CustomersService {
           name: dto.name,
           companyName: dto.companyName,
           type,
-          gstNumber: type === CustomerType.CORPORATE ? (dto.gstNumber ?? customer.gstNumber) : null,
+          gstNumber:
+            type === CustomerType.CORPORATE
+              ? (dto.gstNumber ?? customer.gstNumber)
+              : null,
           email: dto.email,
           phone: dto.phone,
           billingAddress: dto.billingAddress,
@@ -201,7 +215,9 @@ export class CustomersService {
           let catId = card.vehicleCategoryId;
           if (!catId && card.vehicleCategoryName) {
             let category = await tx.vehicleCategory.findFirst({
-              where: { name: { equals: card.vehicleCategoryName, mode: 'insensitive' } },
+              where: {
+                name: { equals: card.vehicleCategoryName, mode: 'insensitive' },
+              },
             });
             if (!category) {
               category = await tx.vehicleCategory.create({
@@ -216,7 +232,8 @@ export class CustomersService {
               data: {
                 tenantId: updated.tenantId,
                 customerId: updated.id,
-                clientType: dto.clientType || updated.clientType || 'Individual',
+                clientType:
+                  dto.clientType || updated.clientType || 'Individual',
                 vehicleCategoryId: catId,
                 halfDayRate: card.halfDayRate ?? 0,
                 fullDayRate: card.fullDayRate ?? 0,
@@ -234,7 +251,9 @@ export class CustomersService {
                 fullHr: card.fullHr ?? 8,
                 fullKm: card.fullKm ?? 80,
                 outstationNightCharge: card.outstationNightCharge ?? 0,
-                effectiveFrom: card.effectiveFrom ? new Date(card.effectiveFrom) : new Date(),
+                effectiveFrom: card.effectiveFrom
+                  ? new Date(card.effectiveFrom)
+                  : new Date(),
                 status: card.status || 'ACTIVE',
               },
             });

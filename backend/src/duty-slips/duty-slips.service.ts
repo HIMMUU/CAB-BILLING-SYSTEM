@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import * as path from 'path';
 import * as fs from 'fs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -12,13 +17,15 @@ export class DutySlipsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateDutySlipDto) {
-    let bookingId = dto.bookingId;
-    let employeeId = dto.employeeId;
+    const bookingId = dto.bookingId;
+    const employeeId = dto.employeeId;
 
     if (!bookingId) {
       // Create Duty Slip WITHOUT booking
       if (!dto.customerId || !dto.driverId || !dto.vehicleId) {
-        throw new BadRequestException('Customer ID, Driver ID, and Vehicle ID are required to create a duty slip without an existing booking');
+        throw new BadRequestException(
+          'Customer ID, Driver ID, and Vehicle ID are required to create a duty slip without an existing booking',
+        );
       }
 
       // 1. Verify customer, driver, vehicle exist
@@ -161,7 +168,9 @@ export class DutySlipsService {
 
     // 2. Verify booking is ASSIGNED (must have driver/vehicle assignment)
     if (booking.status !== BookingStatus.ASSIGNED) {
-      throw new BadRequestException('A duty slip can only be created for an ASSIGNED booking. Please assign resources first.');
+      throw new BadRequestException(
+        'A duty slip can only be created for an ASSIGNED booking. Please assign resources first.',
+      );
     }
 
     // 3. Check if duty slip already exists for this booking
@@ -169,7 +178,9 @@ export class DutySlipsService {
       where: { bookingId },
     });
     if (existingSlip) {
-      throw new ConflictException('A duty slip has already been generated for this booking');
+      throw new ConflictException(
+        'A duty slip has already been generated for this booking',
+      );
     }
 
     // 4. Fetch the active assignment for this booking to pre-populate driver and vehicle
@@ -180,7 +191,9 @@ export class DutySlipsService {
       },
     });
     if (!assignment) {
-      throw new BadRequestException('No active resource assignment found for this booking.');
+      throw new BadRequestException(
+        'No active resource assignment found for this booking.',
+      );
     }
 
     // 5. Generate unique duty slip number
@@ -306,19 +319,35 @@ export class DutySlipsService {
     const slip = await this.findOne(id);
 
     // If closing or filing the slip, validate KMs
-    const startKm = dto.startKm !== undefined ? dto.startKm : Number(slip.startKm);
-    const endKm = dto.endKm !== undefined ? dto.endKm : (slip.endKm ? Number(slip.endKm) : undefined);
+    const startKm =
+      dto.startKm !== undefined ? dto.startKm : Number(slip.startKm);
+    const endKm =
+      dto.endKm !== undefined
+        ? dto.endKm
+        : slip.endKm
+          ? Number(slip.endKm)
+          : undefined;
 
     if (endKm !== undefined && endKm < startKm) {
       throw new BadRequestException('End KM cannot be less than Start KM');
     }
 
     // Validate Start and End DateTimes
-    const startDt = dto.startDateTime ? new Date(dto.startDateTime) : (slip.startDateTime ? new Date(slip.startDateTime) : null);
-    const endDt = dto.endDateTime ? new Date(dto.endDateTime) : (slip.endDateTime ? new Date(slip.endDateTime) : null);
+    const startDt = dto.startDateTime
+      ? new Date(dto.startDateTime)
+      : slip.startDateTime
+        ? new Date(slip.startDateTime)
+        : null;
+    const endDt = dto.endDateTime
+      ? new Date(dto.endDateTime)
+      : slip.endDateTime
+        ? new Date(slip.endDateTime)
+        : null;
 
     if (startDt && endDt && endDt < startDt) {
-      throw new BadRequestException('End Date & Time cannot be before Start Date & Time');
+      throw new BadRequestException(
+        'End Date & Time cannot be before Start Date & Time',
+      );
     }
 
     // Auto set status to FILLED if endKm is supplied and status is not explicitly set
@@ -328,7 +357,12 @@ export class DutySlipsService {
     }
 
     // Update guest fields on Booking if any are provided
-    if (dto.guestName !== undefined || dto.guestSalutation !== undefined || dto.bookingBy !== undefined || dto.remarks !== undefined) {
+    if (
+      dto.guestName !== undefined ||
+      dto.guestSalutation !== undefined ||
+      dto.bookingBy !== undefined ||
+      dto.remarks !== undefined
+    ) {
       await this.prisma.booking.update({
         where: { id: slip.bookingId },
         data: {
@@ -343,7 +377,9 @@ export class DutySlipsService {
     return this.prisma.dutySlip.update({
       where: { id },
       data: {
-        reportingTime: dto.reportingTime ? new Date(dto.reportingTime) : undefined,
+        reportingTime: dto.reportingTime
+          ? new Date(dto.reportingTime)
+          : undefined,
         startKm: dto.startKm,
         endKm: dto.endKm,
         toll: dto.toll,
@@ -351,7 +387,9 @@ export class DutySlipsService {
         nightCharges: dto.nightCharges,
         driverAllowance: dto.driverAllowance,
         extraCharges: dto.extraCharges,
-        startDateTime: dto.startDateTime ? new Date(dto.startDateTime) : undefined,
+        startDateTime: dto.startDateTime
+          ? new Date(dto.startDateTime)
+          : undefined,
         endDateTime: dto.endDateTime ? new Date(dto.endDateTime) : undefined,
         stateTax: dto.stateTax,
         mcd: dto.mcd,
@@ -386,7 +424,7 @@ export class DutySlipsService {
 
     const primaryColor = tenant?.pdfColorPrimary || '#1E3A8A';
     const isRefined = tenant?.pdfTheme === 'REFINED';
-    
+
     // Font mapping
     let fontRegular = 'Helvetica';
     let fontBold = 'Helvetica-Bold';
@@ -402,7 +440,9 @@ export class DutySlipsService {
       const logoUrl = tenant?.logoUrl || '/logo.png';
       if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
         try {
-          const res = await fetch(logoUrl, { signal: AbortSignal.timeout(2000) });
+          const res = await fetch(logoUrl, {
+            signal: AbortSignal.timeout(2000),
+          });
           if (res.ok) {
             return Buffer.from(await res.arrayBuffer());
           }
@@ -415,8 +455,23 @@ export class DutySlipsService {
           const cleanPath = logoUrl.replace(/^\//, '');
           const pathsToTry = [
             path.resolve(__dirname, '..', 'assets', cleanPath),
-            path.resolve(__dirname, '..', '..', 'frontend', 'public', cleanPath),
-            path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', cleanPath),
+            path.resolve(
+              __dirname,
+              '..',
+              '..',
+              'frontend',
+              'public',
+              cleanPath,
+            ),
+            path.resolve(
+              __dirname,
+              '..',
+              '..',
+              '..',
+              'frontend',
+              'public',
+              cleanPath,
+            ),
             path.resolve(logoUrl),
           ];
           for (const p of pathsToTry) {
@@ -425,7 +480,11 @@ export class DutySlipsService {
             }
           }
         } catch (e: any) {
-          console.warn('Failed to read logo from local path:', logoUrl, e.message);
+          console.warn(
+            'Failed to read logo from local path:',
+            logoUrl,
+            e.message,
+          );
         }
       }
       return null;
@@ -447,33 +506,79 @@ export class DutySlipsService {
         let hasLogo = false;
         if (logoBuffer && !tenant?.hideLogoOnPdf) {
           try {
-            doc.image(logoBuffer, 50, 25, { width: 85, height: 35, fit: [85, 35] });
+            doc.image(logoBuffer, 50, 25, {
+              width: 85,
+              height: 35,
+              fit: [85, 35],
+            });
             hasLogo = true;
           } catch (e) {
             console.warn('Failed to draw logo on duty slip:', e);
           }
         }
-        
+
         if (hasLogo) {
-          doc.fillColor(primaryColor).fontSize(16).font(fontBold).text(companyName.toUpperCase(), 150, 25, { align: 'center', width: 295 });
-          doc.fillColor('#475569').fontSize(10).font(fontBold).text(titleStr, 150, 47, { align: 'center', width: 295 });
+          doc
+            .fillColor(primaryColor)
+            .fontSize(16)
+            .font(fontBold)
+            .text(companyName.toUpperCase(), 150, 25, {
+              align: 'center',
+              width: 295,
+            });
+          doc
+            .fillColor('#475569')
+            .fontSize(10)
+            .font(fontBold)
+            .text(titleStr, 150, 47, { align: 'center', width: 295 });
         } else {
-          doc.fillColor(primaryColor).fontSize(16).font(fontBold).text(companyName.toUpperCase(), 50, 25, { align: 'center', width: 495 });
-          doc.fillColor('#475569').fontSize(10).font(fontBold).text(titleStr, 50, 47, { align: 'center', width: 495 });
+          doc
+            .fillColor(primaryColor)
+            .fontSize(16)
+            .font(fontBold)
+            .text(companyName.toUpperCase(), 50, 25, {
+              align: 'center',
+              width: 495,
+            });
+          doc
+            .fillColor('#475569')
+            .fontSize(10)
+            .font(fontBold)
+            .text(titleStr, 50, 47, { align: 'center', width: 495 });
         }
       } else if (layout === 'STACKED') {
-        doc.fillColor(primaryColor).fontSize(20).font(fontBold).text(companyName.toUpperCase(), 50, 25);
-        doc.fillColor('#475569').fontSize(11).font(fontBold).text(titleStr, 50, 50);
+        doc
+          .fillColor(primaryColor)
+          .fontSize(20)
+          .font(fontBold)
+          .text(companyName.toUpperCase(), 50, 25);
+        doc
+          .fillColor('#475569')
+          .fontSize(11)
+          .font(fontBold)
+          .text(titleStr, 50, 50);
       } else {
         // SINGLE_LINE
-        doc.fillColor(primaryColor).fontSize(18).font(fontBold).text(companyName.toUpperCase(), 50, 30);
-        doc.fillColor('#475569').fontSize(11).font(fontBold).text(titleStr, 350, 35, { align: 'right', width: 195 });
+        doc
+          .fillColor(primaryColor)
+          .fontSize(18)
+          .font(fontBold)
+          .text(companyName.toUpperCase(), 50, 30);
+        doc
+          .fillColor('#475569')
+          .fontSize(11)
+          .font(fontBold)
+          .text(titleStr, 350, 35, { align: 'right', width: 195 });
       }
 
       // Draw double lines for REFINED theme
       if (isRefined) {
         doc.moveTo(50, 63).lineTo(545, 63).lineWidth(1).stroke(primaryColor);
-        doc.moveTo(50, 65.5).lineTo(545, 65.5).lineWidth(0.5).stroke(primaryColor);
+        doc
+          .moveTo(50, 65.5)
+          .lineTo(545, 65.5)
+          .lineWidth(0.5)
+          .stroke(primaryColor);
         doc.lineWidth(1); // reset line width
       }
 
@@ -500,17 +605,33 @@ export class DutySlipsService {
 
       doc.font(fontBold).text('Trip Date & Time:', 307, 125);
       const repDate = new Date(slip.reportingTime).toLocaleDateString('en-GB');
-      const repTime = new Date(slip.reportingTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+      const repTime = new Date(slip.reportingTime).toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
       doc.font(fontRegular).text(`${repDate} ${repTime}`, 400, 125);
 
       // Section 2: Customer & Route Information Card (shifted up to y=165)
       doc.fontSize(12).font(fontBold).text('Customer & Route Details', 50, 165);
       doc.rect(50, 180, 495, 95).stroke('#E2E8F0');
-      
-      doc.fontSize(10).font(fontBold).text('Customer Name:', 60, 188);
-      doc.font(fontRegular).text(slip.booking.customer.name + (slip.booking.customer.companyName ? ` (${slip.booking.customer.companyName})` : ''), 150, 188);
 
-      const guestDisplay = (slip.booking.guestSalutation ? slip.booking.guestSalutation + ' ' : '') + (slip.booking.guestName || '---');
+      doc.fontSize(10).font(fontBold).text('Customer Name:', 60, 188);
+      doc
+        .font(fontRegular)
+        .text(
+          slip.booking.customer.name +
+            (slip.booking.customer.companyName
+              ? ` (${slip.booking.customer.companyName})`
+              : ''),
+          150,
+          188,
+        );
+
+      const guestDisplay =
+        (slip.booking.guestSalutation
+          ? slip.booking.guestSalutation + ' '
+          : '') + (slip.booking.guestName || '---');
       doc.font(fontBold).text('Guest Name:', 307, 188);
       doc.font(fontRegular).text(guestDisplay, 400, 188);
 
@@ -522,10 +643,15 @@ export class DutySlipsService {
       doc.font(fontRegular).text(slip.booking.bookingBy || '---', 400, 203);
 
       doc.font(fontBold).text('Pickup Address:', 60, 220);
-      doc.font(fontRegular).text(slip.booking.pickupLocation, 150, 220, { width: 380, height: 15 });
+      doc.font(fontRegular).text(slip.booking.pickupLocation, 150, 220, {
+        width: 380,
+        height: 15,
+      });
 
       doc.font(fontBold).text('Drop Address:', 60, 237);
-      doc.font(fontRegular).text(slip.booking.dropLocation, 150, 237, { width: 380, height: 15 });
+      doc
+        .font(fontRegular)
+        .text(slip.booking.dropLocation, 150, 237, { width: 380, height: 15 });
 
       // Section 3: Driver & Vehicle Allocation Details (shifted up to y=292)
       doc.fontSize(12).font(fontBold).text('Allocated Resources', 50, 292);
@@ -544,11 +670,13 @@ export class DutySlipsService {
       doc.font(fontBold).text('Vehicle Plate:', 307, 317);
       doc.font(fontRegular).text(slip.vehicle.vehicleNumber, 400, 317);
       doc.font(fontBold).text('Model / Type:', 307, 342);
-      doc.font(fontRegular).text(`${slip.vehicle.model} (${slip.vehicle.vehicleType})`, 400, 342);
+      doc
+        .font(fontRegular)
+        .text(`${slip.vehicle.model} (${slip.vehicle.vehicleType})`, 400, 342);
 
       // Section 4: Operational Log Table (shifted up to y=382)
       doc.fontSize(12).font(fontBold).text('Operational Trip Logs', 50, 382);
-      
+
       doc.rect(50, 397, 495, 80).stroke('#E2E8F0');
       doc.moveTo(50, 427).lineTo(545, 427).stroke('#E2E8F0');
       if (!isRefined) {
@@ -577,7 +705,11 @@ export class DutySlipsService {
         const formatDT = (dt: Date | string | null) => {
           if (!dt) return '---';
           const d = new Date(dt).toLocaleDateString('en-GB');
-          const t = new Date(dt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+          const t = new Date(dt).toLocaleTimeString('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          });
           return `${d} ${t}`;
         };
         doc.text(formatDT(slip.startDateTime), 285, 442);
@@ -585,8 +717,11 @@ export class DutySlipsService {
       }
 
       // Section 5: Tolls & Charges Receipt Table (shifted up to y=492)
-      doc.fontSize(12).font(fontBold).text('Tolls & Incidentals Breakdown', 50, 492);
-      
+      doc
+        .fontSize(12)
+        .font(fontBold)
+        .text('Tolls & Incidentals Breakdown', 50, 492);
+
       doc.rect(50, 507, 495, 140).stroke('#E2E8F0');
       doc.moveTo(50, 542).lineTo(545, 542).stroke('#E2E8F0');
       doc.moveTo(50, 577).lineTo(545, 577).stroke('#E2E8F0');
@@ -597,32 +732,93 @@ export class DutySlipsService {
 
       doc.fontSize(10).font(fontBold);
       doc.text('Toll Charges:', 60, 519);
-      doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.toll}`, 180, 519);
+      doc
+        .font(fontRegular)
+        .text(
+          slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.toll}`,
+          180,
+          519,
+        );
 
       doc.font(fontBold).text('Parking Charges:', 307, 519);
-      doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.parking}`, 420, 519);
+      doc
+        .font(fontRegular)
+        .text(
+          slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.parking}`,
+          420,
+          519,
+        );
 
       doc.font(fontBold).text('State Tax:', 60, 554);
-      doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.stateTax}`, 180, 554);
+      doc
+        .font(fontRegular)
+        .text(
+          slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.stateTax}`,
+          180,
+          554,
+        );
 
       doc.font(fontBold).text('MCD Toll:', 307, 554);
-      doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.mcd}`, 420, 554);
+      doc
+        .font(fontRegular)
+        .text(
+          slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.mcd}`,
+          420,
+          554,
+        );
 
       doc.font(fontBold).text('Night Allowance:', 60, 589);
-      doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.nightCharges}`, 180, 589);
+      doc
+        .font(fontRegular)
+        .text(
+          slip.status === 'DRAFT'
+            ? 'INR ___________'
+            : `INR ${slip.nightCharges}`,
+          180,
+          589,
+        );
 
       doc.font(fontBold).text('Driver Allowance:', 307, 589);
-      doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.driverAllowance}`, 420, 589);
+      doc
+        .font(fontRegular)
+        .text(
+          slip.status === 'DRAFT'
+            ? 'INR ___________'
+            : `INR ${slip.driverAllowance}`,
+          420,
+          589,
+        );
 
       doc.font(fontBold).text('Extra / Misc Charges:', 60, 624);
-      doc.font(fontRegular).text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.extraCharges}`, 180, 624);
+      doc
+        .font(fontRegular)
+        .text(
+          slip.status === 'DRAFT'
+            ? 'INR ___________'
+            : `INR ${slip.extraCharges}`,
+          180,
+          624,
+        );
 
-      const totalTolls = Number(slip.toll) + Number(slip.parking) + Number(slip.stateTax) + Number(slip.mcd) + Number(slip.nightCharges) + Number(slip.driverAllowance) + Number(slip.extraCharges);
+      const totalTolls =
+        Number(slip.toll) +
+        Number(slip.parking) +
+        Number(slip.stateTax) +
+        Number(slip.mcd) +
+        Number(slip.nightCharges) +
+        Number(slip.driverAllowance) +
+        Number(slip.extraCharges);
       doc.font(fontBold).text('Total Incidentals:', 307, 624);
       if (slip.status === 'DRAFT') {
-        doc.font(fontBold).fillColor(primaryColor).text('INR ___________', 420, 624);
+        doc
+          .font(fontBold)
+          .fillColor(primaryColor)
+          .text('INR ___________', 420, 624);
       } else {
-        doc.font(fontBold).fillColor(primaryColor).text(`INR ${totalTolls.toFixed(2)}`, 420, 624);
+        doc
+          .font(fontBold)
+          .fillColor(primaryColor)
+          .text(`INR ${totalTolls.toFixed(2)}`, 420, 624);
       }
 
       // Reset color
@@ -640,7 +836,15 @@ export class DutySlipsService {
       doc.text('-------------------------', 390, 675);
 
       // Print footer metadata (shifted to y=725)
-      doc.fontSize(8).fillColor('#64748B').text('Document digitally generated by CABBS. Valid without seal.', 50, 725, { align: 'center' });
+      doc
+        .fontSize(8)
+        .fillColor('#64748B')
+        .text(
+          'Document digitally generated by CABBS. Valid without seal.',
+          50,
+          725,
+          { align: 'center' },
+        );
 
       // End PDF stream
       doc.end();

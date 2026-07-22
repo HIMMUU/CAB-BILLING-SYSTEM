@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Res,
+} from '@nestjs/common';
 import { DutySlipsService } from './duty-slips.service';
 import { CreateDutySlipDto } from './dto/create-duty-slip.dto';
 import { UpdateDutySlipDto } from './dto/update-duty-slip.dto';
@@ -34,7 +44,10 @@ export class DutySlipsController {
 
   @Patch(':id')
   @Permissions(Permission.GENERATE_DUTY_SLIP)
-  update(@Param('id') id: string, @Body() updateDutySlipDto: UpdateDutySlipDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateDutySlipDto: UpdateDutySlipDto,
+  ) {
     return this.dutySlipsService.update(id, updateDutySlipDto);
   }
 

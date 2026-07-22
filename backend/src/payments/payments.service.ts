@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
@@ -25,7 +29,9 @@ export class PaymentsService {
       }
 
       if (dto.amount > dueAmount) {
-        throw new BadRequestException('Payment amount exceeds outstanding due amount');
+        throw new BadRequestException(
+          'Payment amount exceeds outstanding due amount',
+        );
       }
 
       // 2. Create payment record
@@ -44,7 +50,7 @@ export class PaymentsService {
       // 3. Update Invoice paid / due amounts
       const newPaid = Number(invoice.paidAmount) + dto.amount;
       const newDue = Math.max(0, Number(invoice.totalAmount) - newPaid);
-      
+
       let nextInvoiceStatus: InvoiceStatus = InvoiceStatus.PARTIALLY_PAID;
       if (newDue <= 0) {
         nextInvoiceStatus = InvoiceStatus.PAID;
@@ -63,7 +69,12 @@ export class PaymentsService {
     });
   }
 
-  async findAll(query: { page?: number; limit?: number; search?: string; status?: PaymentStatus }) {
+  async findAll(query: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: PaymentStatus;
+  }) {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 10;
     const skip = (page - 1) * limit;
@@ -75,7 +86,9 @@ export class PaymentsService {
 
     if (query.search) {
       where.OR = [
-        { transactionReference: { contains: query.search, mode: 'insensitive' } },
+        {
+          transactionReference: { contains: query.search, mode: 'insensitive' },
+        },
         {
           invoice: {
             invoiceNumber: { contains: query.search, mode: 'insensitive' },
@@ -146,7 +159,8 @@ export class PaymentsService {
 
       const data: any = {};
       if (dto.status !== undefined) data.status = dto.status;
-      if (dto.transactionReference !== undefined) data.transactionReference = dto.transactionReference;
+      if (dto.transactionReference !== undefined)
+        data.transactionReference = dto.transactionReference;
 
       const updatedPayment = await tx.payment.update({
         where: { id },
@@ -154,7 +168,10 @@ export class PaymentsService {
       });
 
       // Status transitions logic affecting Invoice amounts
-      if (oldStatus !== PaymentStatus.SUCCESS && newStatus === PaymentStatus.SUCCESS) {
+      if (
+        oldStatus !== PaymentStatus.SUCCESS &&
+        newStatus === PaymentStatus.SUCCESS
+      ) {
         // Transitioned to SUCCESS -> add amount
         const invoice = payment.invoice;
         const newPaid = Number(invoice.paidAmount) + Number(payment.amount);
@@ -164,20 +181,30 @@ export class PaymentsService {
           data: {
             paidAmount: newPaid,
             dueAmount: newDue,
-            status: newDue <= 0 ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID,
+            status:
+              newDue <= 0 ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID,
           },
         });
-      } else if (oldStatus === PaymentStatus.SUCCESS && newStatus !== PaymentStatus.SUCCESS) {
+      } else if (
+        oldStatus === PaymentStatus.SUCCESS &&
+        newStatus !== PaymentStatus.SUCCESS
+      ) {
         // Transitioned away from SUCCESS -> remove amount
         const invoice = payment.invoice;
-        const newPaid = Math.max(0, Number(invoice.paidAmount) - Number(payment.amount));
+        const newPaid = Math.max(
+          0,
+          Number(invoice.paidAmount) - Number(payment.amount),
+        );
         const newDue = Number(invoice.totalAmount) - newPaid;
         await tx.invoice.update({
           where: { id: invoice.id },
           data: {
             paidAmount: newPaid,
             dueAmount: newDue,
-            status: newPaid === 0 ? InvoiceStatus.UNPAID : InvoiceStatus.PARTIALLY_PAID,
+            status:
+              newPaid === 0
+                ? InvoiceStatus.UNPAID
+                : InvoiceStatus.PARTIALLY_PAID,
           },
         });
       }
@@ -199,14 +226,20 @@ export class PaymentsService {
       // Revert invoice balances if the deleted payment was SUCCESS
       if (payment.status === PaymentStatus.SUCCESS) {
         const invoice = payment.invoice;
-        const newPaid = Math.max(0, Number(invoice.paidAmount) - Number(payment.amount));
+        const newPaid = Math.max(
+          0,
+          Number(invoice.paidAmount) - Number(payment.amount),
+        );
         const newDue = Number(invoice.totalAmount) - newPaid;
         await tx.invoice.update({
           where: { id: invoice.id },
           data: {
             paidAmount: newPaid,
             dueAmount: newDue,
-            status: newPaid === 0 ? InvoiceStatus.UNPAID : InvoiceStatus.PARTIALLY_PAID,
+            status:
+              newPaid === 0
+                ? InvoiceStatus.UNPAID
+                : InvoiceStatus.PARTIALLY_PAID,
           },
         });
       }

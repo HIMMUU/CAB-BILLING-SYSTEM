@@ -1,7 +1,18 @@
-import { ConflictException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloseTripDto } from './dto/close-trip.dto';
-import { DutySlipStatus, BookingStatus, DriverStatus, VehicleStatus, TripType } from '@prisma/client';
+import {
+  DutySlipStatus,
+  BookingStatus,
+  DriverStatus,
+  VehicleStatus,
+  TripType,
+} from '@prisma/client';
 import * as fs from 'fs';
 
 @Injectable()
@@ -12,7 +23,7 @@ export class TripsService {
     dutySlipId: string,
     endKm: number,
     overrideStartDateTime?: Date,
-    overrideEndDateTime?: Date
+    overrideEndDateTime?: Date,
   ) {
     const slip = await this.prisma.dutySlip.findUnique({
       where: { id: dutySlipId },
@@ -37,8 +48,14 @@ export class TripsService {
     const startDateTime = overrideStartDateTime || slip.startDateTime;
     const endDateTime = overrideEndDateTime || slip.endDateTime;
 
-    if (startDateTime && endDateTime && new Date(endDateTime) < new Date(startDateTime)) {
-      throw new BadRequestException('End Date & Time cannot be before Start Date & Time');
+    if (
+      startDateTime &&
+      endDateTime &&
+      new Date(endDateTime) < new Date(startDateTime)
+    ) {
+      throw new BadRequestException(
+        'End Date & Time cannot be before Start Date & Time',
+      );
     }
 
     let calculatedHours = 0;
@@ -46,7 +63,8 @@ export class TripsService {
     let extraHours = 0;
 
     if (startDateTime && endDateTime) {
-      const diffMs = new Date(endDateTime).getTime() - new Date(startDateTime).getTime();
+      const diffMs =
+        new Date(endDateTime).getTime() - new Date(startDateTime).getTime();
       calculatedHours = diffMs / (1000 * 60 * 60);
 
       const startD = new Date(startDateTime);
@@ -54,7 +72,10 @@ export class TripsService {
       const endD = new Date(endDateTime);
       endD.setHours(0, 0, 0, 0);
       const diffDaysMs = endD.getTime() - startD.getTime();
-      calculatedDays = Math.max(1, Math.round(diffDaysMs / (1000 * 60 * 60 * 24)) + 1);
+      calculatedDays = Math.max(
+        1,
+        Math.round(diffDaysMs / (1000 * 60 * 60 * 24)) + 1,
+      );
     }
 
     // 1. Find mapped VehicleCategory
@@ -68,7 +89,12 @@ export class TripsService {
     let mappedClientType = 'Individual';
     if (slip.booking.customer.type === 'CORPORATE') {
       const lowerName = (slip.booking.customer.companyName || '').toLowerCase();
-      if (lowerName.includes('travel') || lowerName.includes('holiday') || lowerName.includes('resort') || lowerName.includes('tour')) {
+      if (
+        lowerName.includes('travel') ||
+        lowerName.includes('holiday') ||
+        lowerName.includes('resort') ||
+        lowerName.includes('tour')
+      ) {
         mappedClientType = 'Travel Company';
       } else {
         mappedClientType = 'Company';
@@ -119,8 +145,12 @@ export class TripsService {
         baseKm = calculatedDays * minKm;
         baseFare = baseKm * ratePerKm;
         extraKmRate = ratePerKm;
-        driverAllowanceAmount = calculatedDays * (Number(rateCard.driverAllowance) || 250);
-        nightChargesAmount = calculatedDays * (Number(rateCard.outstationNightCharge || rateCard.nightCharge) || 200);
+        driverAllowanceAmount =
+          calculatedDays * (Number(rateCard.driverAllowance) || 250);
+        nightChargesAmount =
+          calculatedDays *
+          (Number(rateCard.outstationNightCharge || rateCard.nightCharge) ||
+            200);
       } else {
         // Local hourly rental, full day local, or airport transfer
         const thresholdHr = Number(rateCard.minHr) || 4;
@@ -171,11 +201,27 @@ export class TripsService {
     const parking = Number(slip.parking);
     const stateTax = Number(slip.stateTax);
     const mcd = Number(slip.mcd);
-    const driverAllowance = slip.driverAllowance !== null && Number(slip.driverAllowance) > 0 ? Number(slip.driverAllowance) : driverAllowanceAmount;
-    const nightCharges = slip.nightCharges !== null && Number(slip.nightCharges) > 0 ? Number(slip.nightCharges) : nightChargesAmount;
+    const driverAllowance =
+      slip.driverAllowance !== null && Number(slip.driverAllowance) > 0
+        ? Number(slip.driverAllowance)
+        : driverAllowanceAmount;
+    const nightCharges =
+      slip.nightCharges !== null && Number(slip.nightCharges) > 0
+        ? Number(slip.nightCharges)
+        : nightChargesAmount;
     const extraCharges = Number(slip.extraCharges);
 
-    const totalAmount = baseFare + extraKmCharged + extraHoursCharged + toll + parking + stateTax + mcd + driverAllowance + nightCharges + extraCharges;
+    const totalAmount =
+      baseFare +
+      extraKmCharged +
+      extraHoursCharged +
+      toll +
+      parking +
+      stateTax +
+      mcd +
+      driverAllowance +
+      nightCharges +
+      extraCharges;
 
     return {
       baseFareCharged: baseFare,
@@ -237,7 +283,15 @@ export class TripsService {
         Number(trip.miscChargesCharged || trip.extraCharges || 0);
     }
 
-    const subtotal = baseFare + extraKm + toll + parking + stateTax + mcd + nightCharges + miscCharges;
+    const subtotal =
+      baseFare +
+      extraKm +
+      toll +
+      parking +
+      stateTax +
+      mcd +
+      nightCharges +
+      miscCharges;
 
     // 3. Calculate Taxes based on GST rates in the invoice
     const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd));
@@ -252,10 +306,13 @@ export class TripsService {
     const totalTax = cgstAmount + sgstAmount + igstAmount;
 
     const isRcm = !!invoice.isRcm;
-    const totalAmount = isRcm ? subtotal : (subtotal + totalTax);
+    const totalAmount = isRcm ? subtotal : subtotal + totalTax;
 
     // dueAmount = totalAmount - paidAmount
-    const dueAmount = Math.max(0, totalAmount - Number(invoice.paidAmount || 0));
+    const dueAmount = Math.max(
+      0,
+      totalAmount - Number(invoice.paidAmount || 0),
+    );
 
     // 4. Update the Invoice record
     await tx.invoice.update({
@@ -283,7 +340,9 @@ export class TripsService {
   async closeTrip(dto: CloseTripDto) {
     try {
       if (!dto.dutySlipId) {
-        throw new BadRequestException('Duty Slip ID is required to close a trip');
+        throw new BadRequestException(
+          'Duty Slip ID is required to close a trip',
+        );
       }
 
       // 1. Fetch the target duty slip
@@ -301,162 +360,168 @@ export class TripsService {
       const startDateTime = dto.startDateTime
         ? new Date(dto.startDateTime)
         : slip.startDateTime
-        ? new Date(slip.startDateTime)
-        : slip.reportingTime
-        ? new Date(slip.reportingTime)
-        : undefined;
+          ? new Date(slip.startDateTime)
+          : slip.reportingTime
+            ? new Date(slip.reportingTime)
+            : undefined;
       const endDateTime = dto.endDateTime
         ? new Date(dto.endDateTime)
         : slip.endDateTime
-        ? new Date(slip.endDateTime)
-        : undefined;
+          ? new Date(slip.endDateTime)
+          : undefined;
 
-    // 2. Run charges calculation to establish defaults if not explicitly overridden in DTO
-    const calculations = await this.calculateTripCharges(dto.dutySlipId, dto.endKm, startDateTime, endDateTime);
+      // 2. Run charges calculation to establish defaults if not explicitly overridden in DTO
+      const calculations = await this.calculateTripCharges(
+        dto.dutySlipId,
+        dto.endKm,
+        startDateTime,
+        endDateTime,
+      );
 
-    const baseFareCharged = dto.baseFareCharged ?? calculations.baseFareCharged;
-    const extraKmCharged = dto.extraKmCharged ?? calculations.extraKmCharged;
-    const extraHoursCharged = dto.extraHoursCharged ?? calculations.extraHoursCharged;
-    const toll = dto.toll ?? calculations.toll;
-    const parking = dto.parking ?? calculations.parking;
-    const stateTax = dto.stateTax ?? calculations.stateTax;
-    const mcd = dto.mcd ?? calculations.mcd;
-    const driverAllowance = dto.driverAllowance ?? calculations.driverAllowance;
-    const nightChargesCharged = dto.nightCharges ?? calculations.nightCharges;
-    const miscChargesCharged = dto.extraCharges ?? calculations.extraCharges;
-    
-    const totalAmount = dto.totalAmount ?? 
-      (Number(baseFareCharged) + 
-       Number(extraKmCharged) + 
-       Number(extraHoursCharged) + 
-       Number(toll) + 
-       Number(parking) + 
-       Number(stateTax) + 
-       Number(mcd) + 
-       Number(driverAllowance) + 
-       Number(nightChargesCharged) + 
-       Number(miscChargesCharged));
+      const baseFareCharged =
+        dto.baseFareCharged ?? calculations.baseFareCharged;
+      const extraKmCharged = dto.extraKmCharged ?? calculations.extraKmCharged;
+      const extraHoursCharged =
+        dto.extraHoursCharged ?? calculations.extraHoursCharged;
+      const toll = dto.toll ?? calculations.toll;
+      const parking = dto.parking ?? calculations.parking;
+      const stateTax = dto.stateTax ?? calculations.stateTax;
+      const mcd = dto.mcd ?? calculations.mcd;
+      const driverAllowance =
+        dto.driverAllowance ?? calculations.driverAllowance;
+      const nightChargesCharged = dto.nightCharges ?? calculations.nightCharges;
+      const miscChargesCharged = dto.extraCharges ?? calculations.extraCharges;
 
-    const existingTrip = await this.prisma.trip.findUnique({
-      where: { dutySlipId: dto.dutySlipId },
-      include: {
-        invoiceItems: true,
-      },
-    });
+      const totalAmount =
+        dto.totalAmount ??
+        Number(baseFareCharged) +
+          Number(extraKmCharged) +
+          Number(extraHoursCharged) +
+          Number(toll) +
+          Number(parking) +
+          Number(stateTax) +
+          Number(mcd) +
+          Number(driverAllowance) +
+          Number(nightChargesCharged) +
+          Number(miscChargesCharged);
 
-    // 4. Run database updates inside a safe prisma transaction
-    return this.prisma.$transaction(async (tx) => {
-      let trip;
-      if (existingTrip) {
-        // Update existing Trip record
-        trip = await tx.trip.update({
-          where: { id: existingTrip.id },
-          data: {
-            endKm: dto.endKm,
-            totalKm: calculations.totalDistance,
-            toll,
-            parking,
-            driverAllowance,
-            extraCharges: miscChargesCharged,
-            baseFareCharged,
-            extraKmCharged,
-            extraHoursCharged,
-            nightChargesCharged,
-            miscChargesCharged,
-            totalAmount,
-            startDateTime,
-            endDateTime,
-            totalHours: calculations.totalHours,
-            totalDays: calculations.totalDays,
-            stateTaxCharged: stateTax,
-            mcdCharged: mcd,
-          } as any,
-        });
-      } else {
-        // Create finalized Trip record
-        trip = await tx.trip.create({
-          data: {
-            tenantId: slip.tenantId,
-            dutySlipId: dto.dutySlipId,
-            bookingId: slip.bookingId,
-            startKm: slip.startKm,
-            endKm: dto.endKm,
-            totalKm: calculations.totalDistance,
-            toll,
-            parking,
-            driverAllowance,
-            extraCharges: miscChargesCharged,
-            baseFareCharged,
-            extraKmCharged,
-            extraHoursCharged,
-            nightChargesCharged,
-            miscChargesCharged,
-            totalAmount,
-            startDateTime,
-            endDateTime,
-            totalHours: calculations.totalHours,
-            totalDays: calculations.totalDays,
-            stateTaxCharged: stateTax,
-            mcdCharged: mcd,
-          } as any,
-        });
-      }
-
-      // Update Duty Slip status to CLOSED
-      await tx.dutySlip.update({
-        where: { id: dto.dutySlipId },
-        data: {
-          status: DutySlipStatus.CLOSED,
-          endKm: dto.endKm,
-          toll,
-          parking,
-          driverAllowance,
-          nightCharges: nightChargesCharged,
-          extraCharges: miscChargesCharged,
-          startDateTime,
-          endDateTime,
-          stateTax,
-          mcd,
+      const existingTrip = await this.prisma.trip.findUnique({
+        where: { dutySlipId: dto.dutySlipId },
+        include: {
+          invoiceItems: true,
         },
       });
 
-      // Update Booking status to COMPLETED
-      await tx.booking.update({
-        where: { id: slip.bookingId },
-        data: { status: BookingStatus.COMPLETED },
-      });
-
-      // Release Driver to AVAILABLE status
-      await tx.driver.update({
-        where: { id: slip.driverId },
-        data: { status: DriverStatus.AVAILABLE },
-      });
-
-      // Release Vehicle to AVAILABLE status
-      await tx.vehicle.update({
-        where: { id: slip.vehicleId },
-        data: { status: VehicleStatus.AVAILABLE },
-      });
-
-      // Recalculate any associated invoices
-      if (existingTrip && existingTrip.invoiceItems.length > 0) {
-        for (const item of existingTrip.invoiceItems) {
-          await this.recalculateInvoice(item.invoiceId, tx);
+      // 4. Run database updates inside a safe prisma transaction
+      return this.prisma.$transaction(async (tx) => {
+        let trip;
+        if (existingTrip) {
+          // Update existing Trip record
+          trip = await tx.trip.update({
+            where: { id: existingTrip.id },
+            data: {
+              endKm: dto.endKm,
+              totalKm: calculations.totalDistance,
+              toll,
+              parking,
+              driverAllowance,
+              extraCharges: miscChargesCharged,
+              baseFareCharged,
+              extraKmCharged,
+              extraHoursCharged,
+              nightChargesCharged,
+              miscChargesCharged,
+              totalAmount,
+              startDateTime,
+              endDateTime,
+              totalHours: calculations.totalHours,
+              totalDays: calculations.totalDays,
+              stateTaxCharged: stateTax,
+              mcdCharged: mcd,
+            } as any,
+          });
+        } else {
+          // Create finalized Trip record
+          trip = await tx.trip.create({
+            data: {
+              tenantId: slip.tenantId,
+              dutySlipId: dto.dutySlipId,
+              bookingId: slip.bookingId,
+              startKm: slip.startKm,
+              endKm: dto.endKm,
+              totalKm: calculations.totalDistance,
+              toll,
+              parking,
+              driverAllowance,
+              extraCharges: miscChargesCharged,
+              baseFareCharged,
+              extraKmCharged,
+              extraHoursCharged,
+              nightChargesCharged,
+              miscChargesCharged,
+              totalAmount,
+              startDateTime,
+              endDateTime,
+              totalHours: calculations.totalHours,
+              totalDays: calculations.totalDays,
+              stateTaxCharged: stateTax,
+              mcdCharged: mcd,
+            } as any,
+          });
         }
-      }
 
-      return trip;
-    });
+        // Update Duty Slip status to CLOSED
+        await tx.dutySlip.update({
+          where: { id: dto.dutySlipId },
+          data: {
+            status: DutySlipStatus.CLOSED,
+            endKm: dto.endKm,
+            toll,
+            parking,
+            driverAllowance,
+            nightCharges: nightChargesCharged,
+            extraCharges: miscChargesCharged,
+            startDateTime,
+            endDateTime,
+            stateTax,
+            mcd,
+          },
+        });
+
+        // Update Booking status to COMPLETED
+        await tx.booking.update({
+          where: { id: slip.bookingId },
+          data: { status: BookingStatus.COMPLETED },
+        });
+
+        // Release Driver to AVAILABLE status
+        await tx.driver.update({
+          where: { id: slip.driverId },
+          data: { status: DriverStatus.AVAILABLE },
+        });
+
+        // Release Vehicle to AVAILABLE status
+        await tx.vehicle.update({
+          where: { id: slip.vehicleId },
+          data: { status: VehicleStatus.AVAILABLE },
+        });
+
+        // Recalculate any associated invoices
+        if (existingTrip && existingTrip.invoiceItems.length > 0) {
+          for (const item of existingTrip.invoiceItems) {
+            await this.recalculateInvoice(item.invoiceId, tx);
+          }
+        }
+
+        return trip;
+      });
     } catch (err: any) {
       console.error(`Error in closeTrip: ${err.message}`, err.stack);
       throw err;
     }
   }
 
-  async findAll(query: {
-    page?: number;
-    limit?: number;
-  }) {
+  async findAll(query: { page?: number; limit?: number }) {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 10;
     const skip = (page - 1) * limit;

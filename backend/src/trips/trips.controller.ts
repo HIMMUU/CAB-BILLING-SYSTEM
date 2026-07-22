@@ -32,14 +32,16 @@ export class TripsController {
   ) {
     const start = startDateTime ? new Date(startDateTime) : undefined;
     const end = endDateTime ? new Date(endDateTime) : undefined;
-    return this.tripsService.calculateTripCharges(dutySlipId, Number(endKm), start, end);
+    return this.tripsService.calculateTripCharges(
+      dutySlipId,
+      Number(endKm),
+      start,
+      end,
+    );
   }
 
   @Get()
-  findAll(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-  ) {
+  findAll(@Query('page') page?: number, @Query('limit') limit?: number) {
     return this.tripsService.findAll({ page, limit });
   }
 }

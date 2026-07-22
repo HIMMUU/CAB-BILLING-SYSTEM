@@ -1,4 +1,11 @@
-import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 import { TripType, BookingStatus } from '@prisma/client';
 
 export class CreateBookingDto {
@@ -22,7 +29,10 @@ export class CreateBookingDto {
   @IsNotEmpty({ message: 'Pickup time is required' })
   pickupTime: string;
 
-  @IsEnum(TripType, { message: 'Trip type must be LOCAL, AIRPORT_TRANSFER, OUTSTATION, or HOURLY_RENTAL' })
+  @IsEnum(TripType, {
+    message:
+      'Trip type must be LOCAL, AIRPORT_TRANSFER, OUTSTATION, or HOURLY_RENTAL',
+  })
   @IsNotEmpty({ message: 'Trip type is required' })
   tripType: TripType;
 
@@ -30,7 +40,10 @@ export class CreateBookingDto {
   @IsNotEmpty({ message: 'Vehicle type required is required' })
   vehicleTypeRequired: string;
 
-  @IsEnum(BookingStatus, { message: 'Status must be PENDING, ASSIGNED, STARTED, COMPLETED, or CANCELLED' })
+  @IsEnum(BookingStatus, {
+    message:
+      'Status must be PENDING, ASSIGNED, STARTED, COMPLETED, or CANCELLED',
+  })
   @IsOptional()
   status?: BookingStatus;
 
