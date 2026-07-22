@@ -4,6 +4,7 @@ import {
   IsString,
   Length,
   Matches,
+  ValidateIf,
 } from 'class-validator';
 
 export class UpdateTenantSettingsDto {
@@ -33,6 +34,7 @@ export class UpdateTenantSettingsDto {
 
   @IsString()
   @IsOptional()
+  @ValidateIf((o) => !!o.companyGst)
   @Matches(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, {
     message: 'Invalid GSTIN format (e.g. 07AAAAA1111A1Z1)',
   })
@@ -40,6 +42,7 @@ export class UpdateTenantSettingsDto {
 
   @IsString()
   @IsOptional()
+  @ValidateIf((o) => !!o.companyPan)
   @Length(10, 10, { message: 'PAN must be exactly 10 characters long' })
   companyPan?: string;
 

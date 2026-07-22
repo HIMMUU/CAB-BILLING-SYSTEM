@@ -43,6 +43,24 @@ let TenantSettingsService = class TenantSettingsService {
         if (!tenantId) {
             throw new common_1.NotFoundException('No active tenant context found');
         }
+        if (dto.invoiceStartingNumber !== undefined && dto.invoiceStartingNumber !== null) {
+            dto.invoiceStartingNumber = Number(dto.invoiceStartingNumber) || 1001;
+        }
+        if (dto.bookingStartingNumber !== undefined && dto.bookingStartingNumber !== null) {
+            dto.bookingStartingNumber = Number(dto.bookingStartingNumber) || 1001;
+        }
+        if (dto.dutySlipStartingNumber !== undefined && dto.dutySlipStartingNumber !== null) {
+            dto.dutySlipStartingNumber = Number(dto.dutySlipStartingNumber) || 1001;
+        }
+        if (dto.fiscalYearStartMonth !== undefined && dto.fiscalYearStartMonth !== null) {
+            dto.fiscalYearStartMonth = Number(dto.fiscalYearStartMonth) || 4;
+        }
+        if (dto.companyGst === '') {
+            dto.companyGst = null;
+        }
+        if (dto.companyPan === '') {
+            dto.companyPan = null;
+        }
         if (dto.companyGst && !dto.companyPan) {
             if (dto.companyGst.length === 15) {
                 dto.companyPan = dto.companyGst.substring(2, 12);

@@ -46,6 +46,26 @@ export class TenantSettingsService {
       throw new NotFoundException('No active tenant context found');
     }
 
+    if (dto.invoiceStartingNumber !== undefined && dto.invoiceStartingNumber !== null) {
+      dto.invoiceStartingNumber = Number(dto.invoiceStartingNumber) || 1001;
+    }
+    if (dto.bookingStartingNumber !== undefined && dto.bookingStartingNumber !== null) {
+      dto.bookingStartingNumber = Number(dto.bookingStartingNumber) || 1001;
+    }
+    if (dto.dutySlipStartingNumber !== undefined && dto.dutySlipStartingNumber !== null) {
+      dto.dutySlipStartingNumber = Number(dto.dutySlipStartingNumber) || 1001;
+    }
+    if (dto.fiscalYearStartMonth !== undefined && dto.fiscalYearStartMonth !== null) {
+      dto.fiscalYearStartMonth = Number(dto.fiscalYearStartMonth) || 4;
+    }
+
+    if (dto.companyGst === '') {
+      dto.companyGst = null as any;
+    }
+    if (dto.companyPan === '') {
+      dto.companyPan = null as any;
+    }
+
     // Auto-derive PAN from GSTIN if GSTIN is updated and PAN is not explicitly provided
     if (dto.companyGst && !dto.companyPan) {
       // PAN is characters 3 to 12 (0-indexed 2 to 12) of a 15-character Indian GSTIN

@@ -137,7 +137,7 @@ export default function CompanySettingsPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+    const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : type === 'number' ? (value === '' ? '' : Number(value)) : value;
     setFormData((prev) => {
       const updated = { ...prev, [name]: val };
       // Auto-derive PAN from GSTIN if GSTIN is modified
