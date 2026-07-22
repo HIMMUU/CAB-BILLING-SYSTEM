@@ -42,7 +42,7 @@ interface Invoice {
   customerId: string;
   invoiceDate: string;
   dueDate: string;
-  status: 'DRAFT' | 'SENT' | 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'VOID';
+  status: 'DRAFT' | 'SENT' | 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'VOID' | 'CANCELLED';
   baseFare: string;
   extraKmCharges: string;
   toll: string;

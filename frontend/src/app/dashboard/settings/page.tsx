@@ -43,6 +43,8 @@ export default function CompanySettingsPage() {
     pdfShowBank: true,
     pdfShowTerms: true,
     pdfHeaderLayout: 'SINGLE_LINE',
+    invoicePrefix: 'INV-2026-',
+    invoiceStartingNumber: 1001,
   });
 
   const [activeTab, setActiveTab] = useState<'profile' | 'tax' | 'bank' | 'pdf'>('profile');
