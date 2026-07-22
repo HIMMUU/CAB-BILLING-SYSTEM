@@ -164,4 +164,31 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateTenantSettingsDto.prototype, "pdfHeaderLayout", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateTenantSettingsDto.prototype, "bookingStartingNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateTenantSettingsDto.prototype, "bookingPrefix", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateTenantSettingsDto.prototype, "dutySlipStartingNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateTenantSettingsDto.prototype, "dutySlipPrefix", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateTenantSettingsDto.prototype, "currentFiscalYear", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateTenantSettingsDto.prototype, "fiscalYearStartMonth", void 0);
 //# sourceMappingURL=update-tenant-settings.dto.js.map

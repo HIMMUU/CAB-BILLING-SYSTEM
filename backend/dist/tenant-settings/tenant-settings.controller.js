@@ -32,6 +32,9 @@ let TenantSettingsController = class TenantSettingsController {
     uploadFile(file) {
         return this.tenantSettingsService.uploadImage(file);
     }
+    resetFiscalYear(body) {
+        return this.tenantSettingsService.resetFiscalYear(body);
+    }
 };
 exports.TenantSettingsController = TenantSettingsController;
 __decorate([
@@ -58,6 +61,14 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], TenantSettingsController.prototype, "uploadFile", null);
+__decorate([
+    (0, common_1.Post)('reset-fiscal-year'),
+    (0, permissions_decorator_1.Permissions)(permissions_1.Permission.RATE_CRUD),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], TenantSettingsController.prototype, "resetFiscalYear", null);
 exports.TenantSettingsController = TenantSettingsController = __decorate([
     (0, common_1.Controller)('tenant-settings'),
     __metadata("design:paramtypes", [tenant_settings_service_1.TenantSettingsService])

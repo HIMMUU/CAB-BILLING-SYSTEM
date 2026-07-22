@@ -35,4 +35,10 @@ export class TenantSettingsController {
   uploadFile(@UploadedFile() file: any) {
     return this.tenantSettingsService.uploadImage(file);
   }
+
+  @Post('reset-fiscal-year')
+  @Permissions(Permission.RATE_CRUD)
+  resetFiscalYear(@Body() body: any) {
+    return this.tenantSettingsService.resetFiscalYear(body);
+  }
 }

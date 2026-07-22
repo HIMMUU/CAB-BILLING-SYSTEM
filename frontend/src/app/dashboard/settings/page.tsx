@@ -45,9 +45,28 @@ export default function CompanySettingsPage() {
     pdfHeaderLayout: 'SINGLE_LINE',
     invoicePrefix: 'INV-2026-',
     invoiceStartingNumber: 1001,
+    bookingPrefix: 'BK-2026-',
+    bookingStartingNumber: 1001,
+    dutySlipPrefix: 'DS-2026-',
+    dutySlipStartingNumber: 1001,
+    currentFiscalYear: '2026-27',
+    fiscalYearStartMonth: 4,
   });
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'tax' | 'bank' | 'pdf'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'tax' | 'bank' | 'pdf' | 'docControl'>('profile');
+
+  const [resetFyModalOpen, setResetFyModalOpen] = useState(false);
+  const [resetFyValue, setResetFyValue] = useState('2027-28');
+  const [resetInvoices, setResetInvoices] = useState(true);
+  const [resetInvoicePrefix, setResetInvoicePrefix] = useState('TDH-INV-2027-28-');
+  const [resetInvoiceStart, setResetInvoiceStart] = useState(1);
+  const [resetBookings, setResetBookings] = useState(true);
+  const [resetBookingPrefix, setResetBookingPrefix] = useState('BK-2027-28-');
+  const [resetBookingStart, setResetBookingStart] = useState(1);
+  const [resetDutySlips, setResetDutySlips] = useState(true);
+  const [resetDutySlipPrefix, setResetDutySlipPrefix] = useState('DS-2027-28-');
+  const [resetDutySlipStart, setResetDutySlipStart] = useState(1);
+  const [resetSubmitting, setResetSubmitting] = useState(false);
 
   useEffect(() => {
     const token = api.getToken();
@@ -95,6 +114,12 @@ export default function CompanySettingsPage() {
         pdfHeaderLayout: settings.pdfHeaderLayout || 'SINGLE_LINE',
         invoicePrefix: settings.invoicePrefix !== undefined ? settings.invoicePrefix : 'INV-2026-',
         invoiceStartingNumber: settings.invoiceStartingNumber || 1001,
+        bookingPrefix: settings.bookingPrefix !== undefined ? settings.bookingPrefix : 'BK-2026-',
+        bookingStartingNumber: settings.bookingStartingNumber || 1001,
+        dutySlipPrefix: settings.dutySlipPrefix !== undefined ? settings.dutySlipPrefix : 'DS-2026-',
+        dutySlipStartingNumber: settings.dutySlipStartingNumber || 1001,
+        currentFiscalYear: settings.currentFiscalYear || '2026-27',
+        fiscalYearStartMonth: settings.fiscalYearStartMonth || 4,
       });
     } catch (err: any) {
       setError(err.message || 'Failed to load company settings');
@@ -191,6 +216,42 @@ export default function CompanySettingsPage() {
     }
   };
 
+  const handleExecuteFiscalYearReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (
+      !confirm(
+        `Are you sure you want to initialize New Fiscal Year (${resetFyValue})? This will update prefixes and starting numbers for new documents while preserving existing historical records.`
+      )
+    ) {
+      return;
+    }
+    setResetSubmitting(true);
+    try {
+      await api.request('/tenant-settings/reset-fiscal-year', {
+        method: 'POST',
+        body: JSON.stringify({
+          newFiscalYear: resetFyValue,
+          resetInvoices,
+          newInvoiceStartingNumber: resetInvoiceStart,
+          newInvoicePrefix: resetInvoicePrefix,
+          resetBookings,
+          newBookingStartingNumber: resetBookingStart,
+          newBookingPrefix: resetBookingPrefix,
+          resetDutySlips,
+          newDutySlipStartingNumber: resetDutySlipStart,
+          newDutySlipPrefix: resetDutySlipPrefix,
+        }),
+      });
+      setResetFyModalOpen(false);
+      fetchSettings();
+      alert('Fiscal Year successfully updated and document counters reset!');
+    } catch (err: any) {
+      alert(err.message || 'Failed to reset fiscal year');
+    } finally {
+      setResetSubmitting(false);
+    }
+  };
+
   if (!user) return null;
   const canEdit = user.role === 'SUPER_ADMIN' || user.role === 'OPERATOR_ADMIN';
 
@@ -262,6 +323,16 @@ export default function CompanySettingsPage() {
             }`}
           >
             PDF Customization
+          </button>
+          <button
+            onClick={() => setActiveTab('docControl')}
+            className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition ${
+              activeTab === 'docControl'
+                ? 'bg-blue-50 text-blue-600'
+                : 'text-[#64748B] hover:text-[#0F172A] hover:bg-gray-100'
+            }`}
+          >
+            Document Control & Fiscal Year
           </button>
         </aside>
 
@@ -1117,6 +1188,201 @@ export default function CompanySettingsPage() {
                 </div>
               )}
 
+              {/* TAB CONTENT: DOCUMENT CONTROL & FISCAL YEAR */}
+              {activeTab === 'docControl' && (
+                <div className="space-y-6 animate-fade-in">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[#E2E8F0] pb-3 gap-3">
+                    <div>
+                      <h3 className="text-base font-bold text-[#0F172A]">Document Control & Fiscal Year Management</h3>
+                      <p className="text-xs text-[#64748B]">Configure prefixes, starting numbers, titles, and annual fiscal year resets.</p>
+                    </div>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => setResetFyModalOpen(true)}
+                        className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition inline-flex items-center gap-1.5"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                        </svg>
+                        Start New Fiscal Year & Reset Sequences
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Bill / Invoice Controls */}
+                  <div className="space-y-3 bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-sm">
+                    <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wide flex items-center gap-1.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-blue-600">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                      </svg>
+                      Bill / Tax Invoice Document Controls
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-xs font-bold text-[#475569] uppercase">Invoice Main Heading / Title</label>
+                        <input
+                          type="text"
+                          name="invoiceTitle"
+                          value={formData.invoiceTitle}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500 mt-1"
+                          placeholder="e.g. TAX INVOICE"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-[#475569] uppercase">Invoice Number Prefix / Template</label>
+                        <input
+                          type="text"
+                          name="invoicePrefix"
+                          value={formData.invoicePrefix}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500 mt-1 font-mono"
+                          placeholder="e.g. TDH-INV-2026- or TDH/2026-27/"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-[#475569] uppercase">Starting Invoice Counter Number</label>
+                        <input
+                          type="number"
+                          name="invoiceStartingNumber"
+                          value={formData.invoiceStartingNumber}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500 mt-1 font-mono"
+                          placeholder="e.g. 1001"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Booking Controls */}
+                  <div className="space-y-3 bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-sm">
+                    <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wide flex items-center gap-1.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-indigo-600">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 9v7.5" />
+                      </svg>
+                      Booking Reference Document Controls
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-bold text-[#475569] uppercase">Booking Number Prefix / Template</label>
+                        <input
+                          type="text"
+                          name="bookingPrefix"
+                          value={formData.bookingPrefix}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500 mt-1 font-mono"
+                          placeholder="e.g. BK-2026- or TDH-BK-"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-[#475569] uppercase">Starting Booking Counter Number</label>
+                        <input
+                          type="number"
+                          name="bookingStartingNumber"
+                          value={formData.bookingStartingNumber}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500 mt-1 font-mono"
+                          placeholder="e.g. 1001"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Duty Slip Controls */}
+                  <div className="space-y-3 bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-sm">
+                    <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wide flex items-center gap-1.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-emerald-600">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-1.5-1.5V6.75a1.5 1.5 0 0 1 1.5-1.5h7.5a1.5 1.5 0 0 1 1.5 1.5v10.5a1.5 1.5 0 0 1-1.5 1.5h-7.5Z" />
+                      </svg>
+                      Duty Slip Document Controls
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-xs font-bold text-[#475569] uppercase">Duty Slip Heading / Title</label>
+                        <input
+                          type="text"
+                          name="dutySlipTitle"
+                          value={formData.dutySlipTitle}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500 mt-1"
+                          placeholder="e.g. TRIP OPERATIONAL DUTY SLIP"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-[#475569] uppercase">Duty Slip Prefix / Template</label>
+                        <input
+                          type="text"
+                          name="dutySlipPrefix"
+                          value={formData.dutySlipPrefix}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500 mt-1 font-mono"
+                          placeholder="e.g. DS-2026- or TDH-DS-"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-[#475569] uppercase">Starting Duty Slip Counter Number</label>
+                        <input
+                          type="number"
+                          name="dutySlipStartingNumber"
+                          value={formData.dutySlipStartingNumber}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500 mt-1 font-mono"
+                          placeholder="e.g. 1001"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Fiscal Year System Configuration */}
+                  <div className="space-y-3 bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-sm">
+                    <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wide flex items-center gap-1.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-purple-600">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 9v7.5" />
+                      </svg>
+                      Fiscal Year System Configuration
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-bold text-[#475569] uppercase">Current Active Fiscal Year</label>
+                        <input
+                          type="text"
+                          name="currentFiscalYear"
+                          value={formData.currentFiscalYear}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500 mt-1 font-mono font-bold"
+                          placeholder="e.g. 2026-27"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-[#475569] uppercase">Fiscal Year Starting Month</label>
+                        <select
+                          name="fiscalYearStartMonth"
+                          value={formData.fiscalYearStartMonth}
+                          onChange={handleChange}
+                          disabled={!canEdit}
+                          className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500 mt-1 font-semibold"
+                        >
+                          <option value={4}>April (Indian Fiscal Year - Apr to Mar)</option>
+                          <option value={1}>January (Calendar Year - Jan to Dec)</option>
+                          <option value={7}>July (Mid-Year - Jul to Jun)</option>
+                          <option value={10}>October (Q4 FY - Oct to Sep)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Action Buttons */}
               {canEdit && (
                 <div className="border-t border-[#E2E8F0] pt-4 flex justify-end">
@@ -1133,6 +1399,176 @@ export default function CompanySettingsPage() {
           )}
         </div>
       </div>
+
+      {/* Fiscal Year Reset Modal */}
+      {resetFyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl border border-[#E2E8F0] w-full max-w-xl overflow-hidden animate-scale-up">
+            <div className="flex items-center justify-between border-b border-[#E2E8F0] px-6 py-4 bg-[#FAFBFD]">
+              <div>
+                <h3 className="text-base font-bold text-[#0F172A]">Initialize New Fiscal Year & Reset Sequences</h3>
+                <p className="text-xs text-[#64748B] mt-0.5">Set up document prefixes and counters for the upcoming fiscal year.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setResetFyModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-lg transition"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleExecuteFiscalYearReset} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto text-xs">
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-800">
+                <span className="font-bold block mb-0.5">Fiscal Year Reset Mode:</span>
+                This will set new document prefixes and starting numbers for future Bills, Bookings, and Duty Slips. All historical records remain safely archived!
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">New Target Fiscal Year</label>
+                <input
+                  type="text"
+                  value={resetFyValue}
+                  onChange={(e) => {
+                    const fy = e.target.value;
+                    setResetFyValue(fy);
+                    setResetInvoicePrefix(`TDH-INV-${fy}-`);
+                    setResetBookingPrefix(`BK-${fy}-`);
+                    setResetDutySlipPrefix(`DS-${fy}-`);
+                  }}
+                  required
+                  className="w-full border border-gray-300 rounded-lg p-2 text-sm font-mono font-bold text-slate-900 focus:border-blue-500"
+                  placeholder="e.g. 2027-28"
+                />
+              </div>
+
+              {/* Invoice Reset Options */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-gray-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900">Tax Invoice / Bill Sequence</span>
+                  <input
+                    type="checkbox"
+                    checked={resetInvoices}
+                    onChange={(e) => setResetInvoices(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 rounded"
+                  />
+                </div>
+                {resetInvoices && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase">New Invoice Prefix</label>
+                      <input
+                        type="text"
+                        value={resetInvoicePrefix}
+                        onChange={(e) => setResetInvoicePrefix(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg p-1.5 font-mono text-xs text-slate-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase">Starting Counter</label>
+                      <input
+                        type="number"
+                        value={resetInvoiceStart}
+                        onChange={(e) => setResetInvoiceStart(Number(e.target.value))}
+                        className="w-full border border-gray-300 rounded-lg p-1.5 font-mono text-xs text-slate-900"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Booking Reset Options */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-gray-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900">Booking Sequence</span>
+                  <input
+                    type="checkbox"
+                    checked={resetBookings}
+                    onChange={(e) => setResetBookings(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 rounded"
+                  />
+                </div>
+                {resetBookings && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase">New Booking Prefix</label>
+                      <input
+                        type="text"
+                        value={resetBookingPrefix}
+                        onChange={(e) => setResetBookingPrefix(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg p-1.5 font-mono text-xs text-slate-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase">Starting Counter</label>
+                      <input
+                        type="number"
+                        value={resetBookingStart}
+                        onChange={(e) => setResetBookingStart(Number(e.target.value))}
+                        className="w-full border border-gray-300 rounded-lg p-1.5 font-mono text-xs text-slate-900"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Duty Slip Reset Options */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-gray-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900">Duty Slip Sequence</span>
+                  <input
+                    type="checkbox"
+                    checked={resetDutySlips}
+                    onChange={(e) => setResetDutySlips(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 rounded"
+                  />
+                </div>
+                {resetDutySlips && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase">New Duty Slip Prefix</label>
+                      <input
+                        type="text"
+                        value={resetDutySlipPrefix}
+                        onChange={(e) => setResetDutySlipPrefix(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg p-1.5 font-mono text-xs text-slate-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase">Starting Counter</label>
+                      <input
+                        type="number"
+                        value={resetDutySlipStart}
+                        onChange={(e) => setResetDutySlipStart(Number(e.target.value))}
+                        className="w-full border border-gray-300 rounded-lg p-1.5 font-mono text-xs text-slate-900"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-[#E2E8F0]">
+                <button
+                  type="button"
+                  onClick={() => setResetFyModalOpen(false)}
+                  className="px-4 py-2 border border-[#E2E8F0] text-slate-600 text-sm font-semibold rounded-lg hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={resetSubmitting}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition disabled:opacity-50"
+                >
+                  {resetSubmitting ? 'Initializing...' : 'Execute Fiscal Year Reset'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -80,14 +80,19 @@ let DutySlipsService = class DutySlipsService {
             if (!vehicle) {
                 throw new common_1.NotFoundException('Vehicle not found');
             }
-            const countBookings = await this.prisma.booking.count();
+            const tenant = await this.prisma.tenant.findUnique({
+                where: { id: customer.tenantId },
+            });
+            const bkPrefix = tenant?.bookingPrefix !== undefined ? tenant.bookingPrefix : 'BK-2026-';
+            const bkStart = tenant?.bookingStartingNumber || 1001;
+            const countBookings = await this.prisma.booking.count({ where: { tenantId: customer.tenantId } });
             let bookingNumber = '';
             let isUnique = false;
-            let currentBkVal = countBookings + 1;
+            let currentBkVal = countBookings + bkStart;
             while (!isUnique) {
-                bookingNumber = String(currentBkVal);
+                bookingNumber = `${bkPrefix}${currentBkVal}`;
                 const existing = await this.prisma.booking.findFirst({
-                    where: { bookingNumber },
+                    where: { tenantId: customer.tenantId, bookingNumber },
                 });
                 if (!existing) {
                     isUnique = true;
@@ -135,14 +140,16 @@ let DutySlipsService = class DutySlipsService {
                     where: { id: dto.vehicleId },
                     data: { status: 'ON_TRIP' },
                 });
-                const countSlips = await tx.dutySlip.count();
+                const dsPrefix = tenant?.dutySlipPrefix !== undefined ? tenant.dutySlipPrefix : 'DS-2026-';
+                const dsStart = tenant?.dutySlipStartingNumber || 1001;
+                const countSlips = await tx.dutySlip.count({ where: { tenantId: customer.tenantId } });
                 let dutySlipNumber = '';
                 let isUniqueSlip = false;
-                let currentDsVal = countSlips + 1;
+                let currentDsVal = countSlips + dsStart;
                 while (!isUniqueSlip) {
-                    dutySlipNumber = String(currentDsVal);
+                    dutySlipNumber = `${dsPrefix}${currentDsVal}`;
                     const existing = await tx.dutySlip.findFirst({
-                        where: { dutySlipNumber },
+                        where: { tenantId: customer.tenantId, dutySlipNumber },
                     });
                     if (!existing) {
                         isUniqueSlip = true;

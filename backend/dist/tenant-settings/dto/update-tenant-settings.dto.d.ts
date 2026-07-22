@@ -29,4 +29,10 @@ export declare class UpdateTenantSettingsDto {
     pdfShowBank?: boolean;
     pdfShowTerms?: boolean;
     pdfHeaderLayout?: string;
+    bookingStartingNumber?: number;
+    bookingPrefix?: string;
+    dutySlipStartingNumber?: number;
+    dutySlipPrefix?: string;
+    currentFiscalYear?: string;
+    fiscalYearStartMonth?: number;
 }

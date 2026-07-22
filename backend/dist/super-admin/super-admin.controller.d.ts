@@ -29,6 +29,12 @@ export declare class SuperAdminController {
         termsAndConditions: string | null;
         invoiceStartingNumber: number | null;
         invoicePrefix: string | null;
+        bookingStartingNumber: number | null;
+        bookingPrefix: string | null;
+        dutySlipStartingNumber: number | null;
+        dutySlipPrefix: string | null;
+        currentFiscalYear: string | null;
+        fiscalYearStartMonth: number | null;
         pdfTheme: string;
         pdfColorPrimary: string;
         pdfColorCompanyName: string | null;
@@ -71,6 +77,12 @@ export declare class SuperAdminController {
         termsAndConditions: string | null;
         invoiceStartingNumber: number | null;
         invoicePrefix: string | null;
+        bookingStartingNumber: number | null;
+        bookingPrefix: string | null;
+        dutySlipStartingNumber: number | null;
+        dutySlipPrefix: string | null;
+        currentFiscalYear: string | null;
+        fiscalYearStartMonth: number | null;
         pdfTheme: string;
         pdfColorPrimary: string;
         pdfColorCompanyName: string | null;

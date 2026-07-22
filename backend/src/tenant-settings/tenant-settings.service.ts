@@ -95,4 +95,47 @@ export class TenantSettingsService {
       stream.pipe(uploadStream);
     });
   }
+
+  async resetFiscalYear(body: {
+    newFiscalYear?: string;
+    resetInvoices?: boolean;
+    newInvoiceStartingNumber?: number;
+    newInvoicePrefix?: string;
+    resetBookings?: boolean;
+    newBookingStartingNumber?: number;
+    newBookingPrefix?: string;
+    resetDutySlips?: boolean;
+    newDutySlipStartingNumber?: number;
+    newDutySlipPrefix?: string;
+  }) {
+    const tenantId = this.tenantContext.getTenantId();
+    if (!tenantId) {
+      throw new NotFoundException('No active tenant context found');
+    }
+
+    const data: any = {};
+    if (body.newFiscalYear) {
+      data.currentFiscalYear = body.newFiscalYear;
+    }
+
+    if (body.resetInvoices !== false) {
+      data.invoiceStartingNumber = body.newInvoiceStartingNumber !== undefined ? body.newInvoiceStartingNumber : 1001;
+      if (body.newInvoicePrefix) data.invoicePrefix = body.newInvoicePrefix;
+    }
+
+    if (body.resetBookings !== false) {
+      data.bookingStartingNumber = body.newBookingStartingNumber !== undefined ? body.newBookingStartingNumber : 1001;
+      if (body.newBookingPrefix) data.bookingPrefix = body.newBookingPrefix;
+    }
+
+    if (body.resetDutySlips !== false) {
+      data.dutySlipStartingNumber = body.newDutySlipStartingNumber !== undefined ? body.newDutySlipStartingNumber : 1001;
+      if (body.newDutySlipPrefix) data.dutySlipPrefix = body.newDutySlipPrefix;
+    }
+
+    return this.prisma.tenant.update({
+      where: { id: tenantId },
+      data,
+    });
+  }
 }

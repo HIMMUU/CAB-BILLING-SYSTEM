@@ -125,6 +125,12 @@ model Tenant {
   termsAndConditions String?  @map("terms_and_conditions") @db.Text
   invoiceStartingNumber Int? @default(1001) @map("invoice_starting_number")
   invoicePrefix         String? @default("INV-2026-") @map("invoice_prefix") @db.VarChar(50)
+  bookingStartingNumber Int? @default(1001) @map("booking_starting_number")
+  bookingPrefix         String? @default("BK-2026-") @map("booking_prefix") @db.VarChar(50)
+  dutySlipStartingNumber Int? @default(1001) @map("duty_slip_starting_number")
+  dutySlipPrefix        String? @default("DS-2026-") @map("duty_slip_prefix") @db.VarChar(50)
+  currentFiscalYear     String? @default("2026-27") @map("current_fiscal_year") @db.VarChar(20)
+  fiscalYearStartMonth  Int? @default(4) @map("fiscal_year_start_month")
   pdfTheme          String    @default("MODERN") @map("pdf_theme") @db.VarChar(50)
   pdfColorPrimary   String    @default("#1E3A8A") @map("pdf_color_primary") @db.VarChar(20)
   pdfColorCompanyName String? @default("#E11D48") @map("pdf_color_company_name") @db.VarChar(20)

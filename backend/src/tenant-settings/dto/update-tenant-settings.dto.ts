@@ -126,4 +126,25 @@ export class UpdateTenantSettingsDto {
   @IsString()
   @IsOptional()
   pdfHeaderLayout?: string;
+
+  @IsOptional()
+  bookingStartingNumber?: number;
+
+  @IsString()
+  @IsOptional()
+  bookingPrefix?: string;
+
+  @IsOptional()
+  dutySlipStartingNumber?: number;
+
+  @IsString()
+  @IsOptional()
+  dutySlipPrefix?: string;
+
+  @IsString()
+  @IsOptional()
+  currentFiscalYear?: string;
+
+  @IsOptional()
+  fiscalYearStartMonth?: number;
 }

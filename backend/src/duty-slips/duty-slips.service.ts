@@ -50,15 +50,20 @@ export class DutySlipsService {
         throw new NotFoundException('Vehicle not found');
       }
 
-      // 2. Generate a unique booking number
-      const countBookings = await this.prisma.booking.count();
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: customer.tenantId },
+      });
+
+      const bkPrefix = tenant?.bookingPrefix !== undefined ? tenant.bookingPrefix : 'BK-2026-';
+      const bkStart = tenant?.bookingStartingNumber || 1001;
+      const countBookings = await this.prisma.booking.count({ where: { tenantId: customer.tenantId } });
       let bookingNumber = '';
       let isUnique = false;
-      let currentBkVal = countBookings + 1;
+      let currentBkVal = countBookings + bkStart;
       while (!isUnique) {
-        bookingNumber = String(currentBkVal);
+        bookingNumber = `${bkPrefix}${currentBkVal}`;
         const existing = await this.prisma.booking.findFirst({
-          where: { bookingNumber },
+          where: { tenantId: customer.tenantId, bookingNumber },
         });
         if (!existing) {
           isUnique = true;
@@ -114,14 +119,16 @@ export class DutySlipsService {
         });
 
         // Generate unique duty slip number
-        const countSlips = await tx.dutySlip.count();
+        const dsPrefix = tenant?.dutySlipPrefix !== undefined ? tenant.dutySlipPrefix : 'DS-2026-';
+        const dsStart = tenant?.dutySlipStartingNumber || 1001;
+        const countSlips = await tx.dutySlip.count({ where: { tenantId: customer.tenantId } });
         let dutySlipNumber = '';
         let isUniqueSlip = false;
-        let currentDsVal = countSlips + 1;
+        let currentDsVal = countSlips + dsStart;
         while (!isUniqueSlip) {
-          dutySlipNumber = String(currentDsVal);
+          dutySlipNumber = `${dsPrefix}${currentDsVal}`;
           const existing = await tx.dutySlip.findFirst({
-            where: { dutySlipNumber },
+            where: { tenantId: customer.tenantId, dutySlipNumber },
           });
           if (!existing) {
             isUniqueSlip = true;
