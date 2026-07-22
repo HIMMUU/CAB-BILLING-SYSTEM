@@ -522,78 +522,36 @@ export class DutySlipsService {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', (err) => reject(err));
 
-      // Title & Header layout
-      const layout = tenant?.pdfHeaderLayout || 'SINGLE_LINE';
       const titleStr = slipTitle.toUpperCase();
 
-      if (layout === 'SPLIT') {
-        let hasLogo = false;
-        if (logoBuffer && !tenant?.hideLogoOnPdf) {
-          try {
-            doc.image(logoBuffer, 50, 25, {
-              width: 85,
-              height: 35,
-              fit: [85, 35],
-            });
-            hasLogo = true;
-          } catch (e) {
-            console.warn('Failed to draw logo on duty slip:', e);
-          }
+      // Title & Header Layout: Centered Company Name and Top-Right Logo
+      if (logoBuffer && !tenant?.hideLogoOnPdf) {
+        try {
+          doc.image(logoBuffer, 460, 18, {
+            width: 85,
+            height: 38,
+            fit: [85, 38],
+          });
+        } catch (e) {
+          console.warn('Failed to draw logo on duty slip:', e);
         }
-
-        if (hasLogo) {
-          doc
-            .fillColor(primaryColor)
-            .fontSize(16)
-            .font(fontBold)
-            .text(companyName.toUpperCase(), 150, 25, {
-              align: 'center',
-              width: 295,
-            });
-          doc
-            .fillColor('#475569')
-            .fontSize(10)
-            .font(fontBold)
-            .text(titleStr, 150, 47, { align: 'center', width: 295 });
-        } else {
-          doc
-            .fillColor(primaryColor)
-            .fontSize(16)
-            .font(fontBold)
-            .text(companyName.toUpperCase(), 50, 25, {
-              align: 'center',
-              width: 495,
-            });
-          doc
-            .fillColor('#475569')
-            .fontSize(10)
-            .font(fontBold)
-            .text(titleStr, 50, 47, { align: 'center', width: 495 });
-        }
-      } else if (layout === 'STACKED') {
-        doc
-          .fillColor(primaryColor)
-          .fontSize(20)
-          .font(fontBold)
-          .text(companyName.toUpperCase(), 50, 25);
-        doc
-          .fillColor('#475569')
-          .fontSize(11)
-          .font(fontBold)
-          .text(titleStr, 50, 50);
-      } else {
-        // SINGLE_LINE
-        doc
-          .fillColor(primaryColor)
-          .fontSize(18)
-          .font(fontBold)
-          .text(companyName.toUpperCase(), 50, 30);
-        doc
-          .fillColor('#475569')
-          .fontSize(11)
-          .font(fontBold)
-          .text(titleStr, 350, 35, { align: 'right', width: 195 });
       }
+
+      const companyNameColor = tenant?.pdfColorCompanyName || primaryColor;
+      doc
+        .fillColor(companyNameColor)
+        .fontSize(20)
+        .font(fontBold)
+        .text(companyName.toUpperCase(), 50, 20, {
+          align: 'center',
+          width: 495,
+        });
+
+      doc
+        .fillColor('#475569')
+        .fontSize(10)
+        .font(fontBold)
+        .text(titleStr, 50, 45, { align: 'center', width: 495 });
 
       // Draw double lines for REFINED theme
       if (isRefined) {
@@ -609,7 +567,7 @@ export class DutySlipsService {
       // Reset text settings
       doc.fillColor('#0F172A').fontSize(10);
 
-      // Section 1: Slip and Booking Info Metadata Table (shifted up to y=85)
+      // Section 1: Slip and Booking Info Metadata Table
       doc.rect(50, 85, 495, 60).stroke('#E2E8F0');
       doc.moveTo(50, 115).lineTo(545, 115).stroke('#E2E8F0');
       if (!isRefined) {
@@ -620,8 +578,9 @@ export class DutySlipsService {
       doc.font(fontBold).text('Duty Slip No:', 60, 95);
       doc.font(fontRegular).text(slip.dutySlipNumber, 150, 95);
 
+      const bookingCode = slip.booking?.bookingNumber || 'DIRECT-DS';
       doc.font(fontBold).text('Booking Code:', 307, 95);
-      doc.font(fontRegular).text(slip.booking.bookingNumber, 400, 95);
+      doc.font(fontRegular).text(bookingCode, 400, 95);
 
       // Row 2 Columns
       doc.font(fontBold).text('Slip Status:', 60, 125);
@@ -636,45 +595,45 @@ export class DutySlipsService {
       });
       doc.font(fontRegular).text(`${repDate} ${repTime}`, 400, 125);
 
-      // Section 2: Customer & Route Information Card (shifted up to y=165)
+      // Section 2: Customer & Route Information Card
       doc.fontSize(12).font(fontBold).text('Customer & Route Details', 50, 165);
       doc.rect(50, 180, 495, 95).stroke('#E2E8F0');
 
+      const custName = slip.booking?.customer?.name
+        ? slip.booking.customer.name +
+          (slip.booking.customer.companyName
+            ? ` (${slip.booking.customer.companyName})`
+            : '')
+        : (slip as any).manualCustomerName || 'Direct Customer';
+
       doc.fontSize(10).font(fontBold).text('Customer Name:', 60, 188);
-      doc
-        .font(fontRegular)
-        .text(
-          slip.booking.customer.name +
-            (slip.booking.customer.companyName
-              ? ` (${slip.booking.customer.companyName})`
-              : ''),
-          150,
-          188,
-        );
+      doc.font(fontRegular).text(custName, 150, 188);
 
       const guestDisplay =
-        (slip.booking.guestSalutation
+        (slip.booking?.guestSalutation
           ? slip.booking.guestSalutation + ' '
-          : '') + (slip.booking.guestName || '---');
+          : '') + (slip.booking?.guestName || (slip as any).manualGuestName || '---');
       doc.font(fontBold).text('Guest Name:', 307, 188);
       doc.font(fontRegular).text(guestDisplay, 400, 188);
 
-      const empId = slip.employeeId || slip.booking.employeeId;
+      const empId = slip.employeeId || slip.booking?.employeeId;
       doc.font(fontBold).text('Employee ID:', 60, 203);
       doc.font(fontRegular).text(empId || '---', 150, 203);
 
+      const bookedBy = slip.booking?.bookingBy || 'Direct Walk-in';
       doc.font(fontBold).text('Booked By:', 307, 203);
-      doc.font(fontRegular).text(slip.booking.bookingBy || '---', 400, 203);
+      doc.font(fontRegular).text(bookedBy, 400, 203);
+
+      const pickupLoc = slip.booking?.pickupLocation || (slip as any).manualPickupLocation || '---';
+      const dropLoc = slip.booking?.dropLocation || (slip as any).manualDropLocation || '---';
 
       doc.font(fontBold).text('Pickup Address:', 60, 220);
-      doc.font(fontRegular).text(slip.booking.pickupLocation, 150, 220, {
+      doc.font(fontRegular).text(pickupLoc, 150, 220, {
         width: 380,
       });
 
       doc.font(fontBold).text('Drop Address:', 60, 237);
-      doc
-        .font(fontRegular)
-        .text(slip.booking.dropLocation, 150, 237, { width: 380 });
+      doc.font(fontRegular).text(dropLoc, 150, 237, { width: 380 });
 
       // Section 3: Driver & Vehicle Allocation Details (shifted up to y=292)
       doc.fontSize(12).font(fontBold).text('Allocated Resources', 50, 292);
