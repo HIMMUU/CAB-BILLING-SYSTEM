@@ -13,4 +13,6 @@ export declare class UpdateBookingDto {
     guestSalutation?: string;
     bookingBy?: string;
     remarks?: string;
+    driverId?: string;
+    vehicleId?: string;
 }

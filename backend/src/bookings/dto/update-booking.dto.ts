@@ -65,4 +65,12 @@ export class UpdateBookingDto {
   @IsString()
   @IsOptional()
   remarks?: string;
+
+  @IsUUID(4, { message: 'Driver ID must be a valid UUID' })
+  @IsOptional()
+  driverId?: string;
+
+  @IsUUID(4, { message: 'Vehicle ID must be a valid UUID' })
+  @IsOptional()
+  vehicleId?: string;
 }

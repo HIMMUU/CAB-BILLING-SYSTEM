@@ -84,4 +84,14 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateBookingDto.prototype, "remarks", void 0);
+__decorate([
+    (0, class_validator_1.IsUUID)(4, { message: 'Driver ID must be a valid UUID' }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateBookingDto.prototype, "driverId", void 0);
+__decorate([
+    (0, class_validator_1.IsUUID)(4, { message: 'Vehicle ID must be a valid UUID' }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateBookingDto.prototype, "vehicleId", void 0);
 //# sourceMappingURL=update-booking.dto.js.map

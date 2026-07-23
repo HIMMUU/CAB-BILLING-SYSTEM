@@ -5,7 +5,7 @@ import { BookingStatus } from '@prisma/client';
 export declare class BookingsController {
     private readonly bookingsService;
     constructor(bookingsService: BookingsService);
-    create(createBookingDto: CreateBookingDto): Promise<{
+    create(createBookingDto: CreateBookingDto): Promise<({
         customer: {
             id: string;
             name: string;
@@ -27,6 +27,51 @@ export declare class BookingsController {
             igstRate: import("@prisma/client/runtime/library").Decimal;
             isRcm: boolean;
         };
+        dutySlip: {
+            id: string;
+            dutySlipNumber: string;
+        } | null;
+        assignments: ({
+            driver: {
+                id: string;
+                name: string;
+                status: import(".prisma/client").$Enums.DriverStatus;
+                createdAt: Date;
+                updatedAt: Date;
+                tenantId: string;
+                mobile: string;
+                licenseNumber: string;
+                licenseExpiry: Date;
+                address: string;
+                emergencyContact: string;
+            };
+            vehicle: {
+                model: string;
+                id: string;
+                status: import(".prisma/client").$Enums.VehicleStatus;
+                createdAt: Date;
+                updatedAt: Date;
+                tenantId: string;
+                vehicleNumber: string;
+                vehicleType: string;
+                seatingCapacity: number;
+                registrationDate: Date;
+                insuranceExpiry: Date;
+                fitnessExpiry: Date;
+                permitExpiry: Date;
+            };
+        } & {
+            id: string;
+            status: import(".prisma/client").$Enums.AssignmentStatus;
+            createdAt: Date;
+            updatedAt: Date;
+            tenantId: string;
+            driverId: string;
+            bookingId: string;
+            vehicleId: string;
+            assignedAt: Date;
+            assignedById: string | null;
+        })[];
     } & {
         id: string;
         status: import(".prisma/client").$Enums.BookingStatus;
@@ -46,7 +91,7 @@ export declare class BookingsController {
         guestSalutation: string | null;
         bookingBy: string | null;
         remarks: string | null;
-    }>;
+    }) | null>;
     findAll(page?: number, limit?: number, search?: string, status?: BookingStatus): Promise<{
         data: ({
             customer: {
@@ -74,6 +119,47 @@ export declare class BookingsController {
                 id: string;
                 dutySlipNumber: string;
             } | null;
+            assignments: ({
+                driver: {
+                    id: string;
+                    name: string;
+                    status: import(".prisma/client").$Enums.DriverStatus;
+                    createdAt: Date;
+                    updatedAt: Date;
+                    tenantId: string;
+                    mobile: string;
+                    licenseNumber: string;
+                    licenseExpiry: Date;
+                    address: string;
+                    emergencyContact: string;
+                };
+                vehicle: {
+                    model: string;
+                    id: string;
+                    status: import(".prisma/client").$Enums.VehicleStatus;
+                    createdAt: Date;
+                    updatedAt: Date;
+                    tenantId: string;
+                    vehicleNumber: string;
+                    vehicleType: string;
+                    seatingCapacity: number;
+                    registrationDate: Date;
+                    insuranceExpiry: Date;
+                    fitnessExpiry: Date;
+                    permitExpiry: Date;
+                };
+            } & {
+                id: string;
+                status: import(".prisma/client").$Enums.AssignmentStatus;
+                createdAt: Date;
+                updatedAt: Date;
+                tenantId: string;
+                driverId: string;
+                bookingId: string;
+                vehicleId: string;
+                assignedAt: Date;
+                assignedById: string | null;
+            })[];
         } & {
             id: string;
             status: import(".prisma/client").$Enums.BookingStatus;
@@ -127,6 +213,47 @@ export declare class BookingsController {
             id: string;
             dutySlipNumber: string;
         } | null;
+        assignments: ({
+            driver: {
+                id: string;
+                name: string;
+                status: import(".prisma/client").$Enums.DriverStatus;
+                createdAt: Date;
+                updatedAt: Date;
+                tenantId: string;
+                mobile: string;
+                licenseNumber: string;
+                licenseExpiry: Date;
+                address: string;
+                emergencyContact: string;
+            };
+            vehicle: {
+                model: string;
+                id: string;
+                status: import(".prisma/client").$Enums.VehicleStatus;
+                createdAt: Date;
+                updatedAt: Date;
+                tenantId: string;
+                vehicleNumber: string;
+                vehicleType: string;
+                seatingCapacity: number;
+                registrationDate: Date;
+                insuranceExpiry: Date;
+                fitnessExpiry: Date;
+                permitExpiry: Date;
+            };
+        } & {
+            id: string;
+            status: import(".prisma/client").$Enums.AssignmentStatus;
+            createdAt: Date;
+            updatedAt: Date;
+            tenantId: string;
+            driverId: string;
+            bookingId: string;
+            vehicleId: string;
+            assignedAt: Date;
+            assignedById: string | null;
+        })[];
     } & {
         id: string;
         status: import(".prisma/client").$Enums.BookingStatus;
@@ -169,6 +296,51 @@ export declare class BookingsController {
             igstRate: import("@prisma/client/runtime/library").Decimal;
             isRcm: boolean;
         };
+        dutySlip: {
+            id: string;
+            dutySlipNumber: string;
+        } | null;
+        assignments: ({
+            driver: {
+                id: string;
+                name: string;
+                status: import(".prisma/client").$Enums.DriverStatus;
+                createdAt: Date;
+                updatedAt: Date;
+                tenantId: string;
+                mobile: string;
+                licenseNumber: string;
+                licenseExpiry: Date;
+                address: string;
+                emergencyContact: string;
+            };
+            vehicle: {
+                model: string;
+                id: string;
+                status: import(".prisma/client").$Enums.VehicleStatus;
+                createdAt: Date;
+                updatedAt: Date;
+                tenantId: string;
+                vehicleNumber: string;
+                vehicleType: string;
+                seatingCapacity: number;
+                registrationDate: Date;
+                insuranceExpiry: Date;
+                fitnessExpiry: Date;
+                permitExpiry: Date;
+            };
+        } & {
+            id: string;
+            status: import(".prisma/client").$Enums.AssignmentStatus;
+            createdAt: Date;
+            updatedAt: Date;
+            tenantId: string;
+            driverId: string;
+            bookingId: string;
+            vehicleId: string;
+            assignedAt: Date;
+            assignedById: string | null;
+        })[];
     } & {
         id: string;
         status: import(".prisma/client").$Enums.BookingStatus;

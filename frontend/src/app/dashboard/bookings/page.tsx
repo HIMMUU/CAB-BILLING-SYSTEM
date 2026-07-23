@@ -49,6 +49,13 @@ interface Booking {
     id: string;
     dutySlipNumber: string;
   } | null;
+  assignments?: Array<{
+    id: string;
+    driverId: string;
+    vehicleId: string;
+    driver?: Driver;
+    vehicle?: Vehicle;
+  }>;
 }
 
 const formatTimeTo24h = (timeStr: string | null | undefined): string => {
@@ -109,6 +116,8 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
+  const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -152,6 +161,8 @@ export default function BookingsPage() {
     guestSalutation: 'Mr',
     bookingBy: '',
     remarks: '',
+    driverId: '',
+    vehicleId: '',
   });
 
   const fetchCustomers = async () => {
@@ -172,6 +183,19 @@ export default function BookingsPage() {
     }
   };
 
+  const fetchDriversAndVehicles = async () => {
+    try {
+      const [dRes, vRes] = await Promise.all([
+        api.request('/drivers?limit=100'),
+        api.request('/vehicles?limit=100'),
+      ]);
+      setAllDrivers(dRes.data || []);
+      setAllVehicles(vRes.data || []);
+    } catch (err) {
+      console.error('Failed to load drivers/vehicles list', err);
+    }
+  };
+
   useEffect(() => {
     const token = api.getToken();
     const currentUser = api.getUser();
@@ -181,6 +205,7 @@ export default function BookingsPage() {
       setUser(currentUser);
       fetchCustomers();
       fetchCategories();
+      fetchDriversAndVehicles();
     }
   }, [router]);
 
@@ -230,6 +255,8 @@ export default function BookingsPage() {
       guestSalutation: 'Mr',
       bookingBy: '',
       remarks: '',
+      driverId: '',
+      vehicleId: '',
     });
     setFormError(null);
     setIsFormOpen(true);
@@ -237,6 +264,7 @@ export default function BookingsPage() {
 
   const handleOpenEdit = (booking: Booking) => {
     setEditingId(booking.id);
+    const activeAssignment = booking.assignments?.[0];
     setFormData({
       customerId: booking.customerId,
       pickupLocation: booking.pickupLocation,
@@ -251,6 +279,8 @@ export default function BookingsPage() {
       guestSalutation: booking.guestSalutation || 'Mr',
       bookingBy: booking.bookingBy || '',
       remarks: booking.remarks || '',
+      driverId: activeAssignment?.driverId || '',
+      vehicleId: activeAssignment?.vehicleId || '',
     });
     setFormError(null);
     setIsFormOpen(true);
@@ -282,6 +312,8 @@ export default function BookingsPage() {
       guestSalutation: formData.guestSalutation || undefined,
       bookingBy: formData.bookingBy || undefined,
       remarks: formData.remarks || undefined,
+      driverId: formData.driverId || undefined,
+      vehicleId: formData.vehicleId || undefined,
       pickupDate: dateToApi(formData.pickupDate),
     };
 
@@ -480,9 +512,9 @@ export default function BookingsPage() {
               <thead>
                 <tr className="border-b border-[#E2E8F0] text-xs font-semibold text-[#64748B] uppercase tracking-wider bg-[#F8FAFC]">
                   <th className="py-3 px-6">Booking Code</th>
-                  <th className="py-3 px-6">Employee ID</th>
                   <th className="py-3 px-6">Customer</th>
                   <th className="py-3 px-6">Trip & Vehicle</th>
+                  <th className="py-3 px-6">Assigned Resource</th>
                   <th className="py-3 px-6">Locations (Pickup &rarr; Drop)</th>
                   <th className="py-3 px-6">Pickup Date & Time</th>
                   <th className="py-3 px-6">Status</th>
@@ -491,15 +523,18 @@ export default function BookingsPage() {
               </thead>
               <tbody className="divide-y divide-[#E2E8F0]/80 text-sm">
                 {bookings.map((booking) => {
+                  const activeAssignment = booking.assignments?.[0];
                   return (
                     <tr key={booking.id} className="hover:bg-[#F8FAFC] transition-colors">
                       <td className="py-4 px-6">
                         <div className="font-bold text-[#0F172A] tracking-wider font-mono text-xs bg-gray-50 border border-[#E2E8F0] px-2 py-1 rounded inline-block">
                           {booking.bookingNumber}
                         </div>
-                      </td>
-                      <td className="py-4 px-6 font-mono text-xs text-[#0F172A]">
-                        {booking.employeeId || '---'}
+                        {booking.employeeId && (
+                          <div className="text-[10px] text-gray-500 font-mono mt-1">
+                            Emp: {booking.employeeId}
+                          </div>
+                        )}
                       </td>
                       <td className="py-4 px-6">
                         <div className="font-medium text-[#0F172A]">
@@ -526,6 +561,29 @@ export default function BookingsPage() {
                           {booking.tripType.replace('_', ' ')}
                         </span>
                         <div className="text-xs text-[#64748B] mt-1 font-medium">Req: {booking.vehicleTypeRequired}</div>
+                      </td>
+                      <td className="py-4 px-6">
+                        {activeAssignment ? (
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#0F172A]">
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 text-blue-600">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                              </svg>
+                              <span>{activeAssignment.driver?.name || 'Assigned Driver'}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-xs text-[#64748B] font-mono">
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 text-emerald-600">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124l-.847-13.56a1.978 1.978 0 0 0-1.972-1.854l-5.322.024" />
+                              </svg>
+                              <span className="font-bold text-[#0F172A] bg-gray-50 border border-[#E2E8F0] px-1.5 py-0.5 rounded text-[11px]">{activeAssignment.vehicle?.vehicleNumber || 'Cab'}</span>
+                              {activeAssignment.vehicle?.model && <span className="text-[10px]">({activeAssignment.vehicle.model})</span>}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-semibold inline-block">
+                            Unassigned
+                          </span>
+                        )}
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex flex-col gap-1 max-w-xs text-xs">
@@ -562,7 +620,7 @@ export default function BookingsPage() {
                       </td>
                       {canEdit && (
                         <td className="py-4 px-6 text-right space-x-2">
-                          {booking.status === 'PENDING' && (
+                          {(!activeAssignment || booking.status === 'PENDING') && (
                             <button
                               onClick={() => handleOpenAssign(booking)}
                               className="px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 bg-blue-600 border border-blue-500 rounded-lg transition shadow-sm"
@@ -870,7 +928,54 @@ export default function BookingsPage() {
                   </div>
                 </div>
 
+                {/* Driver and Cab Manual Selection */}
+                <div className="border-t border-b border-[#E2E8F0] py-4 my-2 space-y-4 bg-blue-50/40 -mx-6 px-6">
+                  <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-blue-600 shrink-0">
+                      <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                      <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0h2.1a2.5 2.5 0 014.9 0H17a1 1 0 001-1v-5l-2-4H3z" />
+                    </svg>
+                    <span>Manual Driver & Cab Assignment</span>
+                  </h4>
 
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-1.5">
+                        Select Driver
+                      </label>
+                      <select
+                        value={formData.driverId}
+                        onChange={(e) => setFormData({ ...formData, driverId: e.target.value })}
+                        className="w-full px-4 py-2 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
+                      >
+                        <option value="">-- No Driver Assigned (Keep Pending) --</option>
+                        {allDrivers.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name} ({d.mobile}) [{d.status}]
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-1.5">
+                        Select Cab / Vehicle
+                      </label>
+                      <select
+                        value={formData.vehicleId}
+                        onChange={(e) => setFormData({ ...formData, vehicleId: e.target.value })}
+                        className="w-full px-4 py-2 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
+                      >
+                        <option value="">-- No Cab Assigned (Keep Pending) --</option>
+                        {allVehicles.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.vehicleNumber} - {v.model} ({v.vehicleType}) [{v.status}]
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
               </form>
             </div>
 
