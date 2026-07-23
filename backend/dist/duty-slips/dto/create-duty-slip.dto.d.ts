@@ -13,4 +13,9 @@ export declare class CreateDutySlipDto {
     guestSalutation?: string;
     bookingBy?: string;
     remarks?: string;
+    manualCustomerName?: string;
+    manualDriverName?: string;
+    manualDriverPhone?: string;
+    manualVehicleNumber?: string;
+    manualVehicleModel?: string;
 }

@@ -27,42 +27,112 @@ export class DutySlipsService {
     const employeeId = dto.employeeId;
 
     if (!bookingId) {
-      // Create Duty Slip WITHOUT booking
-      if (!dto.customerId || !dto.driverId || !dto.vehicleId) {
-        throw new BadRequestException(
-          'Customer ID, Driver ID, and Vehicle ID are required to create a duty slip without an existing booking',
-        );
-      }
+      // Create Duty Slip WITHOUT booking (Direct Duty Slip)
+      let customer =
+        dto.customerId && dto.customerId !== 'MANUAL'
+          ? await this.prisma.customer.findUnique({
+              where: { id: dto.customerId },
+            })
+          : null;
 
-      // 1. Verify customer, driver, vehicle exist
-      const customer = await this.prisma.customer.findUnique({
-        where: { id: dto.customerId },
-      });
       if (!customer) {
-        throw new NotFoundException('Customer not found');
+        const defaultTenant = await this.prisma.tenant.findFirst();
+        if (!defaultTenant) throw new NotFoundException('Tenant not found');
+        const cName = dto.manualCustomerName || 'Direct Customer';
+
+        let existing = await this.prisma.customer.findFirst({
+          where: { tenantId: defaultTenant.id, name: cName },
+        });
+        if (!existing) {
+          existing = await this.prisma.customer.create({
+            data: {
+              tenantId: defaultTenant.id,
+              name: cName,
+              phone: '0000000000',
+              billingAddress: 'Direct Walk-in',
+            },
+          });
+        }
+        customer = existing;
       }
 
-      const driver = await this.prisma.driver.findUnique({
-        where: { id: dto.driverId },
-      });
+      let driver =
+        dto.driverId && dto.driverId !== 'MANUAL'
+          ? await this.prisma.driver.findUnique({ where: { id: dto.driverId } })
+          : null;
+
       if (!driver) {
-        throw new NotFoundException('Driver not found');
+        const dName = dto.manualDriverName || 'External Driver';
+        const dPhone = dto.manualDriverPhone || '0000000000';
+        let existing = await this.prisma.driver.findFirst({
+          where: { tenantId: customer.tenantId, name: dName },
+        });
+        if (!existing) {
+          const defaultExpiry = new Date();
+          defaultExpiry.setFullYear(defaultExpiry.getFullYear() + 5);
+
+          existing = await this.prisma.driver.create({
+            data: {
+              tenantId: customer.tenantId,
+              name: dName,
+              mobile: dPhone,
+              licenseNumber:
+                'EXT-' + Math.floor(100000 + Math.random() * 900000),
+              licenseExpiry: defaultExpiry,
+              address: 'External / Ad-hoc Driver',
+              emergencyContact: '0000000000',
+            },
+          });
+        }
+        driver = existing;
       }
 
-      const vehicle = await this.prisma.vehicle.findUnique({
-        where: { id: dto.vehicleId },
-      });
+      let vehicle =
+        dto.vehicleId && dto.vehicleId !== 'MANUAL'
+          ? await this.prisma.vehicle.findUnique({
+              where: { id: dto.vehicleId },
+            })
+          : null;
+
       if (!vehicle) {
-        throw new NotFoundException('Vehicle not found');
+        const vNum =
+          dto.manualVehicleNumber ||
+          'EXT-CAB-' + Math.floor(100 + Math.random() * 900);
+        const vModel = dto.manualVehicleModel || 'Standard Cab';
+        let existing = await this.prisma.vehicle.findFirst({
+          where: { tenantId: customer.tenantId, vehicleNumber: vNum },
+        });
+        if (!existing) {
+          const defaultExpiry = new Date();
+          defaultExpiry.setFullYear(defaultExpiry.getFullYear() + 5);
+
+          existing = await this.prisma.vehicle.create({
+            data: {
+              tenantId: customer.tenantId,
+              vehicleNumber: vNum,
+              model: vModel,
+              vehicleType: 'Sedan',
+              seatingCapacity: 4,
+              registrationDate: new Date(),
+              insuranceExpiry: defaultExpiry,
+              fitnessExpiry: defaultExpiry,
+              permitExpiry: defaultExpiry,
+            },
+          });
+        }
+        vehicle = existing;
       }
 
       const tenant = await this.prisma.tenant.findUnique({
         where: { id: customer.tenantId },
       });
 
-      const bkPrefix = tenant?.bookingPrefix !== undefined ? tenant.bookingPrefix : 'BK-2026-';
+      const bkPrefix =
+        tenant?.bookingPrefix !== undefined ? tenant.bookingPrefix : 'BK-2026-';
       const bkStart = tenant?.bookingStartingNumber || 1001;
-      const countBookings = await this.prisma.booking.count({ where: { tenantId: customer.tenantId } });
+      const countBookings = await this.prisma.booking.count({
+        where: { tenantId: customer.tenantId },
+      });
       let bookingNumber = '';
       let isUnique = false;
       let currentBkVal = countBookings + bkStart;
@@ -87,7 +157,7 @@ export class DutySlipsService {
           data: {
             tenantId: customer.tenantId,
             bookingNumber,
-            customerId: dto.customerId,
+            customerId: customer.id,
             pickupLocation: dto.pickupLocation || 'Direct Duty Slip Pickup',
             dropLocation: dto.dropLocation || 'Direct Duty Slip Drop',
             pickupDate: new Date(dto.reportingTime),
@@ -96,7 +166,7 @@ export class DutySlipsService {
             vehicleTypeRequired: vehicle.vehicleType,
             status: BookingStatus.ASSIGNED,
             employeeId: dto.employeeId,
-            guestName: dto.guestName,
+            guestName: dto.guestName || dto.manualCustomerName,
             guestSalutation: dto.guestSalutation,
             bookingBy: dto.bookingBy,
             remarks: dto.remarks,
@@ -107,27 +177,32 @@ export class DutySlipsService {
           data: {
             tenantId: customer.tenantId,
             bookingId: newBooking.id,
-            driverId: dto.driverId,
-            vehicleId: dto.vehicleId,
+            driverId: driver.id,
+            vehicleId: vehicle.id,
             status: 'ACTIVE',
           } as any,
         });
 
         // Set driver and vehicle as ON_TRIP
         await tx.driver.update({
-          where: { id: dto.driverId },
+          where: { id: driver.id },
           data: { status: 'ON_TRIP' as any },
         });
 
         await tx.vehicle.update({
-          where: { id: dto.vehicleId },
+          where: { id: vehicle.id },
           data: { status: 'ON_TRIP' as any },
         });
 
         // Generate unique duty slip number
-        const dsPrefix = tenant?.dutySlipPrefix !== undefined ? tenant.dutySlipPrefix : 'DS-2026-';
+        const dsPrefix =
+          tenant?.dutySlipPrefix !== undefined
+            ? tenant.dutySlipPrefix
+            : 'DS-2026-';
         const dsStart = tenant?.dutySlipStartingNumber || 1001;
-        const countSlips = await tx.dutySlip.count({ where: { tenantId: customer.tenantId } });
+        const countSlips = await tx.dutySlip.count({
+          where: { tenantId: customer.tenantId },
+        });
         let dutySlipNumber = '';
         let isUniqueSlip = false;
         let currentDsVal = countSlips + dsStart;
@@ -148,8 +223,8 @@ export class DutySlipsService {
             tenantId: customer.tenantId,
             dutySlipNumber,
             bookingId: newBooking.id,
-            driverId: dto.driverId,
-            vehicleId: dto.vehicleId,
+            driverId: driver.id,
+            vehicleId: vehicle.id,
             reportingTime: new Date(dto.reportingTime),
             startKm: dto.startKm,
             status: DutySlipStatus.DRAFT,

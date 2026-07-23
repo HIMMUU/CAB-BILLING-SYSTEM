@@ -187,6 +187,8 @@ export default function DutySlipsPage() {
     dutyType: 'L', tourCode: '', localBill: '', nightChargesOnTime: 0,
     billingMode: 'N' as 'N' | 'H' | 'F',
     extraCharges: 0,
+    manualDriverName: '', manualDriverPhone: '',
+    manualVehicleNumber: '', manualVehicleModel: '',
 
     // overrides & rates
     baseFare: 0,
@@ -662,9 +664,9 @@ export default function DutySlipsPage() {
   const handleUnifiedSave = async (e: React.FormEvent, closeStatus?: boolean) => {
     e.preventDefault();
     setFormError(null);
-    if (!df.customerId) { setFormError('Select a customer.'); return; }
-    if (!df.driverId) { setFormError('Select a driver.'); return; }
-    if (!df.vehicleId) { setFormError('Select a vehicle.'); return; }
+    if (!df.customerId && df.customerType !== 'new') { setFormError('Select a customer or enter customer name.'); return; }
+    if (!df.driverId) { setFormError('Select a driver or choose Manual Driver.'); return; }
+    if (!df.vehicleId) { setFormError('Select a vehicle or choose Manual Vehicle.'); return; }
 
     const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
     const timeRegex = /^([0-1]\d|2[0-3]):([0-5]\d)$/;
@@ -739,8 +741,8 @@ export default function DutySlipsPage() {
             mcd: Number(df.mcdToll) || 0,
             status: patchStatus,
             employeeId: df.employeeId || undefined,
-            driverId: df.driverId,
-            vehicleId: df.vehicleId,
+            driverId: df.driverId !== 'MANUAL' ? df.driverId : undefined,
+            vehicleId: df.vehicleId !== 'MANUAL' ? df.vehicleId : undefined,
             guestName: df.guestName || undefined,
             guestSalutation: df.guestSalutation || undefined,
             bookingBy: df.bookingBy || undefined,
@@ -754,9 +756,9 @@ export default function DutySlipsPage() {
           body: JSON.stringify({
             reportingTime: rdt,
             startKm: Number(df.dutyStartMeter) || 0,
-            customerId: df.customerId,
-            driverId: df.driverId,
-            vehicleId: df.vehicleId,
+            customerId: df.customerId !== 'MANUAL' ? df.customerId : undefined,
+            driverId: df.driverId !== 'MANUAL' ? df.driverId : undefined,
+            vehicleId: df.vehicleId !== 'MANUAL' ? df.vehicleId : undefined,
             pickupLocation: df.pickupLocation || df.reportingAt || undefined,
             dropLocation: df.dropLocation || undefined,
             tripType: df.dutyType === 'O' || df.dutyType === 'T' ? 'OUTSTATION' : 'LOCAL',
@@ -765,6 +767,11 @@ export default function DutySlipsPage() {
             bookingBy: df.bookingBy || undefined,
             remarks: df.remarks || undefined,
             employeeId: df.employeeId || undefined,
+            manualCustomerName: df.customerType === 'new' ? df.guestName : undefined,
+            manualDriverName: df.driverId === 'MANUAL' ? df.manualDriverName : undefined,
+            manualDriverPhone: df.driverId === 'MANUAL' ? df.manualDriverPhone : undefined,
+            manualVehicleNumber: df.vehicleId === 'MANUAL' ? df.manualVehicleNumber : undefined,
+            manualVehicleModel: df.vehicleId === 'MANUAL' ? df.manualVehicleModel : undefined,
           }),
         });
         slipId = slip.id;
@@ -1314,36 +1321,62 @@ export default function DutySlipsPage() {
                   <div className="grid grid-cols-3 gap-4">
                     <Field label="Vehicle *">
                       <select required value={df.vehicleId} onChange={e => {
-                        const v = vehicles.find(v => v.id === e.target.value);
+                        const val = e.target.value;
+                        const v = vehicles.find(v => v.id === val);
                         setDf(f => ({
                           ...f,
-                          vehicleId: e.target.value,
-                          carName: v?.model || '',
+                          vehicleId: val,
+                          carName: v?.model || (val === 'MANUAL' ? f.manualVehicleModel : ''),
                           carGroup: v?.vehicleType || '',
                         }));
                       }} className={sel}>
                         <option value="">— Choose Vehicle —</option>
+                        <option value="MANUAL">+ Manual / External Vehicle</option>
                         {vehicles.map(v => <option key={v.id} value={v.id}>{v.vehicleNumber} ({v.model})</option>)}
                       </select>
                     </Field>
-                    <Field label="Car Group">
-                      <select value={df.carGroup} onChange={e => setDf(f => ({ ...f, carGroup: e.target.value }))} className={sel}>
-                        <option value="">— Select —</option>
-                        {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
-                      </select>
-                    </Field>
-                    <Field label="Car Name">
-                      <input type="text" value={df.carName} onChange={e => setDf(f => ({ ...f, carName: e.target.value }))} className={inp} placeholder="e.g. Innova Crysta" />
-                    </Field>
+                    {df.vehicleId === 'MANUAL' ? (
+                      <>
+                        <Field label="Vehicle Number *">
+                          <input type="text" required value={df.manualVehicleNumber} onChange={e => setDf(f => ({ ...f, manualVehicleNumber: e.target.value }))} className={inp} placeholder="e.g. KA-01-AB-1234" />
+                        </Field>
+                        <Field label="Vehicle Model *">
+                          <input type="text" required value={df.manualVehicleModel} onChange={e => setDf(f => ({ ...f, manualVehicleModel: e.target.value, carName: e.target.value }))} className={inp} placeholder="e.g. Dzire / Innova" />
+                        </Field>
+                      </>
+                    ) : (
+                      <>
+                        <Field label="Car Group">
+                          <select value={df.carGroup} onChange={e => setDf(f => ({ ...f, carGroup: e.target.value }))} className={sel}>
+                            <option value="">— Select —</option>
+                            {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
+                          </select>
+                        </Field>
+                        <Field label="Car Name">
+                          <input type="text" value={df.carName} onChange={e => setDf(f => ({ ...f, carName: e.target.value }))} className={inp} placeholder="e.g. Innova Crysta" />
+                        </Field>
+                      </>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Driver *">
                       <select required value={df.driverId} onChange={e => setDf(f => ({ ...f, driverId: e.target.value }))} className={sel}>
                         <option value="">— Select Driver —</option>
+                        <option value="MANUAL">+ Manual / External Driver</option>
                         {drivers.map(d => <option key={d.id} value={d.id}>{d.name} · {d.mobile}</option>)}
                       </select>
                     </Field>
+                    {df.driverId === 'MANUAL' ? (
+                      <>
+                        <Field label="Driver Name *">
+                          <input type="text" required value={df.manualDriverName} onChange={e => setDf(f => ({ ...f, manualDriverName: e.target.value }))} className={inp} placeholder="e.g. Ramesh Kumar" />
+                        </Field>
+                        <Field label="Driver Mobile">
+                          <input type="text" value={df.manualDriverPhone} onChange={e => setDf(f => ({ ...f, manualDriverPhone: e.target.value }))} className={inp} placeholder="e.g. 9876543210" />
+                        </Field>
+                      </>
+                    ) : null}
                     <Field label="Reporting Time *">
                       <div className="flex gap-2">
                         <div className="w-2/3">

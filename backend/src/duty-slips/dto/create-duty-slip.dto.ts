@@ -68,4 +68,24 @@ export class CreateDutySlipDto {
   @IsString()
   @IsOptional()
   remarks?: string;
+
+  @IsString()
+  @IsOptional()
+  manualCustomerName?: string;
+
+  @IsString()
+  @IsOptional()
+  manualDriverName?: string;
+
+  @IsString()
+  @IsOptional()
+  manualDriverPhone?: string;
+
+  @IsString()
+  @IsOptional()
+  manualVehicleNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  manualVehicleModel?: string;
 }
