@@ -13,6 +13,16 @@ describe('Car Group Modification & Rate Card E2E Test (Innova Crysta, Ciaz, Dzir
   let customerId: string;
 
   async function cleanDb() {
+    const isRemoteDb =
+      process.env.DATABASE_URL?.includes('neon.tech') ||
+      process.env.DATABASE_URL?.includes('render.com') ||
+      process.env.DATABASE_URL?.includes('aws') ||
+      process.env.NODE_ENV === 'production';
+
+    if (isRemoteDb && process.env.ALLOW_E2E_DB_CLEAN !== 'true') {
+      console.log('🛡️ Data Protection: Skipped database wipe on remote/production DB.');
+      return;
+    }
     await prisma.auditLog.deleteMany({});
     await prisma.payment.deleteMany({});
     await prisma.invoiceItem.deleteMany({});

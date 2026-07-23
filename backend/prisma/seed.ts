@@ -7,7 +7,20 @@ async function main() {
   console.log('Starting database seeding...');
 
   // 1. Clear existing data ONLY if FORCE_SEED=true is specified
-  if (process.env.FORCE_SEED === 'true') {
+  const isRemoteDb =
+    process.env.DATABASE_URL?.includes('neon.tech') ||
+    process.env.DATABASE_URL?.includes('render.com') ||
+    process.env.DATABASE_URL?.includes('aws') ||
+    process.env.NODE_ENV === 'production';
+
+  if (isRemoteDb) {
+    console.log('🛡️ Strict Data Protection: Wiping production/remote DB is permanently disabled.');
+    const existingTenantCount = await prisma.tenant.count();
+    if (existingTenantCount > 0) {
+      console.log(`🛡️ Preserving all ${existingTenantCount} existing tenant(s) and client records.`);
+      return;
+    }
+  } else if (process.env.FORCE_SEED === 'true') {
     console.log('Cleaning existing data (FORCE_SEED=true)...');
     await prisma.auditLog.deleteMany({});
     await prisma.payment.deleteMany({});
