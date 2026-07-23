@@ -1372,8 +1372,8 @@ export default function DutySlipsPage() {
                         <Field label="Driver Name *">
                           <input type="text" required value={df.manualDriverName} onChange={e => setDf(f => ({ ...f, manualDriverName: e.target.value }))} className={inp} placeholder="e.g. Ramesh Kumar" />
                         </Field>
-                        <Field label="Driver Mobile">
-                          <input type="text" value={df.manualDriverPhone} onChange={e => setDf(f => ({ ...f, manualDriverPhone: e.target.value }))} className={inp} placeholder="e.g. 9876543210" />
+                        <Field label="Driver Mobile (Optional)">
+                          <input type="text" value={df.manualDriverPhone} onChange={e => setDf(f => ({ ...f, manualDriverPhone: e.target.value }))} className={inp} placeholder="e.g. 9876543210 (Optional)" />
                         </Field>
                       </>
                     ) : null}

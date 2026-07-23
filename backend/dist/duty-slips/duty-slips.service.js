@@ -89,7 +89,9 @@ let DutySlipsService = class DutySlipsService {
                 : null;
             if (!driver) {
                 const dName = dto.manualDriverName || 'External Driver';
-                const dPhone = dto.manualDriverPhone || '0000000000';
+                const dPhone = dto.manualDriverPhone && dto.manualDriverPhone.trim()
+                    ? dto.manualDriverPhone.trim()
+                    : 'EXT-' + Math.floor(1000000000 + Math.random() * 9000000000);
                 let existing = await this.prisma.driver.findFirst({
                     where: { tenantId: customer.tenantId, name: dName },
                 });
