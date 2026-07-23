@@ -667,21 +667,21 @@ export class DutySlipsService {
       const titleStr = slipTitle.toUpperCase();
       const hasLogo = logoBuffer && !tenant?.hideLogoOnPdf;
 
-      // Draw Logo on Top-Left (Increased Size: 110x60)
+      // Draw Logo on Top-Left (Bigger: 130x65)
       if (hasLogo) {
         try {
-          doc.image(logoBuffer, 50, 12, {
-            width: 110,
-            height: 60,
-            fit: [110, 60],
+          doc.image(logoBuffer, 50, 10, {
+            width: 130,
+            height: 65,
+            fit: [130, 65],
           });
         } catch (e) {
           console.warn('Failed to draw logo on duty slip:', e);
         }
       }
 
-      const textStartX = hasLogo ? 170 : 50;
-      const textWidth = hasLogo ? 375 : 495;
+      const textStartX = hasLogo ? 190 : 50;
+      const textWidth = hasLogo ? 355 : 495;
       const companyNameColor = tenant?.pdfColorCompanyName || primaryColor;
 
       // Company Name (Bigger, 22pt bold)
@@ -709,17 +709,15 @@ export class DutySlipsService {
 
       const addressStr = tenant?.companyAddress || '';
       if (addressStr) {
+        doc.fontSize(8.5).font(fontRegular);
+        const addrHeight = doc.heightOfString(addressStr, { width: textWidth });
         doc
           .fillColor('#475569')
-          .fontSize(8.5)
-          .font(fontRegular)
           .text(addressStr, textStartX, currentHeaderY, {
             width: textWidth,
             align: 'left',
-            height: 12,
-            lineBreak: false,
           });
-        currentHeaderY += 12;
+        currentHeaderY += addrHeight + 3;
       }
 
       const helplineStr = tenant?.companyPhone
@@ -737,10 +735,11 @@ export class DutySlipsService {
             width: textWidth,
             align: 'left',
           });
+        currentHeaderY += 12;
       }
 
       // Draw horizontal divider line
-      const lineY = 80;
+      const lineY = Math.max(currentHeaderY + 4, 82);
       if (isRefined) {
         doc.moveTo(50, lineY).lineTo(545, lineY).lineWidth(1).stroke(primaryColor);
         doc
@@ -756,37 +755,38 @@ export class DutySlipsService {
       // Reset text settings
       doc.fillColor('#0F172A').fontSize(10);
 
-      // Section 1: Slip and Booking Info Metadata Table
-      doc.rect(50, 90, 495, 60).stroke('#E2E8F0');
-      doc.moveTo(50, 120).lineTo(545, 120).stroke('#E2E8F0');
+      const tableStartY = lineY + 8;
+
+      // Section 1: Slip and Booking Info Metadata Table (Without Slip Status)
+      doc.rect(50, tableStartY, 495, 52).stroke('#E2E8F0');
+      doc.moveTo(50, tableStartY + 26).lineTo(545, tableStartY + 26).stroke('#E2E8F0');
       if (!isRefined) {
-        doc.moveTo(297, 90).lineTo(297, 150).stroke('#E2E8F0');
+        doc.moveTo(297, tableStartY).lineTo(297, tableStartY + 26).stroke('#E2E8F0');
       }
 
       // Row 1 Columns
-      doc.font(fontBold).text('Duty Slip No:', 60, 100);
-      doc.font(fontRegular).text(slip.dutySlipNumber, 150, 100);
+      doc.font(fontBold).text('Duty Slip No:', 60, tableStartY + 8);
+      doc.font(fontRegular).text(slip.dutySlipNumber, 150, tableStartY + 8);
 
       const bookingCode = slip.booking?.bookingNumber || 'DIRECT-DS';
-      doc.font(fontBold).text('Booking Code:', 307, 100);
-      doc.font(fontRegular).text(bookingCode, 400, 100);
+      doc.font(fontBold).text('Booking Code:', 307, tableStartY + 8);
+      doc.font(fontRegular).text(bookingCode, 400, tableStartY + 8);
 
-      // Row 2 Columns
-      doc.font(fontBold).text('Slip Status:', 60, 130);
-      doc.font(fontRegular).text(slip.status, 150, 130);
-
-      doc.font(fontBold).text('Trip Date & Time:', 307, 130);
+      // Row 2 Column: Trip Date & Time
+      doc.font(fontBold).text('Trip Date & Time:', 60, tableStartY + 33);
       const repDate = new Date(slip.reportingTime).toLocaleDateString('en-GB');
       const repTime = new Date(slip.reportingTime).toLocaleTimeString('en-GB', {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false,
       });
-      doc.font(fontRegular).text(`${repDate} ${repTime}`, 400, 130);
+      doc.font(fontRegular).text(`${repDate} ${repTime}`, 180, tableStartY + 33);
 
-      // Section 2: Customer & Route Information Card
-      doc.fontSize(12).font(fontBold).text('Customer & Route Details', 50, 165);
-      doc.rect(50, 180, 495, 95).stroke('#E2E8F0');
+      // Section 2: Customer & Route Information Card (With Duty Type)
+      const sec2TitleY = tableStartY + 60;
+      const sec2BoxY = sec2TitleY + 15;
+      doc.fontSize(12).font(fontBold).text('Customer & Route Details', 50, sec2TitleY);
+      doc.rect(50, sec2BoxY, 495, 95).stroke('#E2E8F0');
 
       const custName = slip.booking?.customer?.name
         ? slip.booking.customer.name +
@@ -795,168 +795,160 @@ export class DutySlipsService {
             : '')
         : (slip as any).manualCustomerName || 'Direct Customer';
 
-      doc.fontSize(10).font(fontBold).text('Customer Name:', 60, 188);
-      doc.font(fontRegular).text(custName, 150, 188);
+      doc.fontSize(10).font(fontBold).text('Customer Name:', 60, sec2BoxY + 8);
+      doc.font(fontRegular).text(custName, 150, sec2BoxY + 8);
 
       const guestDisplay =
         (slip.booking?.guestSalutation
           ? slip.booking.guestSalutation + ' '
           : '') + (slip.booking?.guestName || (slip as any).manualGuestName || '---');
-      doc.font(fontBold).text('Guest Name:', 307, 188);
-      doc.font(fontRegular).text(guestDisplay, 400, 188);
+      doc.font(fontBold).text('Guest Name:', 307, sec2BoxY + 8);
+      doc.font(fontRegular).text(guestDisplay, 400, sec2BoxY + 8);
+
+      const dutyTypeVal = (slip.booking?.tripType || 'LOCAL').replace(/_/g, ' ');
+      doc.font(fontBold).text('Duty Type:', 60, sec2BoxY + 23);
+      doc.font(fontRegular).text(dutyTypeVal, 150, sec2BoxY + 23);
 
       const empId = slip.employeeId || slip.booking?.employeeId;
-      doc.font(fontBold).text('Employee ID:', 60, 203);
-      doc.font(fontRegular).text(empId || '---', 150, 203);
+      doc.font(fontBold).text('Emp ID:', 260, sec2BoxY + 23);
+      doc.font(fontRegular).text(empId || '---', 305, sec2BoxY + 23);
 
       const bookedBy = slip.booking?.bookingBy || 'Direct Walk-in';
-      doc.font(fontBold).text('Booked By:', 307, 203);
-      doc.font(fontRegular).text(bookedBy, 400, 203);
+      doc.font(fontBold).text('Booked By:', 370, sec2BoxY + 23);
+      doc.font(fontRegular).text(bookedBy, 435, sec2BoxY + 23);
 
       const pickupLoc = slip.booking?.pickupLocation || (slip as any).manualPickupLocation || '---';
       const dropLoc = slip.booking?.dropLocation || (slip as any).manualDropLocation || '---';
 
-      doc.font(fontBold).text('Pickup Address:', 60, 220);
-      doc.font(fontRegular).text(pickupLoc, 150, 220, {
+      doc.font(fontBold).text('Pickup Address:', 60, sec2BoxY + 40);
+      doc.font(fontRegular).text(pickupLoc, 150, sec2BoxY + 40, {
         width: 380,
       });
 
-      doc.font(fontBold).text('Drop Address:', 60, 237);
-      doc.font(fontRegular).text(dropLoc, 150, 237, { width: 380 });
+      doc.font(fontBold).text('Drop Address:', 60, sec2BoxY + 57);
+      doc.font(fontRegular).text(dropLoc, 150, sec2BoxY + 57, { width: 380 });
 
-      // Section 3: Driver & Vehicle Allocation Details
-      doc.fontSize(12).font(fontBold).text('Allocated Resources', 50, 292);
-      doc.rect(50, 307, 495, 40).stroke('#E2E8F0');
+      // Section 3: Driver & Vehicle Allocation Details (VEHICLE NUMBER)
+      const sec3TitleY = sec2BoxY + 110;
+      const sec3BoxY = sec3TitleY + 15;
+      doc.fontSize(12).font(fontBold).text('Allocated Resources', 50, sec3TitleY);
+      doc.rect(50, sec3BoxY, 495, 40).stroke('#E2E8F0');
       if (!isRefined) {
-        doc.moveTo(297, 307).lineTo(297, 347).stroke('#E2E8F0');
+        doc.moveTo(297, sec3BoxY).lineTo(297, sec3BoxY + 40).stroke('#E2E8F0');
       }
 
       // Left Column (Driver)
-      doc.fontSize(10).font(fontBold).text('Driver Name:', 60, 320);
-      doc.font(fontRegular).text(slip.driver.name, 150, 320);
+      doc.fontSize(10).font(fontBold).text('Driver Name:', 60, sec3BoxY + 12);
+      doc.font(fontRegular).text(slip.driver.name, 150, sec3BoxY + 12);
 
-      // Right Column (Vehicle)
-      doc.font(fontBold).text('NUMBER:', 307, 315);
-      doc.font(fontRegular).text(slip.vehicle.vehicleNumber, 380, 315);
-      doc.font(fontBold).text('CAR TYPE:', 307, 330);
+      // Right Column (Vehicle Number & Car Type)
+      doc.font(fontBold).text('VEHICLE NUMBER:', 307, sec3BoxY + 7);
+      doc.font(fontRegular).text(slip.vehicle.vehicleNumber, 415, sec3BoxY + 7);
+      doc.font(fontBold).text('CAR TYPE:', 307, sec3BoxY + 22);
       doc
         .font(fontRegular)
-        .text(`${slip.vehicle.model} (${slip.vehicle.vehicleType})`, 380, 330);
+        .text(`${slip.vehicle.model} (${slip.vehicle.vehicleType})`, 380, sec3BoxY + 22);
 
-      // Section 4: Trip Details
-      doc.fontSize(12).font(fontBold).text('Trip Details', 50, 357);
-      doc.rect(50, 372, 495, 42).stroke('#E2E8F0');
+      // Section 4: Trip Details (Empty Space for Manual Fill)
+      const sec4TitleY = sec3BoxY + 50;
+      const sec4BoxY = sec4TitleY + 15;
+      doc.fontSize(12).font(fontBold).text('Trip Details', 50, sec4TitleY);
+      doc.rect(50, sec4BoxY, 495, 45).stroke('#E2E8F0');
       if (!isRefined) {
-        doc.moveTo(297, 372).lineTo(297, 414).stroke('#E2E8F0');
+        doc.moveTo(297, sec4BoxY).lineTo(297, sec4BoxY + 45).stroke('#E2E8F0');
       }
 
-      const tripTypeStr = (slip.booking?.tripType || 'LOCAL').replace(/_/g, ' ');
       const reqVehicleStr = slip.booking?.vehicleTypeRequired || slip.vehicle.vehicleType;
-      const remarksStr = slip.booking?.remarks || 'N/A';
+      doc.fontSize(9.5).font(fontBold).text('Req. Vehicle:', 60, sec4BoxY + 9);
+      doc.font(fontRegular).text(reqVehicleStr, 150, sec4BoxY + 9);
 
-      doc.fontSize(9.5).font(fontBold).text('Trip Type:', 60, 381);
-      doc.font(fontRegular).text(tripTypeStr, 150, 381);
+      doc.font(fontBold).text('Driver Notes:', 307, sec4BoxY + 9);
+      doc.font(fontRegular).text('____________________', 380, sec4BoxY + 9);
 
-      doc.font(fontBold).text('Req. Vehicle:', 307, 381);
-      doc.font(fontRegular).text(reqVehicleStr, 400, 381);
+      doc.font(fontBold).text('Driver Remarks:', 60, sec4BoxY + 27);
+      doc.font(fontRegular).text('__________________________________________________________', 150, sec4BoxY + 27);
 
-      doc.font(fontBold).text('Remarks:', 60, 397);
-      doc.font(fontRegular).text(remarksStr, 150, 397, { width: 380 });
+      // Section 5: Operational Trip Logs (Empty Blank Lines for Manual Entry)
+      const sec5TitleY = sec4BoxY + 55;
+      const sec5BoxY = sec5TitleY + 15;
+      doc.fontSize(12).font(fontBold).text('Operational Trip Logs', 50, sec5TitleY);
 
-      // Section 5: Operational Log Table
-      doc.fontSize(12).font(fontBold).text('Operational Trip Logs', 50, 424);
-
-      doc.rect(50, 439, 495, 70).stroke('#E2E8F0');
-      doc.moveTo(50, 469).lineTo(545, 469).stroke('#E2E8F0');
+      doc.rect(50, sec5BoxY, 495, 70).stroke('#E2E8F0');
+      doc.moveTo(50, sec5BoxY + 30).lineTo(545, sec5BoxY + 30).stroke('#E2E8F0');
       if (!isRefined) {
-        doc.moveTo(165, 439).lineTo(165, 509).stroke('#E2E8F0');
-        doc.moveTo(280, 439).lineTo(280, 509).stroke('#E2E8F0');
-        doc.moveTo(395, 439).lineTo(395, 509).stroke('#E2E8F0');
+        doc.moveTo(165, sec5BoxY).lineTo(165, sec5BoxY + 70).stroke('#E2E8F0');
+        doc.moveTo(280, sec5BoxY).lineTo(280, sec5BoxY + 70).stroke('#E2E8F0');
+        doc.moveTo(395, sec5BoxY).lineTo(395, sec5BoxY + 70).stroke('#E2E8F0');
       }
 
       // Table Header Row
       doc.fontSize(8).font(fontBold);
-      doc.text('START KM', 55, 449);
-      doc.text('END KM', 170, 449);
-      doc.text('START DATE & TIME', 285, 449);
-      doc.text('END DATE & TIME', 400, 449);
+      doc.text('START KM', 55, sec5BoxY + 10);
+      doc.text('END KM', 170, sec5BoxY + 10);
+      doc.text('START DATE & TIME', 285, sec5BoxY + 10);
+      doc.text('END DATE & TIME', 400, sec5BoxY + 10);
 
-      // Table Data Row
+      // Table Data Row (Always Blank for Driver Manual Entry)
       doc.fontSize(9).font(fontBold);
-      if (slip.status === 'DRAFT') {
-        doc.text('___________ KM', 55, 484);
-        doc.text('___________ KM', 170, 484);
-        doc.text('___/___/___  ___:___', 285, 484);
-        doc.text('___/___/___  ___:___', 400, 484);
-      } else {
-        doc.text(`${slip.startKm} KM`, 55, 484);
-        doc.text(slip.endKm !== null ? `${slip.endKm} KM` : '--- KM', 170, 484);
-        const formatDT = (dt: Date | string | null) => {
-          if (!dt) return '---';
-          const d = new Date(dt).toLocaleDateString('en-GB');
-          const t = new Date(dt).toLocaleTimeString('en-GB', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-          });
-          return `${d} ${t}`;
-        };
-        doc.text(formatDT(slip.startDateTime), 285, 484);
-        doc.text(formatDT(slip.endDateTime), 400, 484);
-      }
+      doc.text('___________ KM', 55, sec5BoxY + 45);
+      doc.text('___________ KM', 170, sec5BoxY + 45);
+      doc.text('___/___/___  ___:___', 285, sec5BoxY + 45);
+      doc.text('___/___/___  ___:___', 400, sec5BoxY + 45);
 
       // Section 6: Tolls & Charges Receipt Table
+      const sec6TitleY = sec5BoxY + 80;
+      const sec6BoxY = sec6TitleY + 15;
       doc
         .fontSize(12)
         .font(fontBold)
-        .text('Tolls & Incidentals Breakdown', 50, 519);
+        .text('Tolls & Incidentals Breakdown', 50, sec6TitleY);
 
-      doc.rect(50, 534, 495, 120).stroke('#E2E8F0');
-      doc.moveTo(50, 564).lineTo(545, 564).stroke('#E2E8F0');
-      doc.moveTo(50, 594).lineTo(545, 594).stroke('#E2E8F0');
-      doc.moveTo(50, 624).lineTo(545, 624).stroke('#E2E8F0');
+      doc.rect(50, sec6BoxY, 495, 120).stroke('#E2E8F0');
+      doc.moveTo(50, sec6BoxY + 30).lineTo(545, sec6BoxY + 30).stroke('#E2E8F0');
+      doc.moveTo(50, sec6BoxY + 60).lineTo(545, sec6BoxY + 60).stroke('#E2E8F0');
+      doc.moveTo(50, sec6BoxY + 90).lineTo(545, sec6BoxY + 90).stroke('#E2E8F0');
       if (!isRefined) {
-        doc.moveTo(297, 534).lineTo(297, 654).stroke('#E2E8F0');
+        doc.moveTo(297, sec6BoxY).lineTo(297, sec6BoxY + 120).stroke('#E2E8F0');
       }
 
       doc.fontSize(9.5).font(fontBold);
-      doc.text('Toll Charges:', 60, 544);
+      doc.text('Toll Charges:', 60, sec6BoxY + 10);
       doc
         .font(fontRegular)
         .text(
           slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.toll}`,
           180,
-          544,
+          sec6BoxY + 10,
         );
 
-      doc.font(fontBold).text('Parking Charges:', 307, 544);
+      doc.font(fontBold).text('Parking Charges:', 307, sec6BoxY + 10);
       doc
         .font(fontRegular)
         .text(
           slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.parking}`,
           420,
-          544,
+          sec6BoxY + 10,
         );
 
-      doc.font(fontBold).text('State Tax:', 60, 574);
+      doc.font(fontBold).text('State Tax:', 60, sec6BoxY + 40);
       doc
         .font(fontRegular)
         .text(
           slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.stateTax}`,
           180,
-          574,
+          sec6BoxY + 40,
         );
 
-      doc.font(fontBold).text('MCD Toll:', 307, 574);
+      doc.font(fontBold).text('MCD Toll:', 307, sec6BoxY + 40);
       doc
         .font(fontRegular)
         .text(
           slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.mcd}`,
           420,
-          574,
+          sec6BoxY + 40,
         );
 
-      doc.font(fontBold).text('Night Allowance:', 60, 604);
+      doc.font(fontBold).text('Night Allowance:', 60, sec6BoxY + 70);
       doc
         .font(fontRegular)
         .text(
@@ -964,10 +956,10 @@ export class DutySlipsService {
             ? 'INR ___________'
             : `INR ${slip.nightCharges}`,
           180,
-          604,
+          sec6BoxY + 70,
         );
 
-      doc.font(fontBold).text('Driver Allowance:', 307, 604);
+      doc.font(fontBold).text('Driver Allowance:', 307, sec6BoxY + 70);
       doc
         .font(fontRegular)
         .text(
@@ -975,10 +967,10 @@ export class DutySlipsService {
             ? 'INR ___________'
             : `INR ${slip.driverAllowance}`,
           420,
-          604,
+          sec6BoxY + 70,
         );
 
-      doc.font(fontBold).text('Extra / Misc Charges:', 60, 634);
+      doc.font(fontBold).text('Extra / Misc Charges:', 60, sec6BoxY + 100);
       doc
         .font(fontRegular)
         .text(
@@ -986,7 +978,7 @@ export class DutySlipsService {
             ? 'INR ___________'
             : `INR ${slip.extraCharges}`,
           180,
-          634,
+          sec6BoxY + 100,
         );
 
       const totalTolls =
@@ -997,44 +989,45 @@ export class DutySlipsService {
         Number(slip.nightCharges) +
         Number(slip.driverAllowance) +
         Number(slip.extraCharges);
-      doc.font(fontBold).text('Total Incidentals:', 307, 634);
+      doc.font(fontBold).text('Total Incidentals:', 307, sec6BoxY + 100);
       if (slip.status === 'DRAFT') {
         doc
           .font(fontBold)
           .fillColor(primaryColor)
-          .text('INR ___________', 420, 634);
+          .text('INR ___________', 420, sec6BoxY + 100);
       } else {
         doc
           .font(fontBold)
           .fillColor(primaryColor)
-          .text(`INR ${totalTolls.toFixed(2)}`, 420, 634);
+          .text(`INR ${totalTolls.toFixed(2)}`, 420, sec6BoxY + 100);
       }
 
       // Reset color
       doc.fillColor('#0F172A');
 
       // Footer Signatures (with Digital Signature)
+      const sigLineY = Math.min(sec6BoxY + 165, 715);
       doc.fontSize(8).font(fontBold);
-      doc.text('DRIVER SIGNATURE', 60, 715);
-      doc.text('CUSTOMER SIGNATURE', 225, 715);
-      doc.text('DISPATCH AUTHORIZED', 390, 715);
+      doc.text('DRIVER SIGNATURE', 60, sigLineY + 15);
+      doc.text('CUSTOMER SIGNATURE', 225, sigLineY + 15);
+      doc.text('DISPATCH AUTHORIZED', 390, sigLineY + 15);
 
       doc.font(fontRegular);
-      doc.text('-------------------------', 60, 700);
-      doc.text('-------------------------', 225, 700);
+      doc.text('-------------------------', 60, sigLineY);
+      doc.text('-------------------------', 225, sigLineY);
 
       if (signatureBuffer) {
         try {
-          doc.image(signatureBuffer, 385, 670, {
+          doc.image(signatureBuffer, 385, sigLineY - 30, {
             width: 110,
             height: 28,
             fit: [110, 28],
           });
         } catch (e) {
-          doc.text('-------------------------', 390, 700);
+          doc.text('-------------------------', 390, sigLineY);
         }
       } else {
-        doc.text('-------------------------', 390, 700);
+        doc.text('-------------------------', 390, sigLineY);
       }
 
       // End PDF stream
