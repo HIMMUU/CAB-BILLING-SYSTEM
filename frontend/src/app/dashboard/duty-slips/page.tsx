@@ -922,6 +922,10 @@ export default function DutySlipsPage() {
       nightChargesOnTime: Number(slip.nightCharges) || 0,
       billingMode: 'N',
       extraCharges: Number(slip.extraCharges) || 0,
+      manualDriverName: '',
+      manualDriverPhone: '',
+      manualVehicleNumber: '',
+      manualVehicleModel: '',
 
       // Override values
       baseFare: slip.trip ? Number((slip.trip as any).baseFareCharged) : 0,
@@ -1320,41 +1324,112 @@ export default function DutySlipsPage() {
                 <div className="p-5 space-y-4">
                   {/* Vehicle Section */}
                   <div className="grid grid-cols-3 gap-4">
-                    <Field label="Vehicle *">
-                      <select required value={df.vehicleId} onChange={e => {
-                        const val = e.target.value;
-                        const v = vehicles.find(v => v.id === val);
-                        setDf(f => ({
-                          ...f,
-                          vehicleId: val,
-                          carName: v?.model || (val === 'MANUAL' ? f.manualVehicleModel : ''),
-                          carGroup: v?.vehicleType || '',
-                        }));
-                      }} className={sel}>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Vehicle *</label>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDf((f) => ({
+                              ...f,
+                              vehicleId: f.vehicleId === 'MANUAL' ? '' : 'MANUAL',
+                            }))
+                          }
+                          className="text-[10px] font-bold text-blue-600 hover:text-blue-700 underline cursor-pointer"
+                        >
+                          {df.vehicleId === 'MANUAL'
+                            ? '← Select Registered'
+                            : '+ Direct Cab / Manual'}
+                        </button>
+                      </div>
+                      <select
+                        required
+                        value={df.vehicleId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const v = vehicles.find((v) => v.id === val);
+                          setDf((f) => ({
+                            ...f,
+                            vehicleId: val,
+                            carName:
+                              v?.model ||
+                              (val === 'MANUAL' ? f.manualVehicleModel : ''),
+                            carGroup: v?.vehicleType || '',
+                          }));
+                        }}
+                        className={sel}
+                      >
                         <option value="">— Choose Vehicle —</option>
                         <option value="MANUAL">+ Direct Cab / Manual Vehicle</option>
-                        {vehicles.map(v => <option key={v.id} value={v.id}>{v.vehicleNumber} ({v.model})</option>)}
+                        {vehicles.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.vehicleNumber} ({v.model})
+                          </option>
+                        ))}
                       </select>
-                    </Field>
+                    </div>
                     {df.vehicleId === 'MANUAL' ? (
                       <>
                         <Field label="Direct Cab / Vehicle Number *">
-                          <input type="text" required value={df.manualVehicleNumber} onChange={e => setDf(f => ({ ...f, manualVehicleNumber: e.target.value }))} className={inp} placeholder="e.g. DL1CA9999" />
+                          <input
+                            type="text"
+                            required
+                            value={df.manualVehicleNumber}
+                            onChange={(e) =>
+                              setDf((f) => ({
+                                ...f,
+                                manualVehicleNumber: e.target.value,
+                              }))
+                            }
+                            className={inp}
+                            placeholder="e.g. DL1CA9999"
+                          />
                         </Field>
                         <Field label="Vehicle Model *">
-                          <input type="text" required value={df.manualVehicleModel} onChange={e => setDf(f => ({ ...f, manualVehicleModel: e.target.value, carName: e.target.value }))} className={inp} placeholder="e.g. Toyota Innova Crysta" />
+                          <input
+                            type="text"
+                            required
+                            value={df.manualVehicleModel}
+                            onChange={(e) =>
+                              setDf((f) => ({
+                                ...f,
+                                manualVehicleModel: e.target.value,
+                                carName: e.target.value,
+                              }))
+                            }
+                            className={inp}
+                            placeholder="e.g. Toyota Innova Crysta"
+                          />
                         </Field>
                       </>
                     ) : (
                       <>
                         <Field label="Car Group">
-                          <select value={df.carGroup} onChange={e => setDf(f => ({ ...f, carGroup: e.target.value }))} className={sel}>
+                          <select
+                            value={df.carGroup}
+                            onChange={(e) =>
+                              setDf((f) => ({ ...f, carGroup: e.target.value }))
+                            }
+                            className={sel}
+                          >
                             <option value="">— Select —</option>
-                            {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
+                            {categories.map((cat) => (
+                              <option key={cat.id} value={cat.name}>
+                                {cat.name}
+                              </option>
+                            ))}
                           </select>
                         </Field>
                         <Field label="Car Name">
-                          <input type="text" value={df.carName} onChange={e => setDf(f => ({ ...f, carName: e.target.value }))} className={inp} placeholder="e.g. Innova Crysta" />
+                          <input
+                            type="text"
+                            value={df.carName}
+                            onChange={(e) =>
+                              setDf((f) => ({ ...f, carName: e.target.value }))
+                            }
+                            className={inp}
+                            placeholder="e.g. Innova Crysta"
+                          />
                         </Field>
                       </>
                     )}
@@ -1362,26 +1437,69 @@ export default function DutySlipsPage() {
 
                   {/* Driver & Reporting Time Section */}
                   <div className="grid grid-cols-2 gap-4">
-                    <Field label="Driver *">
-                      <select required value={df.driverId} onChange={e => setDf(f => ({ ...f, driverId: e.target.value }))} className={sel}>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Driver *</label>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDf((f) => ({
+                              ...f,
+                              driverId: f.driverId === 'MANUAL' ? '' : 'MANUAL',
+                            }))
+                          }
+                          className="text-[10px] font-bold text-blue-600 hover:text-blue-700 underline cursor-pointer"
+                        >
+                          {df.driverId === 'MANUAL'
+                            ? '← Select Registered'
+                            : '+ Manual Driver'}
+                        </button>
+                      </div>
+                      <select
+                        required
+                        value={df.driverId}
+                        onChange={(e) =>
+                          setDf((f) => ({ ...f, driverId: e.target.value }))
+                        }
+                        className={sel}
+                      >
                         <option value="">— Select Driver —</option>
                         <option value="MANUAL">+ Manual Driver</option>
-                        {drivers.map(d => <option key={d.id} value={d.id}>{d.name} · {d.mobile}</option>)}
+                        {drivers.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name} · {d.mobile}
+                          </option>
+                        ))}
                       </select>
-                    </Field>
+                    </div>
 
                     <Field label="Reporting Time *">
                       <div className="flex gap-2">
                         <div className="w-2/3">
                           <DatePicker
                             value={df.reportingDate}
-                            onChange={(val) => setDf(f => ({ ...f, reportingDate: val }))}
+                            onChange={(val) =>
+                              setDf((f) => ({ ...f, reportingDate: val }))
+                            }
                             format="DD/MM/YYYY"
                             placeholder="DD/MM/YYYY"
                             required
                           />
                         </div>
-                        <input type="text" placeholder="HH:mm" maxLength={5} required value={df.reportingTime} onChange={e => setDf(f => ({ ...f, reportingTime: handleTimeChange(e.target.value) }))} className={inp + ' w-1/3'} />
+                        <input
+                          type="text"
+                          placeholder="HH:mm"
+                          maxLength={5}
+                          required
+                          value={df.reportingTime}
+                          onChange={(e) =>
+                            setDf((f) => ({
+                              ...f,
+                              reportingTime: handleTimeChange(e.target.value),
+                            }))
+                          }
+                          className={inp + ' w-1/3'}
+                        />
                       </div>
                     </Field>
                   </div>
@@ -1390,10 +1508,33 @@ export default function DutySlipsPage() {
                   {df.driverId === 'MANUAL' && (
                     <div className="grid grid-cols-2 gap-4 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
                       <Field label="Driver Name *">
-                        <input type="text" required value={df.manualDriverName} onChange={e => setDf(f => ({ ...f, manualDriverName: e.target.value }))} className={inp} placeholder="e.g. Vijay Singh" />
+                        <input
+                          type="text"
+                          required
+                          value={df.manualDriverName}
+                          onChange={(e) =>
+                            setDf((f) => ({
+                              ...f,
+                              manualDriverName: e.target.value,
+                            }))
+                          }
+                          className={inp}
+                          placeholder="e.g. Vijay Singh"
+                        />
                       </Field>
                       <Field label="Driver Mobile (Optional)">
-                        <input type="text" value={df.manualDriverPhone} onChange={e => setDf(f => ({ ...f, manualDriverPhone: e.target.value }))} className={inp} placeholder="e.g. 9876543210 (Optional)" />
+                        <input
+                          type="text"
+                          value={df.manualDriverPhone}
+                          onChange={(e) =>
+                            setDf((f) => ({
+                              ...f,
+                              manualDriverPhone: e.target.value,
+                            }))
+                          }
+                          className={inp}
+                          placeholder="e.g. 9876543210 (Optional)"
+                        />
                       </Field>
                     </div>
                   )}
