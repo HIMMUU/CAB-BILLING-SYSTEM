@@ -135,6 +135,7 @@ export default function DashboardPage() {
   const [manualDriverMobile, setManualDriverMobile] = useState('');
   const [manualVehicleNumber, setManualVehicleNumber] = useState('');
   const [manualVehicleType, setManualVehicleType] = useState('Sedan');
+  const [companyCarGroups, setCompanyCarGroups] = useState<string[]>([]);
   const [assigningSubmitting, setAssigningSubmitting] = useState(false);
   const [drawerError, setDrawerError] = useState<string | null>(null);
 
@@ -169,9 +170,21 @@ export default function DashboardPage() {
     }
   };
 
+  const fetchCarGroups = async () => {
+    try {
+      const res = await api.request('/rate-management/categories');
+      if (Array.isArray(res) && res.length > 0) {
+        setCompanyCarGroups(res.map((c: any) => c.name));
+      }
+    } catch (err) {
+      console.error('Failed to load company car groups', err);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       loadDashboardData();
+      fetchCarGroups();
     }
   }, [user]);
 
@@ -802,12 +815,23 @@ export default function DashboardPage() {
                             onChange={(e) => setManualVehicleType(e.target.value)}
                             className="w-full px-3 py-2 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#0F172A] focus:outline-none focus:border-blue-600 transition"
                           >
-                            <option value="Sedan">Sedan</option>
-                            <option value="SUV">SUV</option>
-                            <option value="MUV">MUV</option>
-                            <option value="Luxury">Luxury</option>
-                            <option value="Tempo Traveller">Tempo Traveller</option>
-                            <option value="Bus">Bus</option>
+                            {companyCarGroups.length > 0 ? (
+                              Array.from(new Set([...companyCarGroups, manualVehicleType].filter(Boolean))).map((name) => (
+                                <option key={name} value={name}>
+                                  {name}
+                                </option>
+                              ))
+                            ) : (
+                              <>
+                                <option value="Sedan">Sedan</option>
+                                <option value="SUV">SUV</option>
+                                <option value="MUV">MUV</option>
+                                <option value="Luxury">Luxury</option>
+                                <option value="CRYSTA">CRYSTA</option>
+                                <option value="Tempo Traveller">Tempo Traveller</option>
+                                <option value="Bus">Bus</option>
+                              </>
+                            )}
                           </select>
                         </div>
 
