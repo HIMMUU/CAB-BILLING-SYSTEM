@@ -159,7 +159,12 @@ export default function DriversPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this driver?')) return;
     try {
-      await api.request(`/drivers/${id}`, { method: 'DELETE' });
+      const res = await api.request(`/drivers/${id}`, { method: 'DELETE' });
+      if (res?.status === 'INACTIVE') {
+        alert(
+          'Driver has historical trip records and has been marked as INACTIVE to protect financial logs.',
+        );
+      }
       fetchDrivers();
     } catch (err: any) {
       alert(err.message || 'Failed to delete driver.');

@@ -120,7 +120,33 @@ let DriversService = class DriversService {
         });
     }
     async remove(id) {
-        await this.findOne(id);
+        const driver = await this.prisma.driver.findUnique({
+            where: { id },
+            include: {
+                assignments: {
+                    where: { status: client_1.AssignmentStatus.ACTIVE },
+                },
+                _count: {
+                    select: {
+                        assignments: true,
+                        dutySlips: true,
+                    },
+                },
+            },
+        });
+        if (!driver) {
+            throw new common_1.NotFoundException('Driver not found');
+        }
+        if (driver.assignments.length > 0) {
+            throw new common_1.BadRequestException('Cannot delete driver while they have active trip dispatches. Please complete or cancel their active trips first.');
+        }
+        const hasHistory = driver._count.assignments > 0 || driver._count.dutySlips > 0;
+        if (hasHistory) {
+            return this.prisma.driver.update({
+                where: { id },
+                data: { status: client_1.DriverStatus.INACTIVE },
+            });
+        }
         return this.prisma.driver.delete({
             where: { id },
         });

@@ -953,9 +953,18 @@ export default function DutySlipsPage() {
 
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this duty slip?')) return;
-    try { await api.request(`/duty-slips/${id}`, { method: 'DELETE' }); fetchDutySlips(); }
-    catch (e: any) { alert(e.message); }
+    if (
+      !confirm(
+        'Are you sure you want to delete this duty slip? This will remove associated unbilled trips and return any linked booking to pending status.',
+      )
+    )
+      return;
+    try {
+      await api.request(`/duty-slips/${id}`, { method: 'DELETE' });
+      fetchDutySlips();
+    } catch (e: any) {
+      alert(e.message || 'Failed to delete duty slip.');
+    }
   };
 
   const downloadPdf = async (id: string, num: string) => {

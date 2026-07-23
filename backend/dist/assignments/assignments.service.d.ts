@@ -323,4 +323,16 @@ export declare class AssignmentsService {
         assignedAt: Date;
         assignedById: string | null;
     }>;
+    remove(id: string): Promise<{
+        id: string;
+        status: import(".prisma/client").$Enums.AssignmentStatus;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
+        driverId: string;
+        bookingId: string;
+        vehicleId: string;
+        assignedAt: Date;
+        assignedById: string | null;
+    }>;
 }

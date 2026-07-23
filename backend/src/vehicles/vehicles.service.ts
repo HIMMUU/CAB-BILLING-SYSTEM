@@ -2,11 +2,12 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
-import { VehicleStatus } from '@prisma/client';
+import { VehicleStatus, AssignmentStatus } from '@prisma/client';
 
 @Injectable()
 export class VehiclesService {
@@ -150,7 +151,41 @@ export class VehiclesService {
   }
 
   async remove(id: string) {
-    await this.findOne(id);
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id },
+      include: {
+        assignments: {
+          where: { status: AssignmentStatus.ACTIVE },
+        },
+        _count: {
+          select: {
+            assignments: true,
+            dutySlips: true,
+          },
+        },
+      },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found');
+    }
+
+    if (vehicle.assignments.length > 0) {
+      throw new BadRequestException(
+        'Cannot delete vehicle while it is assigned to an active trip dispatch. Please complete or cancel active trips first.',
+      );
+    }
+
+    const hasHistory =
+      vehicle._count.assignments > 0 || vehicle._count.dutySlips > 0;
+
+    if (hasHistory) {
+      return this.prisma.vehicle.update({
+        where: { id },
+        data: { status: VehicleStatus.INACTIVE },
+      });
+    }
+
     return this.prisma.vehicle.delete({
       where: { id },
     });

@@ -298,6 +298,85 @@ let AssignmentsService = class AssignmentsService {
             return updatedAssignment;
         });
     }
+    async remove(id) {
+        const assignment = await this.prisma.assignment.findUnique({
+            where: { id },
+            include: {
+                booking: {
+                    include: {
+                        dutySlip: {
+                            include: {
+                                trip: {
+                                    include: {
+                                        invoiceItems: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        if (!assignment) {
+            throw new common_1.NotFoundException('Assignment not found');
+        }
+        const dutySlip = assignment.booking?.dutySlip;
+        if (dutySlip?.trip?.invoiceItems && dutySlip.trip.invoiceItems.length > 0) {
+            throw new common_1.BadRequestException('Cannot delete an assignment for a duty slip/trip that has already been billed on an invoice.');
+        }
+        return this.prisma.$transaction(async (tx) => {
+            if (dutySlip?.trip) {
+                await tx.trip.delete({
+                    where: { id: dutySlip.trip.id },
+                });
+            }
+            if (dutySlip) {
+                await tx.dutySlip.delete({
+                    where: { id: dutySlip.id },
+                });
+            }
+            const deletedAssignment = await tx.assignment.delete({
+                where: { id },
+            });
+            if (assignment.bookingId) {
+                await tx.booking.update({
+                    where: { id: assignment.bookingId },
+                    data: { status: client_1.BookingStatus.PENDING },
+                });
+            }
+            if (assignment.driverId) {
+                const activeDriverAssignments = await tx.assignment.count({
+                    where: {
+                        driverId: assignment.driverId,
+                        status: client_1.AssignmentStatus.ACTIVE,
+                        id: { not: id },
+                    },
+                });
+                if (activeDriverAssignments === 0) {
+                    await tx.driver.update({
+                        where: { id: assignment.driverId },
+                        data: { status: client_1.DriverStatus.AVAILABLE },
+                    });
+                }
+            }
+            if (assignment.vehicleId) {
+                const activeVehicleAssignments = await tx.assignment.count({
+                    where: {
+                        vehicleId: assignment.vehicleId,
+                        status: client_1.AssignmentStatus.ACTIVE,
+                        id: { not: id },
+                    },
+                });
+                if (activeVehicleAssignments === 0) {
+                    await tx.vehicle.update({
+                        where: { id: assignment.vehicleId },
+                        data: { status: client_1.VehicleStatus.AVAILABLE },
+                    });
+                }
+            }
+            return deletedAssignment;
+        });
+    }
 };
 exports.AssignmentsService = AssignmentsService;
 exports.AssignmentsService = AssignmentsService = __decorate([

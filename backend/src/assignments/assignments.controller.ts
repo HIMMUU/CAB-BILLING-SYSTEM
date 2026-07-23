@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -47,5 +48,11 @@ export class AssignmentsController {
     @Body() updateAssignmentStatusDto: UpdateAssignmentStatusDto,
   ) {
     return this.assignmentsService.updateStatus(id, updateAssignmentStatusDto);
+  }
+
+  @Delete(':id')
+  @Permissions(Permission.ASSIGN_RESOURCES)
+  remove(@Param('id') id: string) {
+    return this.assignmentsService.remove(id);
   }
 }

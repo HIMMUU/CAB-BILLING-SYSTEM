@@ -193,7 +193,12 @@ export default function VehiclesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this vehicle?')) return;
     try {
-      await api.request(`/vehicles/${id}`, { method: 'DELETE' });
+      const res = await api.request(`/vehicles/${id}`, { method: 'DELETE' });
+      if (res?.status === 'INACTIVE') {
+        alert(
+          'Vehicle has historical trip records and has been marked as INACTIVE to protect financial logs.',
+        );
+      }
       fetchVehicles();
     } catch (err: any) {
       alert(err.message || 'Failed to delete vehicle.');

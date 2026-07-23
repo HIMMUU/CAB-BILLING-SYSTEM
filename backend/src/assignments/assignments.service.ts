@@ -382,4 +382,102 @@ export class AssignmentsService {
       return updatedAssignment;
     });
   }
+
+  async remove(id: string) {
+    const assignment = await this.prisma.assignment.findUnique({
+      where: { id },
+      include: {
+        booking: {
+          include: {
+            dutySlip: {
+              include: {
+                trip: {
+                  include: {
+                    invoiceItems: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!assignment) {
+      throw new NotFoundException('Assignment not found');
+    }
+
+    const dutySlip = assignment.booking?.dutySlip;
+
+    if (dutySlip?.trip?.invoiceItems && dutySlip.trip.invoiceItems.length > 0) {
+      throw new BadRequestException(
+        'Cannot delete an assignment for a duty slip/trip that has already been billed on an invoice.',
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Delete associated Trip if exists and unbilled
+      if (dutySlip?.trip) {
+        await tx.trip.delete({
+          where: { id: dutySlip.trip.id },
+        });
+      }
+
+      // 2. Delete associated Duty Slip if exists
+      if (dutySlip) {
+        await tx.dutySlip.delete({
+          where: { id: dutySlip.id },
+        });
+      }
+
+      // 3. Delete Assignment
+      const deletedAssignment = await tx.assignment.delete({
+        where: { id },
+      });
+
+      // 4. Reset Booking status to PENDING
+      if (assignment.bookingId) {
+        await tx.booking.update({
+          where: { id: assignment.bookingId },
+          data: { status: BookingStatus.PENDING },
+        });
+      }
+
+      // 5. Revert Driver status to AVAILABLE if no active assignments remain
+      if (assignment.driverId) {
+        const activeDriverAssignments = await tx.assignment.count({
+          where: {
+            driverId: assignment.driverId,
+            status: AssignmentStatus.ACTIVE,
+            id: { not: id },
+          },
+        });
+        if (activeDriverAssignments === 0) {
+          await tx.driver.update({
+            where: { id: assignment.driverId },
+            data: { status: DriverStatus.AVAILABLE },
+          });
+        }
+      }
+
+      // 6. Revert Vehicle status to AVAILABLE if no active assignments remain
+      if (assignment.vehicleId) {
+        const activeVehicleAssignments = await tx.assignment.count({
+          where: {
+            vehicleId: assignment.vehicleId,
+            status: AssignmentStatus.ACTIVE,
+            id: { not: id },
+          },
+        });
+        if (activeVehicleAssignments === 0) {
+          await tx.vehicle.update({
+            where: { id: assignment.vehicleId },
+            data: { status: VehicleStatus.AVAILABLE },
+          });
+        }
+      }
+
+      return deletedAssignment;
+    });
+  }
 }

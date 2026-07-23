@@ -378,8 +378,11 @@ let InvoicesService = class InvoicesService {
         const limit = Number(query.limit) || 10;
         const skip = (page - 1) * limit;
         const where = {};
-        if (query.status) {
+        if (query.status && query.status !== 'ALL') {
             where.status = query.status;
+        }
+        else {
+            where.status = { not: client_1.InvoiceStatus.CANCELLED };
         }
         if (query.search) {
             where.OR = [
@@ -863,12 +866,23 @@ let InvoicesService = class InvoicesService {
                 return null;
             })(),
             (async () => {
-                if (!tenant?.digitalSignatureUrl)
+                const sigUrl = tenant?.digitalSignatureUrl;
+                if (!sigUrl)
                     return null;
-                if (tenant.digitalSignatureUrl.startsWith('http://') ||
-                    tenant.digitalSignatureUrl.startsWith('https://')) {
+                if (sigUrl.startsWith('data:image/')) {
                     try {
-                        const res = await fetch(tenant.digitalSignatureUrl, {
+                        const base64Data = sigUrl.split(',')[1];
+                        if (base64Data)
+                            return Buffer.from(base64Data, 'base64');
+                    }
+                    catch (e) {
+                        console.warn('Failed to parse base64 digital signature:', e.message);
+                    }
+                }
+                if (sigUrl.startsWith('http://') ||
+                    sigUrl.startsWith('https://')) {
+                    try {
+                        const res = await fetch(sigUrl, {
                             signal: AbortSignal.timeout(3000),
                         });
                         if (res.ok) {
@@ -876,8 +890,27 @@ let InvoicesService = class InvoicesService {
                         }
                     }
                     catch (e) {
-                        console.warn('Failed to fetch digital signature from URL:', tenant.digitalSignatureUrl, e.message);
+                        console.warn('Failed to fetch digital signature from URL:', sigUrl, e.message);
                     }
+                }
+                try {
+                    const fs = require('fs');
+                    const cleanPath = sigUrl.replace(/^\//, '');
+                    const pathsToTry = [
+                        path.resolve(__dirname, '..', 'assets', cleanPath),
+                        path.resolve(__dirname, '..', '..', 'frontend', 'public', cleanPath),
+                        path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', cleanPath),
+                        path.resolve(cleanPath),
+                        path.resolve(sigUrl),
+                    ];
+                    for (const p of pathsToTry) {
+                        if (fs.existsSync(p)) {
+                            return fs.readFileSync(p);
+                        }
+                    }
+                }
+                catch (e) {
+                    console.warn('Failed to read digital signature from local path:', sigUrl, e.message);
                 }
                 return null;
             })(),

@@ -228,6 +228,25 @@ export default function AssignmentsPage() {
     }
   };
 
+  const handleDeleteAssignment = async (assignmentId: string) => {
+    if (
+      !confirm(
+        'Are you sure you want to delete this assignment? This will remove associated duty slips and return the booking to the pending queue.',
+      )
+    )
+      return;
+
+    try {
+      await api.request(`/assignments/${assignmentId}`, {
+        method: 'DELETE',
+      });
+      fetchUnassignedBookings();
+      fetchAssignmentsHistory();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete assignment.');
+    }
+  };
+
   const downloadPdf = async (id: string, num: string) => {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/duty-slips/${id}/pdf`, {
@@ -513,32 +532,39 @@ export default function AssignmentsPage() {
                       </td>
                       {canEdit && (
                         <td className="py-4 px-6 text-right">
-                          {a.status === 'ACTIVE' ? (
-                            <div className="flex justify-end gap-1.5">
-                              {a.booking && (
+                          <div className="flex justify-end items-center gap-1.5">
+                            {a.status === 'ACTIVE' && (
+                              <>
+                                {a.booking && (
+                                  <button
+                                    onClick={() => handlePrintDutySlip(a.booking)}
+                                    className="px-2.5 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-lg transition"
+                                  >
+                                    Print Slip
+                                  </button>
+                                )}
                                 <button
-                                  onClick={() => handlePrintDutySlip(a.booking)}
-                                  className="px-2.5 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-lg transition"
+                                  onClick={() => handleUpdateStatus(a.id, 'COMPLETED')}
+                                  className="px-2.5 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 rounded-lg transition"
                                 >
-                                  Print Slip
+                                  Complete
                                 </button>
-                              )}
-                              <button
-                                onClick={() => handleUpdateStatus(a.id, 'COMPLETED')}
-                                className="px-2.5 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 rounded-lg transition"
-                              >
-                                Complete
-                              </button>
-                              <button
-                                onClick={() => handleUpdateStatus(a.id, 'CANCELLED')}
-                                className="px-2.5 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-100 hover:bg-red-100 rounded-lg transition"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-gray-400">Locked</span>
-                          )}
+                                <button
+                                  onClick={() => handleUpdateStatus(a.id, 'CANCELLED')}
+                                  className="px-2.5 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-100 hover:bg-red-100 rounded-lg transition"
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            )}
+                            <button
+                              onClick={() => handleDeleteAssignment(a.id)}
+                              className="px-2.5 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-100 hover:bg-rose-100 rounded-lg transition"
+                              title="Delete Assignment"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>

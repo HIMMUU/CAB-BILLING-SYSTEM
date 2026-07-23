@@ -381,9 +381,74 @@ let DutySlipsService = class DutySlipsService {
         });
     }
     async remove(id) {
-        await this.findOne(id);
-        return this.prisma.dutySlip.delete({
+        const slip = await this.prisma.dutySlip.findUnique({
             where: { id },
+            include: {
+                trip: {
+                    include: {
+                        invoiceItems: true,
+                    },
+                },
+                booking: true,
+            },
+        });
+        if (!slip) {
+            throw new common_1.NotFoundException('Duty slip not found');
+        }
+        if (slip.trip &&
+            slip.trip.invoiceItems &&
+            slip.trip.invoiceItems.length > 0) {
+            throw new common_1.BadRequestException('Cannot delete a duty slip that has already been billed on an invoice. Please remove it from the invoice first.');
+        }
+        return this.prisma.$transaction(async (tx) => {
+            if (slip.trip) {
+                await tx.trip.delete({
+                    where: { id: slip.trip.id },
+                });
+            }
+            if (slip.bookingId) {
+                await tx.assignment.deleteMany({
+                    where: { bookingId: slip.bookingId },
+                });
+            }
+            const deletedSlip = await tx.dutySlip.delete({
+                where: { id },
+            });
+            if (slip.bookingId) {
+                await tx.booking.update({
+                    where: { id: slip.bookingId },
+                    data: { status: client_1.BookingStatus.PENDING },
+                });
+            }
+            if (slip.driverId) {
+                const activeDriverAssignments = await tx.assignment.count({
+                    where: {
+                        driverId: slip.driverId,
+                        status: client_1.AssignmentStatus.ACTIVE,
+                    },
+                });
+                if (activeDriverAssignments === 0) {
+                    await tx.driver.update({
+                        where: { id: slip.driverId },
+                        data: { status: client_1.DriverStatus.AVAILABLE },
+                    });
+                }
+            }
+            if (slip.vehicleId) {
+                const activeVehicleAssignments = await tx.assignment.count({
+                    where: {
+                        vehicleId: slip.vehicleId,
+                        status: client_1.AssignmentStatus.ACTIVE,
+                    },
+                });
+                if (activeVehicleAssignments === 0) {
+                    await tx.vehicle.update({
+                        where: { id: slip.vehicleId },
+                        data: { status: client_1.VehicleStatus.AVAILABLE },
+                    });
+                }
+            }
+            return deletedSlip;
         });
     }
     async generatePdf(id) {
@@ -443,21 +508,51 @@ let DutySlipsService = class DutySlipsService {
             return null;
         })();
         const signatureBuffer = await (async () => {
-            if (!tenant?.digitalSignatureUrl)
+            const sigUrl = tenant?.digitalSignatureUrl;
+            if (!sigUrl)
                 return null;
-            if (tenant.digitalSignatureUrl.startsWith('http://') ||
-                tenant.digitalSignatureUrl.startsWith('https://')) {
+            if (sigUrl.startsWith('data:image/')) {
                 try {
-                    const res = await fetch(tenant.digitalSignatureUrl, {
-                        signal: AbortSignal.timeout(2000),
+                    const base64Data = sigUrl.split(',')[1];
+                    if (base64Data) {
+                        return Buffer.from(base64Data, 'base64');
+                    }
+                }
+                catch (e) {
+                    console.warn('Failed to parse base64 digital signature:', e.message);
+                }
+            }
+            if (sigUrl.startsWith('http://') || sigUrl.startsWith('https://')) {
+                try {
+                    const res = await fetch(sigUrl, {
+                        signal: AbortSignal.timeout(2500),
                     });
                     if (res.ok) {
                         return Buffer.from(await res.arrayBuffer());
                     }
                 }
                 catch (e) {
-                    console.warn('Failed to fetch digital signature from URL:', tenant.digitalSignatureUrl, e.message);
+                    console.warn('Failed to fetch digital signature from URL:', sigUrl, e.message);
                 }
+            }
+            try {
+                const fs = require('fs');
+                const cleanPath = sigUrl.replace(/^\//, '');
+                const pathsToTry = [
+                    path.resolve(__dirname, '..', 'assets', cleanPath),
+                    path.resolve(__dirname, '..', '..', 'frontend', 'public', cleanPath),
+                    path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', cleanPath),
+                    path.resolve(cleanPath),
+                    path.resolve(sigUrl),
+                ];
+                for (const p of pathsToTry) {
+                    if (fs.existsSync(p)) {
+                        return fs.readFileSync(p);
+                    }
+                }
+            }
+            catch (e) {
+                console.warn('Failed to read digital signature from local path:', sigUrl, e.message);
             }
             return null;
         })();
@@ -468,62 +563,102 @@ let DutySlipsService = class DutySlipsService {
             doc.on('end', () => resolve(Buffer.concat(chunks)));
             doc.on('error', (err) => reject(err));
             const titleStr = slipTitle.toUpperCase();
-            if (logoBuffer && !tenant?.hideLogoOnPdf) {
+            const hasLogo = logoBuffer && !tenant?.hideLogoOnPdf;
+            if (hasLogo) {
                 try {
-                    doc.image(logoBuffer, 460, 18, {
+                    doc.image(logoBuffer, 50, 15, {
                         width: 85,
-                        height: 38,
-                        fit: [85, 38],
+                        height: 48,
+                        fit: [85, 48],
                     });
                 }
                 catch (e) {
                     console.warn('Failed to draw logo on duty slip:', e);
                 }
             }
+            const textStartX = hasLogo ? 145 : 50;
+            const textWidth = hasLogo ? 400 : 495;
             const companyNameColor = tenant?.pdfColorCompanyName || primaryColor;
             doc
                 .fillColor(companyNameColor)
-                .fontSize(20)
+                .fontSize(22)
                 .font(fontBold)
-                .text(companyName.toUpperCase(), 50, 20, {
-                align: 'center',
-                width: 495,
+                .text(companyName.toUpperCase(), textStartX, 15, {
+                width: textWidth,
+                align: 'left',
             });
             doc
-                .fillColor('#475569')
-                .fontSize(10)
+                .fillColor('#334155')
+                .fontSize(11.5)
                 .font(fontBold)
-                .text(titleStr, 50, 45, { align: 'center', width: 495 });
-            if (isRefined) {
-                doc.moveTo(50, 63).lineTo(545, 63).lineWidth(1).stroke(primaryColor);
+                .text(titleStr, textStartX, 40, {
+                width: textWidth,
+                align: 'left',
+            });
+            let currentHeaderY = 55;
+            const addressStr = tenant?.companyAddress || '';
+            if (addressStr) {
                 doc
-                    .moveTo(50, 65.5)
-                    .lineTo(545, 65.5)
+                    .fillColor('#475569')
+                    .fontSize(8.5)
+                    .font(fontRegular)
+                    .text(addressStr, textStartX, currentHeaderY, {
+                    width: textWidth,
+                    align: 'left',
+                    height: 12,
+                    lineBreak: false,
+                });
+                currentHeaderY += 12;
+            }
+            const helplineStr = tenant?.companyPhone
+                ? `Helpline / Contact: ${tenant.companyPhone}${tenant?.companyEmail ? ` | Email: ${tenant.companyEmail}` : ''}`
+                : tenant?.companyEmail
+                    ? `Email: ${tenant.companyEmail}`
+                    : '';
+            if (helplineStr) {
+                doc
+                    .fillColor(primaryColor)
+                    .fontSize(8.5)
+                    .font(fontBold)
+                    .text(helplineStr, textStartX, currentHeaderY, {
+                    width: textWidth,
+                    align: 'left',
+                });
+            }
+            const lineY = 80;
+            if (isRefined) {
+                doc.moveTo(50, lineY).lineTo(545, lineY).lineWidth(1).stroke(primaryColor);
+                doc
+                    .moveTo(50, lineY + 2.5)
+                    .lineTo(545, lineY + 2.5)
                     .lineWidth(0.5)
                     .stroke(primaryColor);
                 doc.lineWidth(1);
             }
-            doc.fillColor('#0F172A').fontSize(10);
-            doc.rect(50, 85, 495, 60).stroke('#E2E8F0');
-            doc.moveTo(50, 115).lineTo(545, 115).stroke('#E2E8F0');
-            if (!isRefined) {
-                doc.moveTo(297, 85).lineTo(297, 145).stroke('#E2E8F0');
+            else {
+                doc.moveTo(50, lineY).lineTo(545, lineY).lineWidth(0.5).stroke('#CBD5E1');
             }
-            doc.font(fontBold).text('Duty Slip No:', 60, 95);
-            doc.font(fontRegular).text(slip.dutySlipNumber, 150, 95);
+            doc.fillColor('#0F172A').fontSize(10);
+            doc.rect(50, 90, 495, 60).stroke('#E2E8F0');
+            doc.moveTo(50, 120).lineTo(545, 120).stroke('#E2E8F0');
+            if (!isRefined) {
+                doc.moveTo(297, 90).lineTo(297, 150).stroke('#E2E8F0');
+            }
+            doc.font(fontBold).text('Duty Slip No:', 60, 100);
+            doc.font(fontRegular).text(slip.dutySlipNumber, 150, 100);
             const bookingCode = slip.booking?.bookingNumber || 'DIRECT-DS';
-            doc.font(fontBold).text('Booking Code:', 307, 95);
-            doc.font(fontRegular).text(bookingCode, 400, 95);
-            doc.font(fontBold).text('Slip Status:', 60, 125);
-            doc.font(fontRegular).text(slip.status, 150, 125);
-            doc.font(fontBold).text('Trip Date & Time:', 307, 125);
+            doc.font(fontBold).text('Booking Code:', 307, 100);
+            doc.font(fontRegular).text(bookingCode, 400, 100);
+            doc.font(fontBold).text('Slip Status:', 60, 130);
+            doc.font(fontRegular).text(slip.status, 150, 130);
+            doc.font(fontBold).text('Trip Date & Time:', 307, 130);
             const repDate = new Date(slip.reportingTime).toLocaleDateString('en-GB');
             const repTime = new Date(slip.reportingTime).toLocaleTimeString('en-GB', {
                 hour: '2-digit',
                 minute: '2-digit',
                 hour12: false,
             });
-            doc.font(fontRegular).text(`${repDate} ${repTime}`, 400, 125);
+            doc.font(fontRegular).text(`${repDate} ${repTime}`, 400, 130);
             doc.fontSize(12).font(fontBold).text('Customer & Route Details', 50, 165);
             doc.rect(50, 180, 495, 95).stroke('#E2E8F0');
             const custName = slip.booking?.customer?.name

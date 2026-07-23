@@ -794,7 +794,7 @@ export default function InvoicesPage() {
 
           {/* Status filters */}
           <div className="flex items-center gap-2 overflow-x-auto">
-            {['ALL', 'UNPAID', 'PARTIALLY_PAID', 'PAID', 'VOID', 'DRAFT'].map((status) => (
+            {['ALL', 'UNPAID', 'PARTIALLY_PAID', 'PAID', 'DRAFT', 'VOID', 'CANCELLED'].map((status) => (
               <button
                 key={status}
                 onClick={() => {
@@ -803,11 +803,15 @@ export default function InvoicesPage() {
                 }}
                 className={`text-xs px-3 py-1.5 rounded-lg border font-semibold capitalize whitespace-nowrap transition-colors ${
                   statusFilter === status
-                    ? 'bg-blue-600 border-blue-600 text-white'
+                    ? status === 'CANCELLED'
+                      ? 'bg-rose-600 border-rose-600 text-white'
+                      : 'bg-blue-600 border-blue-600 text-white'
+                    : status === 'CANCELLED'
+                    ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
                     : 'bg-white border-[#E2E8F0] text-[#64748B] hover:text-[#0F172A] hover:bg-gray-100'
                 }`}
               >
-                {status.replace('_', ' ').toLowerCase()}
+                {status === 'CANCELLED' ? 'Cancelled Invoices' : status.replace('_', ' ').toLowerCase()}
               </button>
             ))}
           </div>

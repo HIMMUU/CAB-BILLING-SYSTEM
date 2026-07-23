@@ -36,6 +36,9 @@ let AssignmentsController = class AssignmentsController {
     updateStatus(id, updateAssignmentStatusDto) {
         return this.assignmentsService.updateStatus(id, updateAssignmentStatusDto);
     }
+    remove(id) {
+        return this.assignmentsService.remove(id);
+    }
 };
 exports.AssignmentsController = AssignmentsController;
 __decorate([
@@ -73,6 +76,14 @@ __decorate([
     __metadata("design:paramtypes", [String, update_assignment_status_dto_1.UpdateAssignmentStatusDto]),
     __metadata("design:returntype", void 0)
 ], AssignmentsController.prototype, "updateStatus", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    (0, permissions_decorator_1.Permissions)(permissions_1.Permission.ASSIGN_RESOURCES),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AssignmentsController.prototype, "remove", null);
 exports.AssignmentsController = AssignmentsController = __decorate([
     (0, common_1.Controller)('assignments'),
     __metadata("design:paramtypes", [assignments_service_1.AssignmentsService])

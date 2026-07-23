@@ -2,11 +2,12 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
-import { DriverStatus } from '@prisma/client';
+import { DriverStatus, AssignmentStatus } from '@prisma/client';
 
 @Injectable()
 export class DriversService {
@@ -147,7 +148,41 @@ export class DriversService {
   }
 
   async remove(id: string) {
-    await this.findOne(id);
+    const driver = await this.prisma.driver.findUnique({
+      where: { id },
+      include: {
+        assignments: {
+          where: { status: AssignmentStatus.ACTIVE },
+        },
+        _count: {
+          select: {
+            assignments: true,
+            dutySlips: true,
+          },
+        },
+      },
+    });
+
+    if (!driver) {
+      throw new NotFoundException('Driver not found');
+    }
+
+    if (driver.assignments.length > 0) {
+      throw new BadRequestException(
+        'Cannot delete driver while they have active trip dispatches. Please complete or cancel their active trips first.',
+      );
+    }
+
+    const hasHistory =
+      driver._count.assignments > 0 || driver._count.dutySlips > 0;
+
+    if (hasHistory) {
+      return this.prisma.driver.update({
+        where: { id },
+        data: { status: DriverStatus.INACTIVE },
+      });
+    }
+
     return this.prisma.driver.delete({
       where: { id },
     });
