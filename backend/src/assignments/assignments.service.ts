@@ -42,9 +42,65 @@ export class AssignmentsService {
       );
     }
 
+    let targetDriverId = dto.driverId;
+    let targetVehicleId = dto.vehicleId;
+
+    // Handle manual driver creation/lookup
+    if (!targetDriverId && (dto.manualDriverName || dto.manualDriverMobile)) {
+      const mobile = dto.manualDriverMobile || '9999999999';
+      let existingDriver = await this.prisma.driver.findFirst({
+        where: { tenantId: booking.tenantId, mobile },
+      });
+      if (!existingDriver) {
+        existingDriver = await this.prisma.driver.create({
+          data: {
+            tenantId: booking.tenantId,
+            name: dto.manualDriverName || 'Manual Driver',
+            mobile,
+            licenseNumber: 'MANUAL-' + Date.now().toString().slice(-6),
+            licenseExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+            address: 'Vendor / Ad-hoc Cab Driver',
+            emergencyContact: mobile,
+            status: DriverStatus.AVAILABLE,
+          },
+        });
+      }
+      targetDriverId = existingDriver.id;
+    }
+
+    // Handle manual vehicle creation/lookup
+    if (!targetVehicleId && dto.manualVehicleNumber) {
+      const vNum = dto.manualVehicleNumber.trim().toUpperCase();
+      let existingVehicle = await this.prisma.vehicle.findFirst({
+        where: { tenantId: booking.tenantId, vehicleNumber: vNum },
+      });
+      if (!existingVehicle) {
+        const vType = dto.manualVehicleType || booking.vehicleTypeRequired || 'Sedan';
+        existingVehicle = await this.prisma.vehicle.create({
+          data: {
+            tenantId: booking.tenantId,
+            vehicleNumber: vNum,
+            vehicleType: vType,
+            model: vType,
+            seatingCapacity: 4,
+            registrationDate: new Date(),
+            insuranceExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+            fitnessExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+            permitExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+            status: VehicleStatus.AVAILABLE,
+          },
+        });
+      }
+      targetVehicleId = existingVehicle.id;
+    }
+
+    if (!targetDriverId || !targetVehicleId) {
+      throw new BadRequestException('Driver and Vehicle details must be provided');
+    }
+
     // 2. Fetch driver and verify status
     const driver = await this.prisma.driver.findUnique({
-      where: { id: dto.driverId },
+      where: { id: targetDriverId },
     });
     if (!driver) {
       throw new NotFoundException('Driver not found');
@@ -55,7 +111,7 @@ export class AssignmentsService {
 
     // 3. Fetch vehicle and verify status
     const vehicle = await this.prisma.vehicle.findUnique({
-      where: { id: dto.vehicleId },
+      where: { id: targetVehicleId },
     });
     if (!vehicle) {
       throw new NotFoundException('Vehicle not found');
@@ -72,14 +128,14 @@ export class AssignmentsService {
     // 4. Overlap Check: Check if driver already has an ACTIVE assignment on the target booking's date
     const overlappingDriver = await this.prisma.assignment.findFirst({
       where: {
-        driverId: dto.driverId,
+        driverId: targetDriverId,
         status: AssignmentStatus.ACTIVE,
         booking: {
           pickupDate: booking.pickupDate,
         },
       },
     });
-    if (overlappingDriver) {
+    if (overlappingDriver && overlappingDriver.bookingId !== booking.id) {
       throw new ConflictException(
         'Driver is already assigned to another active trip on this date',
       );
@@ -88,14 +144,14 @@ export class AssignmentsService {
     // 5. Overlap Check: Check if vehicle already has an ACTIVE assignment on the target booking's date
     const overlappingVehicle = await this.prisma.assignment.findFirst({
       where: {
-        vehicleId: dto.vehicleId,
+        vehicleId: targetVehicleId,
         status: AssignmentStatus.ACTIVE,
         booking: {
           pickupDate: booking.pickupDate,
         },
       },
     });
-    if (overlappingVehicle) {
+    if (overlappingVehicle && overlappingVehicle.bookingId !== booking.id) {
       throw new ConflictException(
         'Vehicle is already assigned to another active trip on this date',
       );
@@ -111,13 +167,13 @@ export class AssignmentsService {
 
       // Update Driver status to ON_TRIP
       await tx.driver.update({
-        where: { id: dto.driverId },
+        where: { id: targetDriverId },
         data: { status: DriverStatus.ON_TRIP },
       });
 
       // Update Vehicle status to ON_TRIP
       await tx.vehicle.update({
-        where: { id: dto.vehicleId },
+        where: { id: targetVehicleId },
         data: { status: VehicleStatus.ON_TRIP },
       });
 
@@ -125,8 +181,8 @@ export class AssignmentsService {
       const assignment = await tx.assignment.create({
         data: {
           bookingId: dto.bookingId,
-          vehicleId: dto.vehicleId,
-          driverId: dto.driverId,
+          vehicleId: targetVehicleId,
+          driverId: targetDriverId,
           assignedById: userId || null,
           status: AssignmentStatus.ACTIVE,
         } as any,
@@ -174,8 +230,8 @@ export class AssignmentsService {
           tenantId: booking.tenantId,
           dutySlipNumber,
           bookingId: booking.id,
-          driverId: dto.driverId,
-          vehicleId: dto.vehicleId,
+          driverId: targetDriverId,
+          vehicleId: targetVehicleId,
           reportingTime: repTimeDate,
           startKm: 0,
           status: DutySlipStatus.DRAFT,

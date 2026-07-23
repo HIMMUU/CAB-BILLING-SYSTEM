@@ -140,9 +140,14 @@ export default function BookingsPage() {
   const [loadingResources, setLoadingResources] = useState(false);
   const [isAssignDrawerOpen, setIsAssignDrawerOpen] = useState(false);
   
-  // Selection
+  // Selection & Manual Entry for Dispatch Drawer
   const [targetDriverId, setTargetDriverId] = useState('');
   const [targetVehicleId, setTargetVehicleId] = useState('');
+  const [assignMode, setAssignMode] = useState<'REGISTERED' | 'MANUAL'>('REGISTERED');
+  const [manualDriverName, setManualDriverName] = useState('');
+  const [manualDriverMobile, setManualDriverMobile] = useState('');
+  const [manualVehicleNumber, setManualVehicleNumber] = useState('');
+  const [manualVehicleType, setManualVehicleType] = useState('Sedan');
   const [assigningSubmitting, setAssigningSubmitting] = useState(false);
   const [drawerError, setDrawerError] = useState<string | null>(null);
 
@@ -355,6 +360,11 @@ export default function BookingsPage() {
     setSelectedBookingForAssign(booking);
     setTargetDriverId('');
     setTargetVehicleId('');
+    setAssignMode('REGISTERED');
+    setManualDriverName('');
+    setManualDriverMobile('');
+    setManualVehicleNumber('');
+    setManualVehicleType(booking.vehicleTypeRequired || 'Sedan');
     setDrawerError(null);
     setLoadingResources(true);
     setIsAssignDrawerOpen(true);
@@ -378,20 +388,35 @@ export default function BookingsPage() {
     e.preventDefault();
     setDrawerError(null);
 
-    if (!selectedBookingForAssign || !targetDriverId || !targetVehicleId) {
-      setDrawerError('Please select both a driver and a vehicle.');
-      return;
+    if (assignMode === 'REGISTERED') {
+      if (!selectedBookingForAssign || !targetDriverId || !targetVehicleId) {
+        setDrawerError('Please select both a driver and a vehicle.');
+        return;
+      }
+    } else {
+      if (!manualDriverName || !manualVehicleNumber) {
+        setDrawerError('Driver Name and Cab Number are required for manual assignment.');
+        return;
+      }
     }
 
     setAssigningSubmitting(true);
     try {
+      const payload = assignMode === 'REGISTERED' ? {
+        bookingId: selectedBookingForAssign!.id,
+        driverId: targetDriverId,
+        vehicleId: targetVehicleId,
+      } : {
+        bookingId: selectedBookingForAssign!.id,
+        manualDriverName,
+        manualDriverMobile,
+        manualVehicleNumber,
+        manualVehicleType,
+      };
+
       await api.request('/assignments', {
         method: 'POST',
-        body: JSON.stringify({
-          bookingId: selectedBookingForAssign.id,
-          driverId: targetDriverId,
-          vehicleId: targetVehicleId,
-        }),
+        body: JSON.stringify(payload),
       });
 
       setIsAssignDrawerOpen(false);
@@ -1059,63 +1084,171 @@ export default function BookingsPage() {
                     </div>
                   </div>
 
-                  {/* Driver Dropdown */}
-                  <div>
-                    <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
-                      Select Available Driver
-                    </label>
-                    <select
-                      required
-                      value={targetDriverId}
-                      onChange={(e) => setTargetDriverId(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
+                  {/* Mode Toggle Tabs */}
+                  <div className="flex bg-gray-100 p-1 rounded-lg border border-[#E2E8F0] text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setAssignMode('REGISTERED')}
+                      className={`w-1/2 py-2 rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                        assignMode === 'REGISTERED'
+                          ? 'bg-white text-blue-600 shadow-sm font-bold'
+                          : 'text-gray-500 hover:text-gray-900'
+                      }`}
                     >
-                      {availableDrivers.length === 0 ? (
-                        <option value="">No drivers available on this date</option>
-                      ) : (
-                        availableDrivers.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.name} ({d.mobile})
-                          </option>
-                        ))
-                      )}
-                    </select>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                        <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
+                      </svg>
+                      <span>Registered Fleet</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAssignMode('MANUAL')}
+                      className={`w-1/2 py-2 rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                        assignMode === 'MANUAL'
+                          ? 'bg-white text-blue-600 shadow-sm font-bold'
+                          : 'text-gray-500 hover:text-gray-900'
+                      }`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                        <path fillRule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM3.25 10a6.75 6.75 0 1113.5 0 6.75 6.75 0 01-13.5 0z" clipRule="evenodd" />
+                        <path d="M12.25 7.5a.75.75 0 00-1.06-1.06L9 8.69 7.81 7.5a.75.75 0 00-1.06 1.06L7.94 9.75l-1.19 1.19a.75.75 0 101.06 1.06L9 10.81l1.19 1.19a.75.75 0 001.06-1.06l-1.19-1.19 1.19-1.19z" />
+                      </svg>
+                      <span>Manual / Custom Entry</span>
+                    </button>
                   </div>
 
-                  {/* Vehicle Dropdown */}
-                  <div>
-                    <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
-                      Select Available Vehicle
-                    </label>
-                    <select
-                      required
-                      value={targetVehicleId}
-                      onChange={(e) => setTargetVehicleId(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
-                    >
-                      {availableVehicles.length === 0 ? (
-                        <option value="">No vehicles available on this date</option>
-                      ) : (
-                        availableVehicles.map((v) => (
-                          <option key={v.id} value={v.id}>
-                            {v.vehicleNumber} - {v.model} ({v.vehicleType})
-                          </option>
-                        ))
-                      )}
-                    </select>
-
-                    {/* Mismatch Warning alert */}
-                    {vehicleTypeMismatch && (
-                      <div className="mt-2.5 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-[11px] font-semibold flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-amber-600 shrink-0">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                        </svg>
-                        <span>
-                          Vehicle type mismatch! Requested: {selectedBookingForAssign.vehicleTypeRequired}, selected is: {selectedVehicleObj.vehicleType}.
-                        </span>
+                  {assignMode === 'REGISTERED' ? (
+                    <>
+                      {/* Driver Dropdown */}
+                      <div>
+                        <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
+                          Select Available Driver
+                        </label>
+                        <select
+                          required
+                          value={targetDriverId}
+                          onChange={(e) => setTargetDriverId(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
+                        >
+                          {availableDrivers.length === 0 ? (
+                            <option value="">No drivers available on this date</option>
+                          ) : (
+                            availableDrivers.map((d) => (
+                              <option key={d.id} value={d.id}>
+                                {d.name} ({d.mobile})
+                              </option>
+                            ))
+                          )}
+                        </select>
                       </div>
-                    )}
-                  </div>
+
+                      {/* Vehicle Dropdown */}
+                      <div>
+                        <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
+                          Select Available Vehicle
+                        </label>
+                        <select
+                          required
+                          value={targetVehicleId}
+                          onChange={(e) => setTargetVehicleId(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
+                        >
+                          {availableVehicles.length === 0 ? (
+                            <option value="">No vehicles available on this date</option>
+                          ) : (
+                            availableVehicles.map((v) => (
+                              <option key={v.id} value={v.id}>
+                                {v.vehicleNumber} - {v.model} ({v.vehicleType})
+                              </option>
+                            ))
+                          )}
+                        </select>
+
+                        {/* Mismatch Warning alert */}
+                        {vehicleTypeMismatch && (
+                          <div className="mt-2.5 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-[11px] font-semibold flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-amber-600 shrink-0">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                            </svg>
+                            <span>
+                              Vehicle type mismatch! Requested: {selectedBookingForAssign.vehicleTypeRequired}, selected is: {selectedVehicleObj.vehicleType}.
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-4 bg-blue-50/60 border border-blue-100 p-4 rounded-xl">
+                      <h4 className="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-blue-600 shrink-0">
+                          <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                          <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0h2.1a2.5 2.5 0 014.9 0H17a1 1 0 001-1v-5l-2-4H3z" />
+                        </svg>
+                        <span>Manual / Vendor Cab Entry</span>
+                      </h4>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-1.5">
+                          Driver Name *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Ramesh Kumar"
+                          value={manualDriverName}
+                          onChange={(e) => setManualDriverName(e.target.value)}
+                          className="w-full px-4 py-2 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#0F172A] focus:outline-none focus:border-blue-600 transition"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-1.5">
+                          Driver Phone Number / Mobile
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 9812345678"
+                          value={manualDriverMobile}
+                          onChange={(e) => setManualDriverMobile(e.target.value)}
+                          className="w-full px-4 py-2 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#0F172A] focus:outline-none focus:border-blue-600 transition"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-1.5">
+                            Car Group / Vehicle Type
+                          </label>
+                          <select
+                            value={manualVehicleType}
+                            onChange={(e) => setManualVehicleType(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#0F172A] focus:outline-none focus:border-blue-600 transition"
+                          >
+                            <option value="Sedan">Sedan</option>
+                            <option value="SUV">SUV</option>
+                            <option value="MUV">MUV</option>
+                            <option value="Luxury">Luxury</option>
+                            <option value="Tempo Traveller">Tempo Traveller</option>
+                            <option value="Bus">Bus</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-1.5">
+                            Cab Number *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. DL 01 AB 1234"
+                            value={manualVehicleNumber}
+                            onChange={(e) => setManualVehicleNumber(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#0F172A] font-mono focus:outline-none focus:border-blue-600 transition"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </form>
               )}
             </div>
@@ -1131,7 +1264,7 @@ export default function BookingsPage() {
               <button
                 type="button"
                 onClick={handleAssignSubmit}
-                disabled={assigningSubmitting || loadingResources || availableDrivers.length === 0 || availableVehicles.length === 0}
+                disabled={assigningSubmitting || loadingResources || (assignMode === 'REGISTERED' && (availableDrivers.length === 0 || availableVehicles.length === 0))}
                 className="w-1/2 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm transition font-semibold flex items-center justify-center shadow-sm"
               >
                 {assigningSubmitting ? 'Dispatching...' : 'Dispatch Assignment'}

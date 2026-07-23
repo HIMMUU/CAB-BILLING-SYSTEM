@@ -21,12 +21,32 @@ __decorate([
 ], CreateAssignmentDto.prototype, "bookingId", void 0);
 __decorate([
     (0, class_validator_1.IsUUID)(4, { message: 'Vehicle ID must be a valid UUID' }),
-    (0, class_validator_1.IsNotEmpty)({ message: 'Vehicle ID is required' }),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateAssignmentDto.prototype, "vehicleId", void 0);
 __decorate([
     (0, class_validator_1.IsUUID)(4, { message: 'Driver ID must be a valid UUID' }),
-    (0, class_validator_1.IsNotEmpty)({ message: 'Driver ID is required' }),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateAssignmentDto.prototype, "driverId", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateAssignmentDto.prototype, "manualDriverName", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateAssignmentDto.prototype, "manualDriverMobile", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateAssignmentDto.prototype, "manualVehicleNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateAssignmentDto.prototype, "manualVehicleType", void 0);
 //# sourceMappingURL=create-assignment.dto.js.map

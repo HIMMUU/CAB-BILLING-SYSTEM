@@ -41,24 +41,64 @@ let BookingsService = class BookingsService {
             }
         }
         const pickupDateObj = new Date(dto.pickupDate);
-        if (dto.driverId && dto.vehicleId) {
+        let targetDriverId = dto.driverId;
+        let targetVehicleId = dto.vehicleId;
+        if (!targetDriverId && (dto.manualDriverName || dto.manualDriverMobile)) {
+            const mobile = dto.manualDriverMobile || '9999999999';
+            let existingDriver = await this.prisma.driver.findFirst({
+                where: { tenantId: customer.tenantId, mobile },
+            });
+            if (!existingDriver) {
+                existingDriver = await this.prisma.driver.create({
+                    data: {
+                        tenantId: customer.tenantId,
+                        name: dto.manualDriverName || 'Manual Driver',
+                        mobile,
+                        licenseNumber: 'MANUAL-' + Date.now().toString().slice(-6),
+                        licenseExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+                        address: 'Vendor / Ad-hoc Cab Driver',
+                        emergencyContact: mobile,
+                        status: client_1.DriverStatus.AVAILABLE,
+                    },
+                });
+            }
+            targetDriverId = existingDriver.id;
+        }
+        if (!targetVehicleId && dto.manualVehicleNumber) {
+            const vNum = dto.manualVehicleNumber.trim().toUpperCase();
+            let existingVehicle = await this.prisma.vehicle.findFirst({
+                where: { tenantId: customer.tenantId, vehicleNumber: vNum },
+            });
+            if (!existingVehicle) {
+                const vType = dto.manualVehicleType || dto.vehicleTypeRequired || 'Sedan';
+                existingVehicle = await this.prisma.vehicle.create({
+                    data: {
+                        tenantId: customer.tenantId,
+                        vehicleNumber: vNum,
+                        vehicleType: vType,
+                        model: vType,
+                        seatingCapacity: 4,
+                        registrationDate: new Date(),
+                        insuranceExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+                        fitnessExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+                        permitExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+                        status: client_1.VehicleStatus.AVAILABLE,
+                    },
+                });
+            }
+            targetVehicleId = existingVehicle.id;
+        }
+        if (targetDriverId && targetVehicleId) {
             const driver = await this.prisma.driver.findUnique({
-                where: { id: dto.driverId },
+                where: { id: targetDriverId },
             });
             if (!driver)
                 throw new common_1.NotFoundException('Driver not found');
-            if (driver.status === client_1.DriverStatus.INACTIVE) {
-                throw new common_1.BadRequestException('Selected driver is INACTIVE');
-            }
             const vehicle = await this.prisma.vehicle.findUnique({
-                where: { id: dto.vehicleId },
+                where: { id: targetVehicleId },
             });
             if (!vehicle)
                 throw new common_1.NotFoundException('Vehicle not found');
-            if (vehicle.status === client_1.VehicleStatus.INACTIVE ||
-                vehicle.status === client_1.VehicleStatus.MAINTENANCE) {
-                throw new common_1.BadRequestException(`Selected vehicle is ${vehicle.status}`);
-            }
             return this.prisma.$transaction(async (tx) => {
                 const booking = await tx.booking.create({
                     data: {
@@ -80,19 +120,19 @@ let BookingsService = class BookingsService {
                     },
                 });
                 await tx.driver.update({
-                    where: { id: dto.driverId },
+                    where: { id: targetDriverId },
                     data: { status: client_1.DriverStatus.ON_TRIP },
                 });
                 await tx.vehicle.update({
-                    where: { id: dto.vehicleId },
+                    where: { id: targetVehicleId },
                     data: { status: client_1.VehicleStatus.ON_TRIP },
                 });
                 await tx.assignment.create({
                     data: {
                         tenantId: customer.tenantId,
                         bookingId: booking.id,
-                        vehicleId: dto.vehicleId,
-                        driverId: dto.driverId,
+                        vehicleId: targetVehicleId,
+                        driverId: targetDriverId,
                         status: client_1.AssignmentStatus.ACTIVE,
                     },
                 });
@@ -127,8 +167,8 @@ let BookingsService = class BookingsService {
                         tenantId: customer.tenantId,
                         dutySlipNumber,
                         bookingId: booking.id,
-                        driverId: dto.driverId,
-                        vehicleId: dto.vehicleId,
+                        driverId: targetDriverId,
+                        vehicleId: targetVehicleId,
                         reportingTime: repTimeDate,
                         startKm: 0,
                         status: client_1.DutySlipStatus.DRAFT,
@@ -278,14 +318,61 @@ let BookingsService = class BookingsService {
                 throw new common_1.NotFoundException('Customer not found');
             }
         }
-        if (dto.driverId && dto.vehicleId) {
+        let targetDriverId = dto.driverId;
+        let targetVehicleId = dto.vehicleId;
+        if (!targetDriverId && (dto.manualDriverName || dto.manualDriverMobile)) {
+            const mobile = dto.manualDriverMobile || '9999999999';
+            let existingDriver = await this.prisma.driver.findFirst({
+                where: { tenantId: booking.tenantId, mobile },
+            });
+            if (!existingDriver) {
+                existingDriver = await this.prisma.driver.create({
+                    data: {
+                        tenantId: booking.tenantId,
+                        name: dto.manualDriverName || 'Manual Driver',
+                        mobile,
+                        licenseNumber: 'MANUAL-' + Date.now().toString().slice(-6),
+                        licenseExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+                        address: 'Vendor / Ad-hoc Cab Driver',
+                        emergencyContact: mobile,
+                        status: client_1.DriverStatus.AVAILABLE,
+                    },
+                });
+            }
+            targetDriverId = existingDriver.id;
+        }
+        if (!targetVehicleId && dto.manualVehicleNumber) {
+            const vNum = dto.manualVehicleNumber.trim().toUpperCase();
+            let existingVehicle = await this.prisma.vehicle.findFirst({
+                where: { tenantId: booking.tenantId, vehicleNumber: vNum },
+            });
+            if (!existingVehicle) {
+                const vType = dto.manualVehicleType || dto.vehicleTypeRequired || booking.vehicleTypeRequired || 'Sedan';
+                existingVehicle = await this.prisma.vehicle.create({
+                    data: {
+                        tenantId: booking.tenantId,
+                        vehicleNumber: vNum,
+                        vehicleType: vType,
+                        model: vType,
+                        seatingCapacity: 4,
+                        registrationDate: new Date(),
+                        insuranceExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+                        fitnessExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+                        permitExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+                        status: client_1.VehicleStatus.AVAILABLE,
+                    },
+                });
+            }
+            targetVehicleId = existingVehicle.id;
+        }
+        if (targetDriverId && targetVehicleId) {
             const driver = await this.prisma.driver.findUnique({
-                where: { id: dto.driverId },
+                where: { id: targetDriverId },
             });
             if (!driver)
                 throw new common_1.NotFoundException('Driver not found');
             const vehicle = await this.prisma.vehicle.findUnique({
-                where: { id: dto.vehicleId },
+                where: { id: targetVehicleId },
             });
             if (!vehicle)
                 throw new common_1.NotFoundException('Vehicle not found');
@@ -294,13 +381,13 @@ let BookingsService = class BookingsService {
                     where: { bookingId: id, status: client_1.AssignmentStatus.ACTIVE },
                 });
                 if (existingAssignment) {
-                    if (existingAssignment.driverId !== dto.driverId) {
+                    if (existingAssignment.driverId !== targetDriverId) {
                         await tx.driver.update({
                             where: { id: existingAssignment.driverId },
                             data: { status: client_1.DriverStatus.AVAILABLE },
                         });
                     }
-                    if (existingAssignment.vehicleId !== dto.vehicleId) {
+                    if (existingAssignment.vehicleId !== targetVehicleId) {
                         await tx.vehicle.update({
                             where: { id: existingAssignment.vehicleId },
                             data: { status: client_1.VehicleStatus.AVAILABLE },
@@ -309,19 +396,19 @@ let BookingsService = class BookingsService {
                     await tx.assignment.delete({ where: { id: existingAssignment.id } });
                 }
                 await tx.driver.update({
-                    where: { id: dto.driverId },
+                    where: { id: targetDriverId },
                     data: { status: client_1.DriverStatus.ON_TRIP },
                 });
                 await tx.vehicle.update({
-                    where: { id: dto.vehicleId },
+                    where: { id: targetVehicleId },
                     data: { status: client_1.VehicleStatus.ON_TRIP },
                 });
                 await tx.assignment.create({
                     data: {
                         tenantId: booking.tenantId,
                         bookingId: id,
-                        vehicleId: dto.vehicleId,
-                        driverId: dto.driverId,
+                        vehicleId: targetVehicleId,
+                        driverId: targetDriverId,
                         status: client_1.AssignmentStatus.ACTIVE,
                     },
                 });
@@ -343,8 +430,8 @@ let BookingsService = class BookingsService {
                     await tx.dutySlip.update({
                         where: { id: booking.dutySlip.id },
                         data: {
-                            driverId: dto.driverId,
-                            vehicleId: dto.vehicleId,
+                            driverId: targetDriverId,
+                            vehicleId: targetVehicleId,
                             reportingTime: repTimeDate,
                         },
                     });
@@ -357,8 +444,8 @@ let BookingsService = class BookingsService {
                             tenantId: booking.tenantId,
                             dutySlipNumber,
                             bookingId: id,
-                            driverId: dto.driverId,
-                            vehicleId: dto.vehicleId,
+                            driverId: targetDriverId,
+                            vehicleId: targetVehicleId,
                             reportingTime: repTimeDate,
                             startKm: 0,
                             status: client_1.DutySlipStatus.DRAFT,

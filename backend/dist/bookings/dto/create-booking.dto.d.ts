@@ -15,4 +15,8 @@ export declare class CreateBookingDto {
     remarks?: string;
     driverId?: string;
     vehicleId?: string;
+    manualDriverName?: string;
+    manualDriverMobile?: string;
+    manualVehicleNumber?: string;
+    manualVehicleType?: string;
 }
