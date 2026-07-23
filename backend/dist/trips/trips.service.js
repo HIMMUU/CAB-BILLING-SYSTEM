@@ -53,11 +53,32 @@ let TripsService = class TripsService {
             const diffDaysMs = endD.getTime() - startD.getTime();
             calculatedDays = Math.max(1, Math.round(diffDaysMs / (1000 * 60 * 60 * 24)) + 1);
         }
-        const category = await this.prisma.vehicleCategory.findFirst({
-            where: {
-                name: { equals: slip.vehicle.vehicleType, mode: 'insensitive' },
-            },
-        });
+        const categoryName = slip.booking?.vehicleTypeRequired || slip.vehicle?.vehicleType;
+        let category = categoryName
+            ? await this.prisma.vehicleCategory.findFirst({
+                where: {
+                    name: { equals: categoryName, mode: 'insensitive' },
+                },
+            })
+            : null;
+        if (!category && slip.vehicle?.vehicleType) {
+            category = await this.prisma.vehicleCategory.findFirst({
+                where: {
+                    name: { equals: slip.vehicle.vehicleType, mode: 'insensitive' },
+                },
+            });
+        }
+        if (!category && slip.vehicle?.model) {
+            const modelFirstWord = slip.vehicle.model.split(' ')[0];
+            category = await this.prisma.vehicleCategory.findFirst({
+                where: {
+                    OR: [
+                        { name: { equals: slip.vehicle.model, mode: 'insensitive' } },
+                        { name: { equals: modelFirstWord, mode: 'insensitive' } },
+                    ],
+                },
+            });
+        }
         let mappedClientType = 'Individual';
         if (slip.booking.customer.type === 'CORPORATE') {
             const lowerName = (slip.booking.customer.companyName || '').toLowerCase();

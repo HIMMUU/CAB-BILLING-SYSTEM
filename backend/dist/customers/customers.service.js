@@ -45,19 +45,23 @@ let CustomersService = class CustomersService {
             });
             if (dto.rateCards && Array.isArray(dto.rateCards)) {
                 for (const card of dto.rateCards) {
-                    let catId = card.vehicleCategoryId;
-                    if (!catId && card.vehicleCategoryName) {
+                    let catId = null;
+                    if (card.vehicleCategoryName && card.vehicleCategoryName.trim()) {
+                        const trimmedName = card.vehicleCategoryName.trim();
                         let category = await tx.vehicleCategory.findFirst({
                             where: {
-                                name: { equals: card.vehicleCategoryName, mode: 'insensitive' },
+                                name: { equals: trimmedName, mode: 'insensitive' },
                             },
                         });
                         if (!category) {
                             category = await tx.vehicleCategory.create({
-                                data: { name: card.vehicleCategoryName },
+                                data: { name: trimmedName },
                             });
                         }
                         catId = category.id;
+                    }
+                    else if (card.vehicleCategoryId) {
+                        catId = card.vehicleCategoryId;
                     }
                     if (catId) {
                         await tx.rateCard.create({
@@ -183,19 +187,23 @@ let CustomersService = class CustomersService {
                     where: { customerId: id },
                 });
                 for (const card of dto.rateCards) {
-                    let catId = card.vehicleCategoryId;
-                    if (!catId && card.vehicleCategoryName) {
+                    let catId = null;
+                    if (card.vehicleCategoryName && card.vehicleCategoryName.trim()) {
+                        const trimmedName = card.vehicleCategoryName.trim();
                         let category = await tx.vehicleCategory.findFirst({
                             where: {
-                                name: { equals: card.vehicleCategoryName, mode: 'insensitive' },
+                                name: { equals: trimmedName, mode: 'insensitive' },
                             },
                         });
                         if (!category) {
                             category = await tx.vehicleCategory.create({
-                                data: { name: card.vehicleCategoryName },
+                                data: { name: trimmedName },
                             });
                         }
                         catId = category.id;
+                    }
+                    else if (card.vehicleCategoryId) {
+                        catId = card.vehicleCategoryId;
                     }
                     if (catId) {
                         await tx.rateCard.create({

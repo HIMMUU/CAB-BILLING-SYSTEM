@@ -78,12 +78,35 @@ export class TripsService {
       );
     }
 
-    // 1. Find mapped VehicleCategory
-    const category = await this.prisma.vehicleCategory.findFirst({
-      where: {
-        name: { equals: slip.vehicle.vehicleType, mode: 'insensitive' },
-      },
-    });
+    // 1. Find mapped VehicleCategory (check booking requested category first, fallback to vehicle type & model)
+    const categoryName = slip.booking?.vehicleTypeRequired || slip.vehicle?.vehicleType;
+    let category = categoryName
+      ? await this.prisma.vehicleCategory.findFirst({
+          where: {
+            name: { equals: categoryName, mode: 'insensitive' },
+          },
+        })
+      : null;
+
+    if (!category && slip.vehicle?.vehicleType) {
+      category = await this.prisma.vehicleCategory.findFirst({
+        where: {
+          name: { equals: slip.vehicle.vehicleType, mode: 'insensitive' },
+        },
+      });
+    }
+
+    if (!category && slip.vehicle?.model) {
+      const modelFirstWord = slip.vehicle.model.split(' ')[0];
+      category = await this.prisma.vehicleCategory.findFirst({
+        where: {
+          OR: [
+            { name: { equals: slip.vehicle.model, mode: 'insensitive' } },
+            { name: { equals: modelFirstWord, mode: 'insensitive' } },
+          ],
+        },
+      });
+    }
 
     // Determine client type mapping for defaults
     let mappedClientType = 'Individual';

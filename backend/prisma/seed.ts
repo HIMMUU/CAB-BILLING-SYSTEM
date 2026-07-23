@@ -71,6 +71,9 @@ async function main() {
   const catLuxury = await prisma.vehicleCategory.create({ data: { name: 'Luxury' } });
   const catTempo = await prisma.vehicleCategory.create({ data: { name: 'Tempo Traveller' } });
   const catBus = await prisma.vehicleCategory.create({ data: { name: 'Bus' } });
+  const catInnova = await prisma.vehicleCategory.create({ data: { name: 'Innova Crysta' } });
+  const catDzire = await prisma.vehicleCategory.create({ data: { name: 'Dzire' } });
+  const catCiaz = await prisma.vehicleCategory.create({ data: { name: 'Ciaz' } });
 
   // 2c. Seed Tax Configurations
   console.log('Seeding tax configurations...');
