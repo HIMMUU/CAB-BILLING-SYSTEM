@@ -566,18 +566,18 @@ let DutySlipsService = class DutySlipsService {
             const hasLogo = logoBuffer && !tenant?.hideLogoOnPdf;
             if (hasLogo) {
                 try {
-                    doc.image(logoBuffer, 50, 15, {
-                        width: 85,
-                        height: 48,
-                        fit: [85, 48],
+                    doc.image(logoBuffer, 50, 12, {
+                        width: 110,
+                        height: 60,
+                        fit: [110, 60],
                     });
                 }
                 catch (e) {
                     console.warn('Failed to draw logo on duty slip:', e);
                 }
             }
-            const textStartX = hasLogo ? 145 : 50;
-            const textWidth = hasLogo ? 400 : 495;
+            const textStartX = hasLogo ? 170 : 50;
+            const textWidth = hasLogo ? 375 : 495;
             const companyNameColor = tenant?.pdfColorCompanyName || primaryColor;
             doc
                 .fillColor(companyNameColor)

@@ -425,7 +425,12 @@ export default function CustomersPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this customer?')) return;
     try {
-      await api.request(`/customers/${id}`, { method: 'DELETE' });
+      const res = await api.request(`/customers/${id}`, { method: 'DELETE' });
+      if (res?.status === 'INACTIVE') {
+        alert(
+          'Customer has historical billing/trip records and has been marked as INACTIVE to protect audit logs.',
+        );
+      }
       fetchCustomers();
     } catch (err: any) {
       alert(err.message || 'Failed to delete customer.');

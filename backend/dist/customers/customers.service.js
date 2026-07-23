@@ -233,7 +233,42 @@ let CustomersService = class CustomersService {
         });
     }
     async remove(id) {
-        await this.findOne(id);
+        const customer = await this.prisma.customer.findUnique({
+            where: { id },
+            include: {
+                bookings: {
+                    where: {
+                        status: { in: [client_1.BookingStatus.PENDING, client_1.BookingStatus.ASSIGNED] },
+                    },
+                },
+                invoices: {
+                    where: {
+                        status: {
+                            in: [client_1.InvoiceStatus.UNPAID, client_1.InvoiceStatus.PARTIALLY_PAID],
+                        },
+                    },
+                },
+                _count: {
+                    select: {
+                        bookings: true,
+                        invoices: true,
+                    },
+                },
+            },
+        });
+        if (!customer) {
+            throw new common_1.NotFoundException('Customer not found');
+        }
+        if (customer.bookings.length > 0 || customer.invoices.length > 0) {
+            throw new common_1.BadRequestException('Cannot delete customer while they have active pending bookings or unpaid invoices. Please resolve open bookings and invoices first.');
+        }
+        const hasHistory = customer._count.bookings > 0 || customer._count.invoices > 0;
+        if (hasHistory) {
+            return this.prisma.customer.update({
+                where: { id },
+                data: { status: 'INACTIVE' },
+            });
+        }
         return this.prisma.customer.delete({
             where: { id },
         });

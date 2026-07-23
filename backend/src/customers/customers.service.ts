@@ -2,11 +2,12 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
-import { CustomerType } from '@prisma/client';
+import { CustomerType, BookingStatus, InvoiceStatus } from '@prisma/client';
 
 @Injectable()
 export class CustomersService {
@@ -266,7 +267,50 @@ export class CustomersService {
   }
 
   async remove(id: string) {
-    await this.findOne(id);
+    const customer = await this.prisma.customer.findUnique({
+      where: { id },
+      include: {
+        bookings: {
+          where: {
+            status: { in: [BookingStatus.PENDING, BookingStatus.ASSIGNED] },
+          },
+        },
+        invoices: {
+          where: {
+            status: {
+              in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIALLY_PAID],
+            },
+          },
+        },
+        _count: {
+          select: {
+            bookings: true,
+            invoices: true,
+          },
+        },
+      },
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    if (customer.bookings.length > 0 || customer.invoices.length > 0) {
+      throw new BadRequestException(
+        'Cannot delete customer while they have active pending bookings or unpaid invoices. Please resolve open bookings and invoices first.',
+      );
+    }
+
+    const hasHistory =
+      customer._count.bookings > 0 || customer._count.invoices > 0;
+
+    if (hasHistory) {
+      return this.prisma.customer.update({
+        where: { id },
+        data: { status: 'INACTIVE' },
+      });
+    }
+
     return this.prisma.customer.delete({
       where: { id },
     });
