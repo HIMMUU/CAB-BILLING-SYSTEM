@@ -1328,11 +1328,16 @@ export class InvoicesService {
             (booking.guestName || booking.customer.name);
           particularsRows.push({ label: `Guest - ${guestVal}` });
 
+          const routeRemarks = (ds.remarks || booking.remarks || '').trim();
+          const defaultRoute = `${booking.pickupLocation.toUpperCase()} TO ${booking.dropLocation.toUpperCase()}`;
+
           if (booking.tripType === TripType.OUTSTATION) {
             particularsRows.push({ label: `OUTSTATION : ${trip.totalKm} KM` });
-            particularsRows.push({
-              label: `${booking.pickupLocation.toUpperCase()} TO ${booking.dropLocation.toUpperCase()}`,
-            });
+            if (routeRemarks) {
+              particularsRows.push({ label: routeRemarks.toUpperCase() });
+            } else {
+              particularsRows.push({ label: defaultRoute });
+            }
             particularsRows.push({
               label: `( As Per 250 Km per Day min.running limit )`,
             });
@@ -1340,20 +1345,24 @@ export class InvoicesService {
             particularsRows.push({
               label: `${booking.tripType} : ${trip.totalKm} Kms & ${Number(trip.totalHours || 0).toFixed(2)} Hrs. Duty`,
             });
+            if (routeRemarks) {
+              particularsRows.push({ label: `Remarks: ${routeRemarks.toUpperCase()}` });
+            }
           }
 
           // Base Fare Row
+          const totalDays = Math.max(1, Number(trip.totalDays) || 1);
           const baseKm =
             booking.tripType === TripType.OUTSTATION
-              ? Number(trip.totalDays) * 250
+              ? totalDays * 250
               : booking.tripType === TripType.AIRPORT_TRANSFER
                 ? 40
                 : 80;
-          const baseHr = booking.tripType === TripType.OUTSTATION ? 24 : 8;
+          const baseHr = booking.tripType === TripType.OUTSTATION ? 24 * totalDays : 8;
           particularsRows.push({
             label:
               booking.tripType === TripType.OUTSTATION
-                ? `UPTO ${baseKm} Kms. & ${trip.totalDays} Days Duty`
+                ? `UPTO ${baseKm} Kms. & ${totalDays} Days Duty`
                 : `UPTO ${baseKm} Kms. & ${baseHr} Hrs Duty`,
             rate: Number(trip.baseFareCharged).toFixed(2),
             amount: Number(trip.baseFareCharged).toFixed(2),
@@ -1390,18 +1399,23 @@ export class InvoicesService {
 
           // Driver Allowance Row
           if (Number(trip.driverAllowance) > 0) {
+            const daTotal = Number(trip.driverAllowance);
+            const daRate = daTotal / totalDays;
             particularsRows.push({
-              label: `DRIVER ALLOWANCE 1 @`,
-              rate: Number(trip.driverAllowance).toFixed(2),
-              amount: Number(trip.driverAllowance).toFixed(2),
+              label: `DRIVER ALLOWANCE ${totalDays} DAY(S) @`,
+              rate: daRate.toFixed(2),
+              amount: daTotal.toFixed(2),
             });
           }
 
           // Night Allowance Row
           if (Number(trip.nightChargesCharged) > 0) {
+            const nightTotal = Number(trip.nightChargesCharged);
+            const nightRate = nightTotal / totalDays;
             particularsRows.push({
-              label: `NIGHT ALLOWANCE`,
-              amount: Number(trip.nightChargesCharged).toFixed(2),
+              label: `NIGHT ALLOWANCE ${totalDays} NIGHT(S) @`,
+              rate: nightRate.toFixed(2),
+              amount: nightTotal.toFixed(2),
             });
           }
 
