@@ -1683,132 +1683,301 @@ export default function DutySlipsPage() {
 
               {/* Interactive live Billing Breakup */}
               {liveBillingPreview && (
-                <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 text-slate-800 space-y-4">
-                  <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Operational Billing Breakup</p>
-                    <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">Editable</span>
+                <div className="bg-white border border-slate-200/80 rounded-2xl shadow-lg overflow-hidden text-slate-800 space-y-0">
+                  {/* Card Header */}
+                  <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-5 py-4 text-white flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-emerald-400">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33" />
+                        </svg>
+                        <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-100">Operational Billing Breakup</h3>
+                      </div>
+                      <p className="text-[10px] text-slate-300 mt-0.5">{liveBillingPreview.packageType}</p>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-300 bg-emerald-950/80 px-2.5 py-1 rounded-full border border-emerald-500/30 backdrop-blur-sm">
+                      Live Preview
+                    </span>
                   </div>
 
-                  <div className="space-y-3 text-xs divide-y divide-slate-100">
-
+                  <div className="p-5 space-y-4 text-xs">
                     {/* Base Fare Row */}
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-slate-600 font-medium">Base Fare (₹)</span>
-                      <input type="number" min={0} value={df.baseFare || ''}
-                        onChange={e => setDf(f => ({ ...f, baseFare: parseFloat(e.target.value) || 0, isManualBaseFare: true }))}
-                        className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono font-semibold text-right text-emerald-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
+                    <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/70 rounded-xl">
+                      <div>
+                        <span className="font-semibold text-slate-700 block">Base Fare</span>
+                        <span className="text-[10px] text-slate-400">Includes {liveBillingPreview.includedKm} KM / {liveBillingPreview.includedHours} Hrs</span>
+                      </div>
+                      <div className="relative flex items-center">
+                        <span className="absolute left-2.5 text-slate-400 text-xs font-semibold">₹</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={df.baseFare || ''}
+                          onChange={e => setDf(f => ({ ...f, baseFare: parseFloat(e.target.value) || 0, isManualBaseFare: true }))}
+                          className="w-28 bg-white border border-slate-300 rounded-lg pl-6 pr-2 py-1.5 font-mono font-bold text-right text-emerald-700 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-sm"
+                        />
+                      </div>
                     </div>
 
                     {/* Extra KM Row */}
-                    <div className="flex flex-col gap-1.5 pt-3">
+                    <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-600 font-medium">Extra KM Charges</span>
-                        <div className="flex items-center gap-1">
-                          <span className="text-[10px] text-slate-400 font-mono mr-1">Rate:</span>
-                          <input type="number" min={0} value={df.extraKmRate || ''}
+                        <div>
+                          <span className="font-semibold text-slate-700">Extra KM Charges</span>
+                          <span className="text-[10px] text-slate-400 block">
+                            {df.billedKm > liveBillingPreview.includedKm
+                              ? `${(df.billedKm - liveBillingPreview.includedKm).toFixed(1)} KM extra @ ₹${df.extraKmRate}/KM`
+                              : 'No extra KM recorded'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-2xs">
+                          <span className="text-[10px] text-slate-400 font-semibold uppercase">Rate ₹</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={df.extraKmRate || ''}
                             onChange={e => setDf(f => ({ ...f, extraKmRate: parseFloat(e.target.value) || 0, isManualExtraKmRate: true }))}
-                            className="w-14 bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-center font-mono text-[11px] text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
-                          <span className="text-[10px] text-slate-400 font-mono">/KM</span>
+                            className="w-12 bg-transparent text-center font-mono font-bold text-[11px] text-slate-800 focus:outline-none"
+                          />
+                          <span className="text-[10px] text-slate-400">/KM</span>
                         </div>
                       </div>
-                      <div className="flex justify-between items-center pl-2 border-l border-slate-100">
-                        <span className="text-[10px] text-slate-500">
-                          {df.billedKm > liveBillingPreview.includedKm ? `(${df.billedKm - liveBillingPreview.includedKm} KM extra)` : '(No extra KM)'}
-                        </span>
-                        <input type="number" min={0} value={df.extraKmCharged || ''}
-                          onChange={e => setDf(f => ({ ...f, extraKmCharged: parseFloat(e.target.value) || 0, isManualExtraKmCharged: true }))}
-                          className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono font-semibold text-right text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
+                      <div className="flex justify-between items-center pt-1 border-t border-slate-200/60">
+                        <span className="text-[11px] font-medium text-slate-500">Amount Charged</span>
+                        <div className="relative flex items-center">
+                          <span className="absolute left-2.5 text-slate-400 text-xs font-semibold">₹</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={df.extraKmCharged || ''}
+                            onChange={e => setDf(f => ({ ...f, extraKmCharged: parseFloat(e.target.value) || 0, isManualExtraKmCharged: true }))}
+                            className="w-28 bg-white border border-slate-300 rounded-lg pl-6 pr-2 py-1 font-mono font-bold text-right text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-sm"
+                          />
+                        </div>
                       </div>
                     </div>
 
                     {/* Extra Hours Row */}
-                    <div className="flex flex-col gap-1.5 pt-3">
+                    <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-600 font-medium">Extra Hours Charges</span>
-                        <div className="flex items-center gap-1">
-                          <span className="text-[10px] text-slate-400 font-mono mr-1">Rate:</span>
-                          <input type="number" min={0} value={df.extraHourRate || ''}
+                        <div>
+                          <span className="font-semibold text-slate-700">Extra Hours Charges</span>
+                          <span className="text-[10px] text-slate-400 block">
+                            {df.billedHours > liveBillingPreview.includedHours
+                              ? `${(df.billedHours - liveBillingPreview.includedHours).toFixed(1)} Hrs extra @ ₹${df.extraHourRate}/Hr`
+                              : 'No extra hours recorded'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-2xs">
+                          <span className="text-[10px] text-slate-400 font-semibold uppercase">Rate ₹</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={df.extraHourRate || ''}
                             onChange={e => setDf(f => ({ ...f, extraHourRate: parseFloat(e.target.value) || 0, isManualExtraHourRate: true }))}
-                            className="w-14 bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-center font-mono text-[11px] text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
-                          <span className="text-[10px] text-slate-400 font-mono">/Hr</span>
+                            className="w-12 bg-transparent text-center font-mono font-bold text-[11px] text-slate-800 focus:outline-none"
+                          />
+                          <span className="text-[10px] text-slate-400">/Hr</span>
                         </div>
                       </div>
-                      <div className="flex justify-between items-center pl-2 border-l border-slate-100">
-                        <span className="text-[10px] text-slate-500">
-                          {df.billedHours > liveBillingPreview.includedHours ? `(${parseFloat((df.billedHours - liveBillingPreview.includedHours).toFixed(2))} Hrs extra)` : '(No extra hours)'}
+                      <div className="flex justify-between items-center pt-1 border-t border-slate-200/60">
+                        <span className="text-[11px] font-medium text-slate-500">Amount Charged</span>
+                        <div className="relative flex items-center">
+                          <span className="absolute left-2.5 text-slate-400 text-xs font-semibold">₹</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={df.extraHoursCharged || ''}
+                            onChange={e => setDf(f => ({ ...f, extraHoursCharged: parseFloat(e.target.value) || 0, isManualExtraHoursCharged: true }))}
+                            className="w-28 bg-white border border-slate-300 rounded-lg pl-6 pr-2 py-1 font-mono font-bold text-right text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Driver Allowance Toggle Card */}
+                    <div className={`p-3 rounded-xl border transition-all ${
+                      df.includeDriverAllowance
+                        ? 'bg-emerald-50/70 border-emerald-200 shadow-2xs'
+                        : 'bg-slate-50 border-slate-200/70'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={df.includeDriverAllowance}
+                            onChange={e => {
+                              const checked = e.target.checked;
+                              setDf(f => {
+                                const fallbackDA = f.dutyType === 'O' || f.dutyType === 'T' ? 300 : 250;
+                                return {
+                                  ...f,
+                                  includeDriverAllowance: checked,
+                                  driverAllowance: checked ? (f.driverAllowance > 0 ? f.driverAllowance : fallbackDA) : 0,
+                                  isManualDriverAllowance: checked,
+                                };
+                              });
+                            }}
+                            className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 accent-emerald-600 cursor-pointer"
+                          />
+                          <div>
+                            <span className="font-semibold text-slate-800 block">Driver Allowance</span>
+                            <span className="text-[10px] text-slate-400">
+                              {df.includeDriverAllowance ? 'Included in billing' : 'Unchecked (Excluded from bill)'}
+                            </span>
+                          </div>
+                        </label>
+                        <div className="relative flex items-center">
+                          <span className="absolute left-2.5 text-slate-400 text-xs font-semibold">₹</span>
+                          <input
+                            type="number"
+                            disabled={!df.includeDriverAllowance}
+                            min={0}
+                            value={df.includeDriverAllowance ? (df.driverAllowance || '') : ''}
+                            onChange={e => setDf(f => ({
+                              ...f,
+                              driverAllowance: parseFloat(e.target.value) || 0,
+                              isManualDriverAllowance: true,
+                            }))}
+                            placeholder={df.includeDriverAllowance ? '0' : '0 (Off)'}
+                            className="w-28 bg-white border border-slate-300 rounded-lg pl-6 pr-2 py-1.5 font-mono font-bold text-right text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:opacity-40 disabled:bg-slate-100 disabled:text-slate-400 shadow-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Night Allowance Toggle Card */}
+                    <div className={`p-3 rounded-xl border transition-all ${
+                      df.includeNightCharges
+                        ? 'bg-indigo-50/70 border-indigo-200 shadow-2xs'
+                        : 'bg-slate-50 border-slate-200/70'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={df.includeNightCharges}
+                            onChange={e => {
+                              const checked = e.target.checked;
+                              setDf(f => {
+                                const fallbackNight = 200;
+                                return {
+                                  ...f,
+                                  includeNightCharges: checked,
+                                  nightChargesOnTime: checked ? (f.nightChargesOnTime > 0 ? f.nightChargesOnTime : fallbackNight) : 0,
+                                  isManualNightCharges: checked,
+                                };
+                              });
+                            }}
+                            className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 accent-indigo-600 cursor-pointer"
+                          />
+                          <div>
+                            <span className="font-semibold text-slate-800 block">Night Allowance</span>
+                            <span className="text-[10px] text-slate-400">
+                              {df.includeNightCharges ? 'Included in billing' : 'Unchecked (Excluded from bill)'}
+                            </span>
+                          </div>
+                        </label>
+                        <div className="relative flex items-center">
+                          <span className="absolute left-2.5 text-slate-400 text-xs font-semibold">₹</span>
+                          <input
+                            type="number"
+                            disabled={!df.includeNightCharges}
+                            min={0}
+                            value={df.includeNightCharges ? (df.nightChargesOnTime || '') : ''}
+                            onChange={e => setDf(f => ({
+                              ...f,
+                              nightChargesOnTime: parseFloat(e.target.value) || 0,
+                              isManualNightCharges: true,
+                            }))}
+                            placeholder={df.includeNightCharges ? '0' : '0 (Off)'}
+                            className="w-28 bg-white border border-slate-300 rounded-lg pl-6 pr-2 py-1.5 font-mono font-bold text-right text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:opacity-40 disabled:bg-slate-100 disabled:text-slate-400 shadow-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tolls, Parking & State Taxes 2x2 Grid */}
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Tolls & Additional Taxes</span>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/70 flex justify-between items-center">
+                          <span className="text-[11px] font-semibold text-slate-600">Parking</span>
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder="0"
+                            value={df.parking || ''}
+                            onChange={e => setDf(f => ({ ...f, parking: parseFloat(e.target.value) || 0 }))}
+                            className="w-18 bg-white border border-slate-300 rounded-lg px-2 py-1 text-right font-mono font-bold text-xs focus:outline-none focus:border-blue-500 shadow-2xs"
+                          />
+                        </div>
+                        <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/70 flex justify-between items-center">
+                          <span className="text-[11px] font-semibold text-slate-600">Tolls</span>
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder="0"
+                            value={df.toll || ''}
+                            onChange={e => setDf(f => ({ ...f, toll: parseFloat(e.target.value) || 0 }))}
+                            className="w-18 bg-white border border-slate-300 rounded-lg px-2 py-1 text-right font-mono font-bold text-xs focus:outline-none focus:border-blue-500 shadow-2xs"
+                          />
+                        </div>
+                        <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/70 flex justify-between items-center">
+                          <span className="text-[11px] font-semibold text-slate-600">State Tax</span>
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder="0"
+                            value={df.stateTax || ''}
+                            onChange={e => setDf(f => ({ ...f, stateTax: parseFloat(e.target.value) || 0 }))}
+                            className="w-18 bg-white border border-slate-300 rounded-lg px-2 py-1 text-right font-mono font-bold text-xs focus:outline-none focus:border-blue-500 shadow-2xs"
+                          />
+                        </div>
+                        <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/70 flex justify-between items-center">
+                          <span className="text-[11px] font-semibold text-slate-600">MCD Toll</span>
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder="0"
+                            value={df.mcdToll || ''}
+                            onChange={e => setDf(f => ({ ...f, mcdToll: parseFloat(e.target.value) || 0 }))}
+                            className="w-18 bg-white border border-slate-300 rounded-lg px-2 py-1 text-right font-mono font-bold text-xs focus:outline-none focus:border-blue-500 shadow-2xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Misc Extra Charges */}
+                    <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/70 rounded-xl">
+                      <div>
+                        <span className="font-semibold text-slate-700 block">Misc Extra Charges</span>
+                        <span className="text-[10px] text-slate-400">Other miscellaneous trip fees</span>
+                      </div>
+                      <div className="relative flex items-center">
+                        <span className="absolute left-2.5 text-slate-400 text-xs font-semibold">₹</span>
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="0"
+                          value={df.extraCharges || ''}
+                          onChange={e => setDf(f => ({ ...f, extraCharges: parseFloat(e.target.value) || 0 }))}
+                          className="w-28 bg-white border border-slate-300 rounded-lg pl-6 pr-2 py-1.5 font-mono font-bold text-right text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Grand Total Footer Card */}
+                    <div className="pt-2">
+                      <div className="p-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white rounded-2xl shadow-md flex justify-between items-center">
+                        <div>
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-100 block">Grand Total</span>
+                          <span className="text-[10px] text-emerald-200">Includes all checked charges</span>
+                        </div>
+                        <span className="font-mono text-2xl font-black tracking-tight text-white drop-shadow-xs">
+                          ₹{fmt(liveBillingPreview.totalAmount)}
                         </span>
-                        <input type="number" min={0} value={df.extraHoursCharged || ''}
-                          onChange={e => setDf(f => ({ ...f, extraHoursCharged: parseFloat(e.target.value) || 0, isManualExtraHoursCharged: true }))}
-                          className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono font-semibold text-right text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
                       </div>
-                    </div>
-
-                    {/* Driver Allowance */}
-                    <div className="flex items-center justify-between pt-3">
-                      <div className="flex items-center gap-2">
-                        <input type="checkbox" checked={df.includeDriverAllowance}
-                          onChange={e => setDf(f => ({ ...f, includeDriverAllowance: e.target.checked }))}
-                          className="rounded text-blue-600 focus:ring-blue-500 bg-white border-slate-300 w-3.5 h-3.5" />
-                        <span className="text-slate-600 font-medium">Driver Allowance (₹)</span>
-                      </div>
-                      <input type="number" disabled={!df.includeDriverAllowance} min={0} value={df.driverAllowance || ''}
-                        onChange={e => setDf(f => ({ ...f, driverAllowance: parseFloat(e.target.value) || 0, isManualDriverAllowance: true }))}
-                        className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono font-semibold text-right text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100 disabled:opacity-40 disabled:bg-slate-100 disabled:text-slate-400" />
-                    </div>
-
-                    {/* Night Charges */}
-                    <div className="flex items-center justify-between pt-3">
-                      <div className="flex items-center gap-2">
-                        <input type="checkbox" checked={df.includeNightCharges}
-                          onChange={e => setDf(f => ({ ...f, includeNightCharges: e.target.checked }))}
-                          className="rounded text-blue-600 focus:ring-blue-500 bg-white border-slate-300 w-3.5 h-3.5" />
-                        <span className="text-slate-600 font-medium">Night Allowance (₹)</span>
-                      </div>
-                      <input type="number" disabled={!df.includeNightCharges} min={0} value={df.nightChargesOnTime || ''}
-                        onChange={e => setDf(f => ({ ...f, nightChargesOnTime: parseFloat(e.target.value) || 0, isManualNightCharges: true }))}
-                        className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono font-semibold text-right text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100 disabled:opacity-40 disabled:bg-slate-100 disabled:text-slate-400" />
-                    </div>
-
-                    {/* Parking & Tolls & Taxes */}
-                    <div className="grid grid-cols-2 gap-3 pt-3">
-                      <div className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
-                        <span className="text-[11px] text-slate-505">Parking</span>
-                        <input type="number" min={0} value={df.parking || ''}
-                          onChange={e => setDf(f => ({ ...f, parking: parseFloat(e.target.value) || 0 }))}
-                          className="w-16 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-right font-mono text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
-                      </div>
-                      <div className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
-                        <span className="text-[11px] text-slate-505">Tolls</span>
-                        <input type="number" min={0} value={df.toll || ''}
-                          onChange={e => setDf(f => ({ ...f, toll: parseFloat(e.target.value) || 0 }))}
-                          className="w-16 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-right font-mono text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
-                      </div>
-                      <div className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
-                        <span className="text-[11px] text-slate-550">State Tax</span>
-                        <input type="number" min={0} value={df.stateTax || ''}
-                          onChange={e => setDf(f => ({ ...f, stateTax: parseFloat(e.target.value) || 0 }))}
-                          className="w-16 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-right font-mono text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
-                      </div>
-                      <div className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
-                        <span className="text-[11px] text-slate-550">MCD Toll</span>
-                        <input type="number" min={0} value={df.mcdToll || ''}
-                          onChange={e => setDf(f => ({ ...f, mcdToll: parseFloat(e.target.value) || 0 }))}
-                          className="w-16 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-right font-mono text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
-                      </div>
-                    </div>
-
-                    {/* Extra / Misc Charges */}
-                    <div className="flex items-center justify-between pt-3">
-                      <span className="text-slate-600 font-medium">Misc Extra Charges (₹)</span>
-                      <input type="number" min={0} value={df.extraCharges || ''}
-                        onChange={e => setDf(f => ({ ...f, extraCharges: parseFloat(e.target.value) || 0 }))}
-                        className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 font-mono text-right text-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" />
-                    </div>
-
-                    {/* Grand Total Row */}
-                    <div className="flex justify-between pt-4 pb-1 text-sm font-bold border-t border-slate-200">
-                      <span className="text-slate-700 font-bold">GRAND TOTAL</span>
-                      <span className="font-mono text-emerald-600 text-base">₹{fmt(liveBillingPreview.totalAmount)}</span>
                     </div>
                   </div>
                 </div>
