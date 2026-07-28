@@ -83,17 +83,33 @@ export default function DatePicker({
     setIsOpen(false);
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    if (format === 'DD/MM/YYYY') {
+      const clean = raw.replace(/\D/g, '').slice(0, 8);
+      let formatted = clean;
+      if (clean.length >= 5) {
+        formatted = `${clean.slice(0, 2)}/${clean.slice(2, 4)}/${clean.slice(4)}`;
+      } else if (clean.length >= 3) {
+        formatted = `${clean.slice(0, 2)}/${clean.slice(2)}`;
+      }
+      onChange(formatted);
+    } else {
+      onChange(raw);
+    }
+  };
+
   return (
     <div ref={containerRef} className="relative w-full">
       <div className="relative">
         <input
           type="text"
-          readOnly
           required={required}
-          value={value}
-          placeholder={placeholder}
-          onClick={() => setIsOpen(!isOpen)}
-          className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition text-left cursor-pointer pr-10"
+          value={value || ''}
+          placeholder={placeholder || (format === 'DD/MM/YYYY' ? 'DD/MM/YYYY' : 'YYYY-MM-DD')}
+          onChange={handleInputChange}
+          onFocus={() => setIsOpen(true)}
+          className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition text-left pr-10"
         />
         <div 
           onClick={() => setIsOpen(!isOpen)}
