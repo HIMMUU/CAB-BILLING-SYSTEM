@@ -21,6 +21,7 @@ export default function DatePicker({
 }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const defaultClassNames = getDefaultClassNames();
 
   // Parse string value into Date
@@ -32,7 +33,7 @@ export default function DatePicker({
         const day = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1;
         const year = parseInt(parts[2], 10);
-        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year) && year > 1000) {
           return new Date(year, month, day);
         }
       }
@@ -42,7 +43,7 @@ export default function DatePicker({
         const year = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1;
         const day = parseInt(parts[2], 10);
-        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year) && year > 1000) {
           return new Date(year, month, day);
         }
       }
@@ -81,21 +82,73 @@ export default function DatePicker({
 
     onChange(formattedVal);
     setIsOpen(false);
+    inputRef.current?.focus();
   };
 
+  // Real-time validation & formatting while typing
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     if (format === 'DD/MM/YYYY') {
       const clean = raw.replace(/\D/g, '').slice(0, 8);
-      let formatted = clean;
-      if (clean.length >= 5) {
-        formatted = `${clean.slice(0, 2)}/${clean.slice(2, 4)}/${clean.slice(4)}`;
-      } else if (clean.length >= 3) {
-        formatted = `${clean.slice(0, 2)}/${clean.slice(2)}`;
+      let dayStr = clean.slice(0, 2);
+      let monthStr = clean.slice(2, 4);
+      let yearStr = clean.slice(4, 8);
+
+      // Validate & Clamp Day (01 - 31)
+      if (dayStr.length === 2) {
+        let d = parseInt(dayStr, 10);
+        if (d > 31) d = 31;
+        if (d === 0) d = 1;
+        dayStr = String(d).padStart(2, '0');
       }
+
+      // Validate & Clamp Month (01 - 12)
+      if (monthStr.length === 2) {
+        let m = parseInt(monthStr, 10);
+        if (m > 12) m = 12;
+        if (m === 0) m = 1;
+        monthStr = String(m).padStart(2, '0');
+      }
+
+      // Complete 8-digit check for max days in month
+      if (clean.length === 8) {
+        const d = parseInt(dayStr, 10);
+        const m = parseInt(monthStr, 10);
+        const y = parseInt(yearStr, 10);
+        const maxDaysInMonth = new Date(y, m, 0).getDate();
+        if (d > maxDaysInMonth) {
+          dayStr = String(maxDaysInMonth).padStart(2, '0');
+        }
+      }
+
+      let formatted = dayStr;
+      if (monthStr) formatted += '/' + monthStr;
+      if (yearStr) formatted += '/' + yearStr;
+
       onChange(formatted);
     } else {
       onChange(raw);
+    }
+  };
+
+  // Keyboard navigation: Pressing Enter moves focus to next field in form
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      setIsOpen(false);
+
+      if (inputRef.current) {
+        const root = inputRef.current.closest('form') || inputRef.current.closest('.space-y-6') || inputRef.current.closest('main') || document.body;
+        const focusables = Array.from(
+          root.querySelectorAll<HTMLElement>(
+            'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]):not([tabindex="-1"])'
+          )
+        );
+        const currentIndex = focusables.indexOf(inputRef.current);
+        if (currentIndex > -1 && currentIndex + 1 < focusables.length) {
+          focusables[currentIndex + 1].focus();
+        }
+      }
     }
   };
 
@@ -103,11 +156,13 @@ export default function DatePicker({
     <div ref={containerRef} className="relative w-full">
       <div className="relative">
         <input
+          ref={inputRef}
           type="text"
           required={required}
           value={value || ''}
           placeholder={placeholder || (format === 'DD/MM/YYYY' ? 'DD/MM/YYYY' : 'YYYY-MM-DD')}
           onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
           onFocus={() => setIsOpen(true)}
           className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition text-left pr-10"
         />
