@@ -459,10 +459,10 @@ export default function DutySlipsPage() {
       const extraHourRateVal = f.isManualExtraHourRate ? f.extraHourRate : calculatedExtraHourRate;
 
       const driverAllowanceVal = f.includeDriverAllowance
-        ? (f.isManualDriverAllowance ? f.driverAllowance : calculatedDriverAllowance)
+        ? (f.isManualDriverAllowance ? f.driverAllowance : (calculatedDriverAllowance || 250))
         : 0;
       const nightChargesVal = f.includeNightCharges
-        ? (f.isManualNightCharges ? f.nightChargesOnTime : calculatedNightCharges)
+        ? (f.isManualNightCharges ? f.nightChargesOnTime : (calculatedNightCharges || 200))
         : 0;
 
       const extraKmChargedVal = f.isManualExtraKmCharged
@@ -499,6 +499,8 @@ export default function DutySlipsPage() {
     df.dutyType,
     df.pickupType,
     df.billingMode,
+    df.includeDriverAllowance,
+    df.includeNightCharges,
     selectedRateCard,
   ]);
 
@@ -513,8 +515,8 @@ export default function DutySlipsPage() {
     const parking = Number(df.parking || 0);
     const stateTax = Number(df.stateTax || 0);
     const mcd = Number(df.mcdToll || 0);
-    const driverAllowance = Number(df.driverAllowance || 0);
-    const nightCharges = Number(df.nightChargesOnTime || 0);
+    const driverAllowance = df.includeDriverAllowance ? Number(df.driverAllowance || 0) : 0;
+    const nightCharges = df.includeNightCharges ? Number(df.nightChargesOnTime || 0) : 0;
     const extraCharges = Number(df.extraCharges || 0);
 
     const subtotal = baseFare + extraKmCharged + extraHoursCharged + toll + parking + stateTax + mcd + driverAllowance + nightCharges + extraCharges;
@@ -734,8 +736,8 @@ export default function DutySlipsPage() {
             endDateTime: endDateTime || undefined,
             toll: Number(df.toll) || 0,
             parking: Number(df.parking) || 0,
-            nightCharges: Number(df.nightChargesOnTime) || 0,
-            driverAllowance: Number(df.driverAllowance) || 0,
+            nightCharges: df.includeNightCharges ? (Number(df.nightChargesOnTime) || 0) : 0,
+            driverAllowance: df.includeDriverAllowance ? (Number(df.driverAllowance) || 0) : 0,
             extraCharges: Number(df.extraCharges) || 0,
             stateTax: Number(df.stateTax) || 0,
             mcd: Number(df.mcdToll) || 0,
@@ -786,8 +788,8 @@ export default function DutySlipsPage() {
             endDateTime: endDateTime || undefined,
             toll: Number(df.toll) || 0,
             parking: Number(df.parking) || 0,
-            nightCharges: Number(df.nightChargesOnTime) || 0,
-            driverAllowance: Number(df.driverAllowance) || 0,
+            nightCharges: df.includeNightCharges ? (Number(df.nightChargesOnTime) || 0) : 0,
+            driverAllowance: df.includeDriverAllowance ? (Number(df.driverAllowance) || 0) : 0,
             extraCharges: Number(df.extraCharges) || 0,
             stateTax: Number(df.stateTax) || 0,
             mcd: Number(df.mcdToll) || 0,
@@ -806,8 +808,8 @@ export default function DutySlipsPage() {
           Number(df.parking || 0) +
           Number(df.stateTax || 0) +
           Number(df.mcdToll || 0) +
-          Number(df.driverAllowance || 0) +
-          Number(df.nightChargesOnTime || 0) +
+          (df.includeDriverAllowance ? Number(df.driverAllowance || 0) : 0) +
+          (df.includeNightCharges ? Number(df.nightChargesOnTime || 0) : 0) +
           Number(df.extraCharges || 0);
 
         const totalAmount = subtotal;
@@ -821,8 +823,8 @@ export default function DutySlipsPage() {
             endDateTime,
             toll: Number(df.toll) || 0,
             parking: Number(df.parking) || 0,
-            driverAllowance: Number(df.driverAllowance) || 0,
-            nightCharges: Number(df.nightChargesOnTime) || 0,
+            driverAllowance: df.includeDriverAllowance ? (Number(df.driverAllowance) || 0) : 0,
+            nightCharges: df.includeNightCharges ? (Number(df.nightChargesOnTime) || 0) : 0,
             extraCharges: Number(df.extraCharges) || 0,
             stateTax: Number(df.stateTax) || 0,
             mcd: Number(df.mcdToll) || 0,
