@@ -565,7 +565,8 @@ export default function DutySlipsPage() {
 
     if (df.dutyType === 'FLEXIBLE') {
       const customSubtotal = customParticulars.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-      const subtotal = customSubtotal + toll + parking + stateTax + mcd;
+      const miscCharges = Number(df.extraCharges || 0);
+      const subtotal = customSubtotal + toll + parking + stateTax + mcd + miscCharges;
       return {
         packageType: 'Flexible Duty Slip (Manual Particulars)',
         includedKm: 0,
@@ -1930,9 +1931,9 @@ export default function DutySlipsPage() {
                           </div>
                         )}
 
-                        {/* Toll Tax & Parking Charges Grid */}
+                        {/* Tolls, Taxes & Additional Charges */}
                         <div className="pt-2">
-                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Toll Tax & Parking Charges</span>
+                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Tolls, Taxes & Additional Charges</span>
                           <div className="grid grid-cols-2 gap-3">
                             <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">
                               <span className="text-[11px] font-medium text-slate-600">Parking</span>
@@ -1956,7 +1957,42 @@ export default function DutySlipsPage() {
                                 className="w-20 bg-white border border-slate-200 rounded px-2 py-1 text-right font-mono font-semibold text-xs focus:outline-none focus:border-blue-500"
                               />
                             </div>
+                            <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">
+                              <span className="text-[11px] font-medium text-slate-600">State Tax</span>
+                              <input
+                                type="number"
+                                min={0}
+                                placeholder="0"
+                                value={df.stateTax || ''}
+                                onChange={e => setDf(f => ({ ...f, stateTax: parseFloat(e.target.value) || 0 }))}
+                                className="w-20 bg-white border border-slate-200 rounded px-2 py-1 text-right font-mono font-semibold text-xs focus:outline-none focus:border-blue-500"
+                              />
+                            </div>
+                            <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">
+                              <span className="text-[11px] font-medium text-slate-600">MCD Toll</span>
+                              <input
+                                type="number"
+                                min={0}
+                                placeholder="0"
+                                value={df.mcdToll || ''}
+                                onChange={e => setDf(f => ({ ...f, mcdToll: parseFloat(e.target.value) || 0 }))}
+                                className="w-20 bg-white border border-slate-200 rounded px-2 py-1 text-right font-mono font-semibold text-xs focus:outline-none focus:border-blue-500"
+                              />
+                            </div>
                           </div>
+                        </div>
+
+                        {/* Misc Extra Charges */}
+                        <div className="flex items-center justify-between pt-3">
+                          <span className="text-slate-700 font-medium">Misc Extra Charges (₹)</span>
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder="0"
+                            value={df.extraCharges || ''}
+                            onChange={e => setDf(f => ({ ...f, extraCharges: parseFloat(e.target.value) || 0 }))}
+                            className="w-28 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 font-mono font-semibold text-right text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white"
+                          />
                         </div>
                       </div>
                     ) : (
