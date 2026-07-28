@@ -43,6 +43,7 @@ interface DutySlip {
   booking: Booking; driver: Driver; vehicle: Vehicle;
   pickupLocation?: string;
   dropLocation?: string;
+  remarks?: string;
   trip?: any;
 }
 interface CalcPreview {
@@ -575,9 +576,6 @@ export default function DutySlipsPage() {
       };
     }
 
-    const baseFare = Number(df.baseFare || 0);
-    const extraKmCharged = Number(df.extraKmCharged || 0);
-    const extraHoursCharged = Number(df.extraHoursCharged || 0);
     const driverAllowance = df.includeDriverAllowance ? Number(df.driverAllowance || 0) : 0;
     const nightCharges = df.includeNightCharges ? Number(df.nightChargesOnTime || 0) : 0;
     const extraCharges = Number(df.extraCharges || 0);
@@ -585,6 +583,7 @@ export default function DutySlipsPage() {
     const subtotal = baseFare + extraKmCharged + extraHoursCharged + toll + parking + stateTax + mcd + driverAllowance + nightCharges + extraCharges;
     const gstRate = 0;
     const taxAmount = 0;
+    const totalAmount = subtotal;
 
     // Resolve included values for reference
     let includedKm = 80;
