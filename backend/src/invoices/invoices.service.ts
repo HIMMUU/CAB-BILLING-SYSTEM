@@ -1341,6 +1341,10 @@ export class InvoicesService {
             particularsRows.push({
               label: `( As Per 250 Km per Day min.running limit )`,
             });
+          } else if (booking.tripType === TripType.HOURLY_RENTAL) {
+            particularsRows.push({
+              label: routeRemarks ? routeRemarks.toUpperCase() : `FLEXIBLE DUTY PACKAGE`,
+            });
           } else {
             particularsRows.push({
               label: `${booking.tripType} : ${trip.totalKm} Kms & ${Number(trip.totalHours || 0).toFixed(2)} Hrs. Duty`,

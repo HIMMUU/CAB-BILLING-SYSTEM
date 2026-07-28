@@ -399,7 +399,20 @@ export default function DutySlipsPage() {
     let baseKm = 80;
     let baseHours = 8;
 
-    if (df.dutyType === 'O' || df.dutyType === 'T') {
+    if (df.dutyType === 'C') {
+      // Flexible Duty (Custom Package & Rates)
+      calculatedBaseFare = selectedRateCard ? (Number(selectedRateCard.fullDayRate || selectedRateCard.baseFare) || 1500) : 1500;
+      calculatedExtraKmRate = selectedRateCard ? (Number(selectedRateCard.extraKmRate) || 12) : 12;
+      calculatedExtraHourRate = selectedRateCard ? (Number(selectedRateCard.extraHourRate) || 100) : 100;
+      calculatedDriverAllowance = selectedRateCard ? (Number(selectedRateCard.driverAllowance) || 250) : 250;
+      calculatedNightCharges = nightHrs > 0
+        ? (selectedRateCard ? (Number(selectedRateCard.nightCharge) || 200) : 200)
+        : 0;
+      baseKm = selectedRateCard ? (Number(selectedRateCard.fullKm || selectedRateCard.minKm) || 80) : 80;
+      baseHours = selectedRateCard ? (Number(selectedRateCard.fullHr || selectedRateCard.minHr) || 8) : 8;
+      bilKm = Math.max(actKm, baseKm);
+      bilHrs = Math.max(actHrs, baseHours);
+    } else if (df.dutyType === 'O' || df.dutyType === 'T') {
       const minKm = selectedRateCard ? (Number(selectedRateCard.minKmPerDay) || 250) : 250;
       const ratePerKm = selectedRateCard ? (Number(selectedRateCard.outstationRatePerKm) || 12) : 12;
       baseKm = calcDays * minKm;
@@ -539,7 +552,11 @@ export default function DutySlipsPage() {
       calcDays = Math.max(1, Math.round(diffDaysMs / (1000 * 60 * 60 * 24)) + 1);
     }
 
-    if (df.dutyType === 'O' || df.dutyType === 'T') {
+    if (df.dutyType === 'C') {
+      includedKm = selectedRateCard ? (Number(selectedRateCard.fullKm || selectedRateCard.minKm) || 80) : 80;
+      includedHours = selectedRateCard ? (Number(selectedRateCard.fullHr || selectedRateCard.minHr) || 8) : 8;
+      packageType = df.remarks?.trim() ? `Flexible Duty (${df.remarks.trim()})` : 'Flexible Duty (Custom Rate / Particulars)';
+    } else if (df.dutyType === 'O' || df.dutyType === 'T') {
       const minKm = selectedRateCard ? (Number(selectedRateCard.minKmPerDay) || 250) : 250;
       includedKm = calcDays * minKm;
       includedHours = calcDays * 24;
@@ -1618,18 +1635,22 @@ export default function DutySlipsPage() {
                     <Field label="Service / Billing Option *">
                       <select
                         value={
-                          df.dutyType === 'O' || df.dutyType === 'T'
-                            ? 'outstation'
-                            : df.pickupType === 'airport' || df.pickupType === 'railway'
-                              ? 'transfer'
-                              : df.billingMode === 'H'
-                                ? 'local_half_day'
-                                : 'local_full_day'
+                          df.dutyType === 'C'
+                            ? 'flexible'
+                            : df.dutyType === 'O' || df.dutyType === 'T'
+                              ? 'outstation'
+                              : df.pickupType === 'airport' || df.pickupType === 'railway'
+                                ? 'transfer'
+                                : df.billingMode === 'H'
+                                  ? 'local_half_day'
+                                  : 'local_full_day'
                         }
                         onChange={e => {
                           const val = e.target.value;
                           setDf(f => {
-                            if (val === 'outstation') {
+                            if (val === 'flexible') {
+                              return { ...f, dutyType: 'C', billingMode: 'N', pickupType: 'other' };
+                            } else if (val === 'outstation') {
                               return { ...f, dutyType: 'O', billingMode: 'N', pickupType: 'other' };
                             } else if (val === 'transfer') {
                               return { ...f, dutyType: 'L', billingMode: 'N', pickupType: 'airport' };
@@ -1646,9 +1667,33 @@ export default function DutySlipsPage() {
                         <option value="local_full_day">Local Full Day (8 Hrs / 80 KM)</option>
                         <option value="transfer">Transfer (Airport / Railway)</option>
                         <option value="outstation">Outstation</option>
+                        <option value="flexible">✨ Flexible Duty (Custom Description & Rates)</option>
                       </select>
                     </Field>
                   </div>
+
+                  {df.dutyType === 'C' && (
+                    <div className="p-4.5 bg-gradient-to-r from-indigo-50 via-purple-50 to-blue-50 border border-indigo-200/80 rounded-xl space-y-2 animate-fade-in shadow-2xs">
+                      <div className="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-indigo-600">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                        </svg>
+                        <label className="text-xs font-bold text-indigo-900 uppercase tracking-wide">
+                          Custom Duty Description / Particulars
+                        </label>
+                      </div>
+                      <input
+                        type="text"
+                        value={df.remarks}
+                        onChange={e => setDf(f => ({ ...f, remarks: e.target.value }))}
+                        placeholder="e.g. SPECIAL VIP FLEET ARRANGEMENT - 12 HOURS / UNLIMITED KM"
+                        className="w-full bg-white border border-indigo-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 shadow-xs"
+                      />
+                      <p className="text-[11px] text-indigo-700 font-medium">
+                        💡 Flexible Mode: Enter your custom duty description above and set custom rate/amount in the breakup. All additional charges (tolls, parking, allowances, extra KM/hrs) remain fully active and applicable.
+                      </p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Remarks / Internal Notes">
                       <input type="text" value={df.remarks} onChange={e => setDf(f => ({ ...f, remarks: e.target.value }))} className={inp} />
