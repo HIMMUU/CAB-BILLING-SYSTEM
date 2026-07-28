@@ -573,9 +573,6 @@ export default function DutySlipsPage() {
   const liveBillingPreview = React.useMemo(() => {
     if (!df.customerId) return null;
 
-    const baseFare = Number(df.baseFare || 0);
-    const extraKmCharged = Number(df.extraKmCharged || 0);
-    const extraHoursCharged = Number(df.extraHoursCharged || 0);
     const toll = Number(df.toll || 0);
     const parking = Number(df.parking || 0);
     const stateTax = Number(df.stateTax || 0);
