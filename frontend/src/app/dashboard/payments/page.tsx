@@ -759,7 +759,7 @@ export default function PaymentsPage() {
                 Are you sure you want to delete payment receipt of <strong className="text-emerald-600">INR {Number(deletePayment.amount).toFixed(2)}</strong> for invoice <strong className="text-blue-600">{deletePayment.invoice?.invoiceNumber}</strong>?
               </p>
               <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg font-medium">
-                ⚠️ Warning: Deleting this payment will automatically restore the unpaid due balance on invoice {deletePayment.invoice?.invoiceNumber}.
+                Warning: Deleting this payment will automatically restore the unpaid due balance on invoice {deletePayment.invoice?.invoiceNumber}.
               </div>
 
               <div className="border-t border-[#E2E8F0] pt-4 mt-6 flex gap-2">

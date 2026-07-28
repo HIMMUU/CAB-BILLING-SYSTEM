@@ -1328,13 +1328,43 @@ export class InvoicesService {
             (booking.guestName || booking.customer.name);
           particularsRows.push({ label: `Guest - ${guestVal}` });
 
-          const routeRemarks = (ds.remarks || booking.remarks || '').trim();
           const defaultRoute = `${booking.pickupLocation.toUpperCase()} TO ${booking.dropLocation.toUpperCase()}`;
+          let customParticulars: Array<{ particular: string; rate: number; quantity: number; amount: number }> = [];
+          let isFlexibleDuty = false;
+          let userRemarksText = (ds.remarks || booking.remarks || '').trim();
 
-          if (booking.tripType === TripType.OUTSTATION) {
+          try {
+            if (userRemarksText.startsWith('{')) {
+              const parsed = JSON.parse(userRemarksText);
+              if (parsed.isFlexible && Array.isArray(parsed.items)) {
+                isFlexibleDuty = true;
+                customParticulars = parsed.items;
+                userRemarksText = (parsed.userNotes || '').trim();
+              }
+            }
+          } catch (e) {}
+
+          if (isFlexibleDuty) {
+            particularsRows.push({ label: 'FLEXIBLE DUTY SLIP (MANUAL BILLING)' });
+            if (userRemarksText) {
+              particularsRows.push({ label: `Remarks: ${userRemarksText.toUpperCase()}` });
+            }
+
+            for (const item of customParticulars) {
+              const qty = Number(item.quantity) || 1;
+              const rateVal = Number(item.rate) || 0;
+              const amtVal = Number(item.amount) || 0;
+              const qtyLabel = qty > 1 ? ` (${qty} Qty @ ₹${rateVal.toFixed(2)})` : '';
+              particularsRows.push({
+                label: `${item.particular.toUpperCase()}${qtyLabel}`,
+                rate: rateVal > 0 ? rateVal.toFixed(2) : undefined,
+                amount: amtVal.toFixed(2),
+              });
+            }
+          } else if (booking.tripType === TripType.OUTSTATION) {
             particularsRows.push({ label: `OUTSTATION : ${trip.totalKm} KM` });
-            if (routeRemarks) {
-              particularsRows.push({ label: routeRemarks.toUpperCase() });
+            if (userRemarksText) {
+              particularsRows.push({ label: userRemarksText.toUpperCase() });
             } else {
               particularsRows.push({ label: defaultRoute });
             }
@@ -1343,84 +1373,87 @@ export class InvoicesService {
             });
           } else if (booking.tripType === TripType.HOURLY_RENTAL) {
             particularsRows.push({
-              label: routeRemarks ? routeRemarks.toUpperCase() : `FLEXIBLE DUTY PACKAGE`,
+              label: userRemarksText ? userRemarksText.toUpperCase() : `FLEXIBLE DUTY PACKAGE`,
             });
           } else {
             particularsRows.push({
               label: `${booking.tripType} : ${trip.totalKm} Kms & ${Number(trip.totalHours || 0).toFixed(2)} Hrs. Duty`,
             });
-            if (routeRemarks) {
-              particularsRows.push({ label: `Remarks: ${routeRemarks.toUpperCase()}` });
+            if (userRemarksText) {
+              particularsRows.push({ label: `Remarks: ${userRemarksText.toUpperCase()}` });
             }
           }
 
-          // Base Fare Row
           const totalDays = Math.max(1, Number(trip.totalDays) || 1);
-          const baseKm =
-            booking.tripType === TripType.OUTSTATION
-              ? totalDays * 250
-              : booking.tripType === TripType.AIRPORT_TRANSFER
-                ? 40
-                : 80;
-          const baseHr = booking.tripType === TripType.OUTSTATION ? 24 * totalDays : 8;
-          particularsRows.push({
-            label:
+
+          if (!isFlexibleDuty) {
+            // Base Fare Row
+            const baseKm =
               booking.tripType === TripType.OUTSTATION
-                ? `UPTO ${baseKm} Kms. & ${totalDays} Days Duty`
-                : `UPTO ${baseKm} Kms. & ${baseHr} Hrs Duty`,
-            rate: Number(trip.baseFareCharged).toFixed(2),
-            amount: Number(trip.baseFareCharged).toFixed(2),
-          });
-
-          // Extra KM Row
-          if (Number(trip.extraKmCharged) > 0) {
-            const extraKmQty = Math.max(0, Number(trip.totalKm) - baseKm);
-            const extraKmRate =
-              extraKmQty > 0 ? Number(trip.extraKmCharged) / extraKmQty : 14;
+                ? totalDays * 250
+                : booking.tripType === TripType.AIRPORT_TRANSFER
+                  ? 40
+                  : 80;
+            const baseHr = booking.tripType === TripType.OUTSTATION ? 24 * totalDays : 8;
             particularsRows.push({
-              label: `Extra Km ${extraKmQty.toFixed(2)} @`,
-              rate: extraKmRate.toFixed(2),
-              amount: Number(trip.extraKmCharged).toFixed(2),
+              label:
+                booking.tripType === TripType.OUTSTATION
+                  ? `UPTO ${baseKm} Kms. & ${totalDays} Days Duty`
+                  : `UPTO ${baseKm} Kms. & ${baseHr} Hrs Duty`,
+              rate: Number(trip.baseFareCharged).toFixed(2),
+              amount: Number(trip.baseFareCharged).toFixed(2),
             });
-          }
 
-          // Extra Hours Row
-          if (Number(trip.extraHoursCharged) > 0) {
-            const extraHrsQty = Math.max(
-              0,
-              Number(trip.totalHours || 0) - baseHr,
-            );
-            const extraHrsRate =
-              extraHrsQty > 0
-                ? Number(trip.extraHoursCharged) / extraHrsQty
-                : 100;
-            particularsRows.push({
-              label: `Extra Hrs ${extraHrsQty.toFixed(2)} @`,
-              rate: extraHrsRate.toFixed(2),
-              amount: Number(trip.extraHoursCharged).toFixed(2),
-            });
-          }
+            // Extra KM Row
+            if (Number(trip.extraKmCharged) > 0) {
+              const extraKmQty = Math.max(0, Number(trip.totalKm) - baseKm);
+              const extraKmRate =
+                extraKmQty > 0 ? Number(trip.extraKmCharged) / extraKmQty : 14;
+              particularsRows.push({
+                label: `Extra Km ${extraKmQty.toFixed(2)} @`,
+                rate: extraKmRate.toFixed(2),
+                amount: Number(trip.extraKmCharged).toFixed(2),
+              });
+            }
 
-          // Driver Allowance Row
-          if (Number(trip.driverAllowance) > 0) {
-            const daTotal = Number(trip.driverAllowance);
-            const daRate = daTotal / totalDays;
-            particularsRows.push({
-              label: `DRIVER ALLOWANCE ${totalDays} DAY(S) @`,
-              rate: daRate.toFixed(2),
-              amount: daTotal.toFixed(2),
-            });
-          }
+            // Extra Hours Row
+            if (Number(trip.extraHoursCharged) > 0) {
+              const extraHrsQty = Math.max(
+                0,
+                Number(trip.totalHours || 0) - baseHr,
+              );
+              const extraHrsRate =
+                extraHrsQty > 0
+                  ? Number(trip.extraHoursCharged) / extraHrsQty
+                  : 100;
+              particularsRows.push({
+                label: `Extra Hrs ${extraHrsQty.toFixed(2)} @`,
+                rate: extraHrsRate.toFixed(2),
+                amount: Number(trip.extraHoursCharged).toFixed(2),
+              });
+            }
 
-          // Night Allowance Row
-          if (Number(trip.nightChargesCharged) > 0) {
-            const nightTotal = Number(trip.nightChargesCharged);
-            const nightRate = nightTotal / totalDays;
-            particularsRows.push({
-              label: `NIGHT ALLOWANCE ${totalDays} NIGHT(S) @`,
-              rate: nightRate.toFixed(2),
-              amount: nightTotal.toFixed(2),
-            });
+            // Driver Allowance Row
+            if (Number(trip.driverAllowance) > 0) {
+              const daTotal = Number(trip.driverAllowance);
+              const daRate = daTotal / totalDays;
+              particularsRows.push({
+                label: `DRIVER ALLOWANCE ${totalDays} DAY(S) @`,
+                rate: daRate.toFixed(2),
+                amount: daTotal.toFixed(2),
+              });
+            }
+
+            // Night Allowance Row
+            if (Number(trip.nightChargesCharged) > 0) {
+              const nightTotal = Number(trip.nightChargesCharged);
+              const nightRate = nightTotal / totalDays;
+              particularsRows.push({
+                label: `NIGHT ALLOWANCE ${totalDays} NIGHT(S) @`,
+                rate: nightRate.toFixed(2),
+                amount: nightTotal.toFixed(2),
+              });
+            }
           }
 
           // Incidentals: tolls, parking, state tax, MCD, extra charges
