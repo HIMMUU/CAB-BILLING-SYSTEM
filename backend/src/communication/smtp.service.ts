@@ -105,9 +105,11 @@ export class SmtpService {
       });
     }
 
+    const { id: _id, tenantId: _t, createdAt: _c, updatedAt: _u, ...dataToUpdate } = dto as any;
+
     return this.prisma.smtpAccount.update({
       where: { id },
-      data: { ...dto },
+      data: { ...dataToUpdate },
     });
   }
 

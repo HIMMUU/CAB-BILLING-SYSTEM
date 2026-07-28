@@ -10,6 +10,7 @@ interface SmtpAccount {
   host: string;
   port: number;
   username: string;
+  encryption?: string;
   fromName: string;
   fromEmail: string;
   replyTo?: string;
@@ -181,10 +182,24 @@ export default function CommunicationPage() {
 
   const handleSaveSmtpAccount = async () => {
     try {
+      const payload = {
+        accountName: smtpForm.accountName || 'Primary SMTP',
+        provider: smtpForm.provider || 'GMAIL',
+        host: smtpForm.host || 'smtp.gmail.com',
+        port: Number(smtpForm.port) || 587,
+        username: smtpForm.username || '',
+        password: smtpForm.password || '',
+        encryption: smtpForm.encryption || 'TLS',
+        fromName: smtpForm.fromName || 'Fleet Billing',
+        fromEmail: smtpForm.fromEmail || smtpForm.username || 'billing@example.com',
+        replyTo: smtpForm.replyTo || undefined,
+        isDefault: !!smtpForm.isDefault,
+      };
+
       if (smtpForm.id) {
-        await api.request(`/communication/smtp/${smtpForm.id}`, { method: 'PUT', body: JSON.stringify(smtpForm) });
+        await api.request(`/communication/smtp/${smtpForm.id}`, { method: 'PUT', body: JSON.stringify(payload) });
       } else {
-        await api.request('/communication/smtp', { method: 'POST', body: JSON.stringify(smtpForm) });
+        await api.request('/communication/smtp', { method: 'POST', body: JSON.stringify(payload) });
       }
       setIsSmtpModalOpen(false);
       fetchInitialData();
@@ -845,6 +860,19 @@ export default function CommunicationPage() {
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-blue-500"
                   />
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="isDefaultSmtp"
+                  checked={!!smtpForm.isDefault}
+                  onChange={e => setSmtpForm(f => ({ ...f, isDefault: e.target.checked }))}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                />
+                <label htmlFor="isDefaultSmtp" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                  Set as Default Sender Account
+                </label>
               </div>
 
               {testConnectionStatus.message && (
