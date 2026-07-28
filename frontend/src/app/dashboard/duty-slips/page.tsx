@@ -573,6 +573,9 @@ export default function DutySlipsPage() {
   const liveBillingPreview = React.useMemo(() => {
     if (!df.customerId) return null;
 
+    const baseFare = Number(df.baseFare || 0);
+    const extraKmCharged = Number(df.extraKmCharged || 0);
+    const extraHoursCharged = Number(df.extraHoursCharged || 0);
     const toll = Number(df.toll || 0);
     const parking = Number(df.parking || 0);
     const stateTax = Number(df.stateTax || 0);
@@ -601,7 +604,6 @@ export default function DutySlipsPage() {
     const subtotal = baseFare + extraKmCharged + extraHoursCharged + toll + parking + stateTax + mcd + driverAllowance + nightCharges + extraCharges;
     const gstRate = 0;
     const taxAmount = 0;
-    const totalAmount = subtotal;
 
     // Resolve included values for reference
     let includedKm = 80;
@@ -984,7 +986,7 @@ export default function DutySlipsPage() {
           remarksText = obj.userNotes || '';
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     setCustomParticulars(parsedParticulars);
 
@@ -1866,12 +1868,12 @@ export default function DutySlipsPage() {
                       <div className="space-y-4 pt-1">
                         <div className="flex items-center justify-between">
                           <div>
-                            <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">Custom Particulars</span>
-                            <span className="text-[10px] text-slate-400 block">Fixed line items added via Add Particular</span>
+                            <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">Custom Particular Line Items</span>
+                            <span className="text-[10px] text-slate-400 block">Add custom particulars (e.g. Local Duty, Driver Bata, Airport Entry)</span>
                           </div>
                           <button
                             type="button"
-                            onClick={handleOpenParticularDialog}
+                            onClick={handleOpenAddParticular}
                             className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-xs transition cursor-pointer"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
@@ -1883,7 +1885,7 @@ export default function DutySlipsPage() {
 
                         {customParticulars.length === 0 ? (
                           <div className="p-4 border border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-xs">
-                            No custom line items added yet. Click &quot;Add Particular&quot; to configure particulars.
+                            No custom line items added yet. Click &quot;Add Particular&quot; to add items.
                           </div>
                         ) : (
                           <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
@@ -1891,14 +1893,43 @@ export default function DutySlipsPage() {
                               <thead>
                                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold text-[11px]">
                                   <th className="p-2.5">Particular</th>
+                                  <th className="p-2.5 text-right">Rate</th>
+                                  <th className="p-2.5 text-center">Qty</th>
                                   <th className="p-2.5 text-right">Amount</th>
+                                  <th className="p-2.5 text-center w-16">Actions</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100">
                                 {customParticulars.map((item) => (
                                   <tr key={item.id} className="hover:bg-slate-50/50">
-                                    <td className="p-2.5 font-medium text-slate-800">{item.particular || '—'}</td>
-                                    <td className="p-2.5 text-right font-mono font-semibold text-slate-800">₹{Number(item.amount || 0).toFixed(2)}</td>
+                                    <td className="p-2.5 font-medium text-slate-800">{item.particular}</td>
+                                    <td className="p-2.5 text-right font-mono text-slate-600">₹{Number(item.rate).toFixed(2)}</td>
+                                    <td className="p-2.5 text-center text-slate-600">{item.quantity}</td>
+                                    <td className="p-2.5 text-right font-mono font-semibold text-slate-800">₹{Number(item.amount).toFixed(2)}</td>
+                                    <td className="p-2.5 text-center">
+                                      <div className="flex items-center justify-center gap-1.5">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenEditParticular(item)}
+                                          className="p-1 hover:bg-slate-100 rounded text-slate-500 hover:text-blue-600 transition"
+                                          title="Edit"
+                                        >
+                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                          </svg>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteParticular(item.id)}
+                                          className="p-1 hover:bg-red-50 rounded text-slate-400 hover:text-red-600 transition"
+                                          title="Delete"
+                                        >
+                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                          </svg>
+                                        </button>
+                                      </div>
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -2168,119 +2199,116 @@ export default function DutySlipsPage() {
         </div>
       )}
 
-      {/* ══════════ MULTI-ROW PARTICULAR BUILDER DIALOG ══════════ */}
+      {/* ══════════ ADD / EDIT PARTICULAR DIALOG ══════════ */}
       {isParticularModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <h3 className="text-sm font-bold text-slate-800">
-                Custom Particulars Builder
+                {particularForm.id ? 'Edit Particular Line Item' : 'Add Particular Line Item'}
               </h3>
               <button
                 type="button"
                 onClick={() => setIsParticularModalOpen(false)}
-                className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-slate-600 transition"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
+                  Particular Name *
+                </label>
+                <input
+                  type="text"
+                  value={particularForm.particular}
+                  onChange={e => setParticularForm(f => ({ ...f, particular: e.target.value }))}
+                  placeholder="e.g. Local Duty / Driver Bata / Airport Entry"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white"
+                  autoFocus
+                />
+              </div>
 
-            <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[10px]">
-                    <th className="pb-2 pl-1">Particular</th>
-                    <th className="pb-2 text-right w-24">Rate (₹)</th>
-                    <th className="pb-2 text-right w-24">Amount (₹)</th>
-                    <th className="pb-2 text-center w-10">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {dialogParticulars.map((row) => (
-                    <tr key={row.id}>
-                      <td className="py-2 pr-2">
-                        <input
-                          type="text"
-                          value={row.particular}
-                          onChange={e => handleUpdateDialogRow(row.id, 'particular', e.target.value)}
-                          placeholder="e.g. Local Duty / Driver Bata"
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white"
-                        />
-                      </td>
-                      <td className="py-2 px-1">
-                        <input
-                          type="number"
-                          min={0}
-                          value={row.rate || ''}
-                          onChange={e => handleUpdateDialogRow(row.id, 'rate', e.target.value)}
-                          placeholder="0"
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-right font-mono text-xs text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white"
-                        />
-                      </td>
-                      <td className="py-2 px-1">
-                        <input
-                          type="number"
-                          min={0}
-                          value={row.amount || ''}
-                          onChange={e => handleUpdateDialogRow(row.id, 'amount', e.target.value)}
-                          placeholder="0"
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-right font-mono font-semibold text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white"
-                        />
-                      </td>
-                      <td className="py-2 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveDialogRow(row.id)}
-                          className="p-1 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded transition cursor-pointer"
-                          title="Delete row"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
+                    Rate (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={particularForm.rate || ''}
+                    onChange={e => {
+                      const rateVal = parseFloat(e.target.value) || 0;
+                      const qtyVal = Number(particularForm.quantity) || 1;
+                      setParticularForm(f => ({
+                        ...f,
+                        rate: rateVal,
+                        amount: rateVal * qtyVal,
+                      }));
+                    }}
+                    placeholder="0.00"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-mono font-semibold text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white"
+                  />
+                </div>
 
-              <button
-                type="button"
-                onClick={handleAddDialogRow}
-                className="w-full py-2 border border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/50 text-blue-600 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition cursor-pointer"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                + Add Row
-              </button>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
+                    Quantity
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={particularForm.quantity || ''}
+                    onChange={e => {
+                      const qtyVal = parseInt(e.target.value) || 1;
+                      const rateVal = Number(particularForm.rate) || 0;
+                      setParticularForm(f => ({
+                        ...f,
+                        quantity: qtyVal,
+                        amount: rateVal * qtyVal,
+                      }));
+                    }}
+                    placeholder="1"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-mono font-semibold text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
+                  Amount (₹) (Auto / Editable)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={particularForm.amount || ''}
+                  onChange={e => setParticularForm(f => ({ ...f, amount: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0.00"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-mono font-bold text-emerald-600 focus:outline-none focus:border-blue-500 focus:bg-white"
+                />
+              </div>
             </div>
 
-            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-              <div className="text-xs">
-                <span className="text-slate-500 font-medium">Subtotal: </span>
-                <span className="font-mono font-bold text-slate-800 text-sm">
-                  ₹{dialogParticulars.reduce((sum, r) => sum + Number(r.amount || 0), 0).toFixed(2)}
-                </span>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsParticularModalOpen(false)}
-                  className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveParticularDialog}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition cursor-pointer"
-                >
-                  Save Particulars
-                </button>
-              </div>
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsParticularModalOpen(false)}
+                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveParticular}
+                disabled={!particularForm.particular.trim()}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition cursor-pointer"
+              >
+                {particularForm.id ? 'Update Item' : 'Add Item'}
+              </button>
             </div>
           </div>
         </div>
