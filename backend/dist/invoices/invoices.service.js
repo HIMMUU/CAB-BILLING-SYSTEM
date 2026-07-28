@@ -135,7 +135,7 @@ let InvoicesService = class InvoicesService {
         const compStateCode = getGstStateCode(companyGst);
         const custStateCode = getGstStateCode(customerGst);
         const isSameState = compStateCode === custStateCode;
-        const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd));
+        const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd + stateTax));
         let cgstRate = 0;
         let sgstRate = 0;
         let igstRate = 0;
@@ -340,7 +340,7 @@ let InvoicesService = class InvoicesService {
             mcd +
             nightCharges +
             miscCharges;
-        const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd));
+        const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd + stateTax));
         const cgstRate = Number(invoice.cgstRate || 0);
         const sgstRate = Number(invoice.sgstRate || 0);
         const igstRate = Number(invoice.igstRate || 0);
@@ -497,7 +497,8 @@ let InvoicesService = class InvoicesService {
             const toll = Number(invoice.toll || 0);
             const parking = Number(invoice.parking || 0);
             const mcd = Number(invoice.mcd || 0);
-            const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd));
+            const stateTax = Number(invoice.stateTax || 0);
+            const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd + stateTax));
             const cgstRate = dto.cgstRate !== undefined ? dto.cgstRate : Number(invoice.cgstRate || 0);
             const sgstRate = dto.sgstRate !== undefined ? dto.sgstRate : Number(invoice.sgstRate || 0);
             const igstRate = dto.igstRate !== undefined ? dto.igstRate : Number(invoice.igstRate || 0);
@@ -702,7 +703,7 @@ let InvoicesService = class InvoicesService {
             mcd +
             nightCharges +
             miscCharges;
-        const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd));
+        const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd + stateTax));
         const cgstRate = Number(invoice.cgstRate || 0);
         const sgstRate = Number(invoice.sgstRate || 0);
         const igstRate = Number(invoice.igstRate || 0);

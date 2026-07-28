@@ -259,7 +259,7 @@ let TripsService = class TripsService {
             mcd +
             nightCharges +
             miscCharges;
-        const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd));
+        const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd + stateTax));
         const cgstRate = Number(invoice.cgstRate || 0);
         const sgstRate = Number(invoice.sgstRate || 0);
         const igstRate = Number(invoice.igstRate || 0);

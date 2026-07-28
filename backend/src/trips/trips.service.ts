@@ -317,7 +317,7 @@ export class TripsService {
       miscCharges;
 
     // 3. Calculate Taxes based on GST rates in the invoice
-    const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd));
+    const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd + stateTax));
 
     const cgstRate = Number(invoice.cgstRate || 0);
     const sgstRate = Number(invoice.sgstRate || 0);

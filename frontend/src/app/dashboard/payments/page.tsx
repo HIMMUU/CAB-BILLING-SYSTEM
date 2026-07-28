@@ -26,6 +26,7 @@ interface Payment {
   transactionReference: string | null;
   status: 'PENDING' | 'SUCCESS' | 'FAILED';
   invoice: Invoice;
+  createdAt?: string;
 }
 
 export default function PaymentsPage() {
@@ -55,6 +56,21 @@ export default function PaymentsPage() {
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Form State: View Payment Modal
+  const [viewPayment, setViewPayment] = useState<Payment | null>(null);
+
+  // Form State: Edit / Update Payment Modal
+  const [editPayment, setEditPayment] = useState<Payment | null>(null);
+  const [editStatus, setEditStatus] = useState<'PENDING' | 'SUCCESS' | 'FAILED'>('SUCCESS');
+  const [editReference, setEditReference] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Form State: Delete Payment Modal
+  const [deletePayment, setDeletePayment] = useState<Payment | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     const token = api.getToken();
@@ -164,6 +180,61 @@ export default function PaymentsPage() {
       setFormError(err.message || 'Failed to log payment transaction');
     } finally {
       setFormSubmitting(false);
+    }
+  };
+
+  // Open Edit Modal
+  const handleOpenEdit = (payment: Payment) => {
+    setEditPayment(payment);
+    setEditStatus(payment.status);
+    setEditReference(payment.transactionReference || '');
+    setEditError(null);
+  };
+
+  // Submit Edit Payment
+  const handleUpdatePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editPayment) return;
+
+    setEditSubmitting(true);
+    setEditError(null);
+
+    try {
+      await api.request(`/payments/${editPayment.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status: editStatus,
+          transactionReference: editReference || undefined,
+        }),
+      });
+
+      setEditPayment(null);
+      fetchPayments();
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to update payment record');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  // Delete Payment
+  const handleDeletePayment = async () => {
+    if (!deletePayment) return;
+
+    setDeleteSubmitting(true);
+    setDeleteError(null);
+
+    try {
+      await api.request(`/payments/${deletePayment.id}`, {
+        method: 'DELETE',
+      });
+
+      setDeletePayment(null);
+      fetchPayments();
+    } catch (err: any) {
+      setDeleteError(err.message || 'Failed to delete payment record');
+    } finally {
+      setDeleteSubmitting(false);
     }
   };
 
@@ -283,9 +354,10 @@ export default function PaymentsPage() {
                   <th className="py-3.5 px-6">Customer</th>
                   <th className="py-3.5 px-6">Payment Date</th>
                   <th className="py-3.5 px-6">Payment Mode</th>
-                  <th className="py-3.5 px-6">Reference Reference</th>
+                  <th className="py-3.5 px-6">Transaction Ref</th>
                   <th className="py-3.5 px-6">Receipt Amount</th>
                   <th className="py-3.5 px-6 text-center">Status</th>
+                  <th className="py-3.5 px-6 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E2E8F0] text-sm text-[#0F172A]">
@@ -321,6 +393,47 @@ export default function PaymentsPage() {
                         {payment.status}
                       </span>
                     </td>
+                    <td className="py-4 px-6 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {/* View Button */}
+                        <button
+                          onClick={() => setViewPayment(payment)}
+                          title="View Details"
+                          className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                          </svg>
+                        </button>
+
+                        {/* Edit Button */}
+                        {!isDispatcher && (
+                          <button
+                            onClick={() => handleOpenEdit(payment)}
+                            title="Update Payment"
+                            className="p-1.5 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-md transition"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                            </svg>
+                          </button>
+                        )}
+
+                        {/* Delete Button */}
+                        {!isDispatcher && (
+                          <button
+                            onClick={() => setDeletePayment(payment)}
+                            title="Delete Payment Record"
+                            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -350,7 +463,7 @@ export default function PaymentsPage() {
         )}
       </div>
 
-      {/* Record Payment Sub-Dialog Modal */}
+      {/* Record Payment Sub-Dialog Modal (CREATE) */}
       {isRecordOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
           <div className="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden animate-zoom-in">
@@ -466,6 +579,211 @@ export default function PaymentsPage() {
           </div>
         </div>
       )}
+
+      {/* View Payment Modal (READ) */}
+      {viewPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
+          <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl overflow-hidden">
+            <div className="bg-[#0F172A] p-4 text-white flex items-center justify-between">
+              <div>
+                <h3 className="font-bold">Payment Receipt Details</h3>
+                <p className="text-[10px] text-gray-400 mt-0.5">Transaction ID: {viewPayment.id}</p>
+              </div>
+              <button
+                onClick={() => setViewPayment(null)}
+                className="text-gray-400 hover:text-white transition"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4.5 h-4.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg border border-[#E2E8F0]">
+                <div>
+                  <span className="block text-xs font-medium text-[#64748B]">Receipt Amount</span>
+                  <span className="text-xl font-bold text-emerald-600">INR {Number(viewPayment.amount).toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="block text-xs font-medium text-[#64748B]">Status</span>
+                  <span className={`inline-block text-[11px] font-bold border px-2.5 py-0.5 rounded-full uppercase mt-1 ${getStatusBadge(viewPayment.status)}`}>
+                    {viewPayment.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="block text-xs font-bold text-[#475569] uppercase tracking-wide">Invoice Number</span>
+                  <span className="font-mono font-semibold text-blue-600">{viewPayment.invoice?.invoiceNumber || 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="block text-xs font-bold text-[#475569] uppercase tracking-wide">Customer</span>
+                  <span className="font-semibold text-[#0F172A]">{viewPayment.invoice?.customer?.name || 'N/A'}</span>
+                  {viewPayment.invoice?.customer?.companyName && (
+                    <span className="block text-xs text-[#64748B]">{viewPayment.invoice.customer.companyName}</span>
+                  )}
+                </div>
+                <div>
+                  <span className="block text-xs font-bold text-[#475569] uppercase tracking-wide">Payment Mode</span>
+                  <span className="text-[#0F172A]">{formatModeLabel(viewPayment.paymentMode)}</span>
+                </div>
+                <div>
+                  <span className="block text-xs font-bold text-[#475569] uppercase tracking-wide">Payment Date</span>
+                  <span className="text-[#0F172A]">{new Date(viewPayment.paymentDate).toLocaleDateString('en-GB')}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="block text-xs font-bold text-[#475569] uppercase tracking-wide">Transaction Reference / UTR</span>
+                  <span className="font-mono text-[#0F172A] bg-gray-100 px-2 py-1 rounded inline-block mt-1">
+                    {viewPayment.transactionReference || 'No reference recorded'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="border-t border-[#E2E8F0] pt-4 mt-6 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setViewPayment(null)}
+                  className="bg-white hover:bg-gray-50 border border-[#E2E8F0] text-sm text-[#0F172A] font-semibold h-9 px-4 rounded-lg transition"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit / Update Payment Status Modal (UPDATE) */}
+      {editPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden">
+            <div className="bg-[#0F172A] p-4 text-white flex items-center justify-between">
+              <div>
+                <h3 className="font-bold">Update Payment Transaction</h3>
+                <p className="text-[10px] text-gray-400 mt-0.5">Invoice: {editPayment.invoice?.invoiceNumber}</p>
+              </div>
+              <button
+                onClick={() => setEditPayment(null)}
+                className="text-gray-400 hover:text-white transition"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4.5 h-4.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {editError && (
+              <div className="m-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg font-medium">
+                {editError}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdatePayment} className="p-4 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wide mb-1">Payment Status</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as any)}
+                  className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500 font-semibold"
+                >
+                  <option value="SUCCESS">SUCCESS (Applied to Invoice)</option>
+                  <option value="PENDING">PENDING (Verification Required)</option>
+                  <option value="FAILED">FAILED (Rejected / Bounced)</option>
+                </select>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Note: Updating status to SUCCESS or FAILED automatically adjusts the invoice balance.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#475569] uppercase tracking-wide mb-1">Transaction Ref / Reference No.</label>
+                <input
+                  type="text"
+                  placeholder="UTR Reference or deposit details..."
+                  value={editReference}
+                  onChange={(e) => setEditReference(e.target.value)}
+                  className="w-full border border-[#E2E8F0] rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="border-t border-[#E2E8F0] pt-4 mt-6 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditPayment(null)}
+                  className="flex-1 bg-white hover:bg-gray-50 border border-[#E2E8F0] text-sm text-[#0F172A] font-semibold h-10 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editSubmitting}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold h-10 rounded-lg disabled:opacity-50 transition"
+                >
+                  {editSubmitting ? 'Saving...' : 'Update Record'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Payment Modal (DELETE) */}
+      {deletePayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden">
+            <div className="bg-red-600 p-4 text-white flex items-center justify-between">
+              <div>
+                <h3 className="font-bold">Delete Payment Record</h3>
+                <p className="text-[10px] text-red-100 mt-0.5">Reverts invoice balance calculations.</p>
+              </div>
+              <button
+                onClick={() => setDeletePayment(null)}
+                className="text-red-200 hover:text-white transition"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4.5 h-4.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {deleteError && (
+              <div className="m-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg font-medium">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="p-4 space-y-3">
+              <p className="text-sm text-[#0F172A]">
+                Are you sure you want to delete payment receipt of <strong className="text-emerald-600">INR {Number(deletePayment.amount).toFixed(2)}</strong> for invoice <strong className="text-blue-600">{deletePayment.invoice?.invoiceNumber}</strong>?
+              </p>
+              <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg font-medium">
+                ⚠️ Warning: Deleting this payment will automatically restore the unpaid due balance on invoice {deletePayment.invoice?.invoiceNumber}.
+              </div>
+
+              <div className="border-t border-[#E2E8F0] pt-4 mt-6 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeletePayment(null)}
+                  className="flex-1 bg-white hover:bg-gray-50 border border-[#E2E8F0] text-sm text-[#0F172A] font-semibold h-10 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeletePayment}
+                  disabled={deleteSubmitting}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold h-10 rounded-lg disabled:opacity-50 transition"
+                >
+                  {deleteSubmitting ? 'Deleting...' : 'Delete Receipt'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
+

@@ -247,6 +247,7 @@ export default function InvoicesPage() {
     let toll = 0;
     let parking = 0;
     let mcd = 0;
+    let stateTax = 0;
     for (const trip of selectedTrips) {
       subtotal +=
         Number(trip.baseFareCharged || 0) +
@@ -263,6 +264,7 @@ export default function InvoicesPage() {
       toll += Number(trip.toll || 0);
       parking += Number(trip.parking || 0);
       mcd += Number(trip.mcdCharged || 0);
+      stateTax += Number(trip.stateTaxCharged || 0);
     }
     
     // Check if selected customer has predefined rates
@@ -276,7 +278,7 @@ export default function InvoicesPage() {
     const compStateCode = compGst.match(/^\d{2}/) ? compGst.substring(0, 2) : '07';
     const isSameState = custStateCode === compStateCode;
 
-    const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd));
+    const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd + stateTax));
 
     let cgst = 0, sgst = 0, igst = 0;
     let cgstRate = 0, sgstRate = 0, igstRate = 0;
