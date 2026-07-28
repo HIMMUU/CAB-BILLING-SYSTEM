@@ -1144,7 +1144,7 @@ let InvoicesService = class InvoicesService {
                     catch (e) { }
                     if (isFlexibleDuty) {
                         particularsRows.push({ label: 'FLEXIBLE DUTY SLIP (MANUAL BILLING)' });
-                        if (userRemarksText) {
+                        if (booking.tripType === client_1.TripType.OUTSTATION && userRemarksText) {
                             particularsRows.push({ label: `Remarks: ${userRemarksText.toUpperCase()}` });
                         }
                         for (const item of customParticulars) {
@@ -1171,16 +1171,13 @@ let InvoicesService = class InvoicesService {
                     }
                     else if (booking.tripType === client_1.TripType.HOURLY_RENTAL) {
                         particularsRows.push({
-                            label: userRemarksText ? userRemarksText.toUpperCase() : `FLEXIBLE DUTY PACKAGE`,
+                            label: `FLEXIBLE DUTY PACKAGE`,
                         });
                     }
                     else {
                         particularsRows.push({
                             label: `${booking.tripType} : ${trip.totalKm} Kms & ${Number(trip.totalHours || 0).toFixed(2)} Hrs. Duty`,
                         });
-                        if (userRemarksText) {
-                            particularsRows.push({ label: `Remarks: ${userRemarksText.toUpperCase()}` });
-                        }
                     }
                     const totalDays = Math.max(1, Number(trip.totalDays) || 1);
                     if (!isFlexibleDuty) {

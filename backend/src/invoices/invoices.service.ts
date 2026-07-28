@@ -1346,7 +1346,7 @@ export class InvoicesService {
 
           if (isFlexibleDuty) {
             particularsRows.push({ label: 'FLEXIBLE DUTY SLIP (MANUAL BILLING)' });
-            if (userRemarksText) {
+            if (booking.tripType === TripType.OUTSTATION && userRemarksText) {
               particularsRows.push({ label: `Remarks: ${userRemarksText.toUpperCase()}` });
             }
 
@@ -1371,15 +1371,12 @@ export class InvoicesService {
             });
           } else if (booking.tripType === TripType.HOURLY_RENTAL) {
             particularsRows.push({
-              label: userRemarksText ? userRemarksText.toUpperCase() : `FLEXIBLE DUTY PACKAGE`,
+              label: `FLEXIBLE DUTY PACKAGE`,
             });
           } else {
             particularsRows.push({
               label: `${booking.tripType} : ${trip.totalKm} Kms & ${Number(trip.totalHours || 0).toFixed(2)} Hrs. Duty`,
             });
-            if (userRemarksText) {
-              particularsRows.push({ label: `Remarks: ${userRemarksText.toUpperCase()}` });
-            }
           }
 
           const totalDays = Math.max(1, Number(trip.totalDays) || 1);
