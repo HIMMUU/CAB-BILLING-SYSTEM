@@ -282,5 +282,6 @@ export declare class InvoicesService {
     removeItemFromInvoice(invoiceId: string, itemId: string): Promise<any>;
     addTripsToInvoice(invoiceId: string, tripIds: string[]): Promise<any>;
     recalculateAndSaveInvoice(invoiceId: string): Promise<any>;
+    generatePdfBuffer(id: string, tenantId?: string): Promise<Buffer>;
     generatePdf(id: string): Promise<Buffer>;
 }

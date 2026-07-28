@@ -926,6 +926,33 @@ export default function InvoicesPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
                           </svg>
                         </button>
+                        <button
+                          onClick={async () => {
+                            const toEmail = prompt(`Enter recipient email for Invoice #${invoice.invoiceNumber}:`);
+                            if (!toEmail) return;
+                            try {
+                              await api.request('/communication/send', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                  to: toEmail,
+                                  subject: `Tax Invoice #${invoice.invoiceNumber}`,
+                                  htmlBody: `<p>Dear Customer,</p><p>Please find attached your Tax Invoice #${invoice.invoiceNumber} for amount ₹${Number(invoice.totalAmount).toFixed(2)}.</p>`,
+                                  invoiceId: invoice.id,
+                                  attachType: 'INVOICE',
+                                }),
+                              });
+                              alert(`Invoice #${invoice.invoiceNumber} emailed successfully!`);
+                            } catch (err: any) {
+                              alert(err.message || 'Failed to send email');
+                            }
+                          }}
+                          className="h-8 w-8 inline-flex items-center justify-center border border-[#E2E8F0] hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-lg transition"
+                          title="Send Email with PDF Attachment"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                          </svg>
+                        </button>
                       </div>
                     </td>
                   </tr>

@@ -750,6 +750,9 @@ let InvoicesService = class InvoicesService {
         });
         return this.findOne(invoiceId);
     }
+    async generatePdfBuffer(id, tenantId) {
+        return this.generatePdf(id);
+    }
     async generatePdf(id) {
         const invoice = await this.prisma.invoice.findUnique({
             where: { id },

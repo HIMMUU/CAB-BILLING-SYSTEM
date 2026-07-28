@@ -813,6 +813,10 @@ export class InvoicesService {
     return this.findOne(invoiceId);
   }
 
+  async generatePdfBuffer(id: string, tenantId?: string): Promise<Buffer> {
+    return this.generatePdf(id);
+  }
+
   async generatePdf(id: string): Promise<Buffer> {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id },

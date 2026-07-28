@@ -158,6 +158,10 @@ model Tenant {
   auditLogs         AuditLog[]
   invoiceItems      InvoiceItem[]
   taxConfigurations TaxConfiguration[]
+  smtpAccounts      SmtpAccount[]
+  emailTemplates    EmailTemplate[]
+  emailAutomations  EmailAutomation[]
+  emailLogs         EmailLog[]
 
   @@map("tenants")
 }
@@ -579,4 +583,130 @@ model AuditLog {
 
   @@index([entityName, entityId])
   @@map("audit_logs")
+}
+
+// =========================================================================
+// COMMUNICATION MODULE ENUMS & MODELS
+// =========================================================================
+
+enum SmtpProvider {
+  GMAIL
+  SES
+  RESEND
+  OUTLOOK
+  ZOHO
+  CUSTOM
+}
+
+enum EmailLogStatus {
+  QUEUED
+  SENT
+  FAILED
+  RETRYING
+}
+
+enum AutomationTrigger {
+  BOOKING_CREATED
+  DRIVER_ASSIGNED
+  TRIP_STARTED
+  TRIP_COMPLETED
+  DUTY_SLIP_GENERATED
+  INVOICE_GENERATED
+  PAYMENT_REMINDER
+}
+
+model SmtpAccount {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String       @map("tenant_id") @db.Uuid
+  accountName String       @map("account_name") @db.VarChar(255)
+  provider    SmtpProvider @default(CUSTOM)
+  host        String       @db.VarChar(255)
+  port        Int          @default(587)
+  username    String       @db.VarChar(255)
+  password    String       @db.VarChar(512)
+  encryption  String       @default("TLS") @db.VarChar(20)
+  fromName    String       @map("from_name") @db.VarChar(255)
+  fromEmail   String       @map("from_email") @db.VarChar(255)
+  replyTo     String?      @map("reply_to") @db.VarChar(255)
+  isDefault   Boolean      @default(false) @map("is_default")
+  isActive    Boolean      @default(true) @map("is_active")
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  logs   EmailLog[]
+
+  @@index([tenantId])
+  @@map("smtp_accounts")
+}
+
+model EmailTemplate {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  name        String   @db.VarChar(255)
+  key         String   @db.VarChar(100)
+  subject     String   @db.VarChar(512)
+  htmlContent String   @map("html_content") @db.Text
+  textContent String?  @map("text_content") @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  automations EmailAutomation[]
+  logs        EmailLog[]
+
+  @@index([tenantId])
+  @@index([key])
+  @@map("email_templates")
+}
+
+model EmailAutomation {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String            @map("tenant_id") @db.Uuid
+  name          String            @db.VarChar(255)
+  trigger       AutomationTrigger
+  recipientType String            @default("CUSTOMER") @map("recipient_type") @db.VarChar(50)
+  templateId    String            @map("template_id") @db.Uuid
+  attachPdf     String            @default("NONE") @map("attach_pdf") @db.VarChar(50)
+  delayMinutes  Int               @default(0) @map("delay_minutes")
+  isActive      Boolean           @default(true) @map("is_active")
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  template EmailTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("email_automations")
+}
+
+model EmailLog {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String         @map("tenant_id") @db.Uuid
+  smtpAccountId  String?        @map("smtp_account_id") @db.Uuid
+  templateId     String?        @map("template_id") @db.Uuid
+  recipient      String         @db.VarChar(255)
+  cc             String?        @db.VarChar(512)
+  bcc            String?        @db.VarChar(512)
+  subject        String         @db.VarChar(512)
+  htmlBody       String?        @map("html_body") @db.Text
+  status         EmailLogStatus @default(QUEUED)
+  errorMessage   String?        @map("error_message") @db.Text
+  retryCount     Int            @default(0) @map("retry_count")
+  bookingId      String?        @map("booking_id") @db.Uuid
+  dutySlipId     String?        @map("duty_slip_id") @db.Uuid
+  invoiceId      String?        @map("invoice_id") @db.Uuid
+  attachmentName String?        @map("attachment_name") @db.VarChar(255)
+  sentAt         DateTime?      @map("sent_at") @db.Timestamptz
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz
+
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  smtpAccount SmtpAccount?   @relation(fields: [smtpAccountId], references: [id], onDelete: SetNull)
+  template    EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([recipient])
+  @@index([status])
+  @@map("email_logs")
 }
