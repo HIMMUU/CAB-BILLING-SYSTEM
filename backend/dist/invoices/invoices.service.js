@@ -1148,12 +1148,10 @@ let InvoicesService = class InvoicesService {
                             particularsRows.push({ label: `Remarks: ${userRemarksText.toUpperCase()}` });
                         }
                         for (const item of customParticulars) {
-                            const qty = Number(item.quantity) || 1;
                             const rateVal = Number(item.rate) || 0;
                             const amtVal = Number(item.amount) || 0;
-                            const qtyLabel = qty > 1 ? ` (${qty} Qty @ ₹${rateVal.toFixed(2)})` : '';
                             particularsRows.push({
-                                label: `${item.particular.toUpperCase()}${qtyLabel}`,
+                                label: item.particular.toUpperCase(),
                                 rate: rateVal > 0 ? rateVal.toFixed(2) : undefined,
                                 amount: amtVal.toFixed(2),
                             });
