@@ -91,10 +91,12 @@ interface ClosedTrip {
     tripType: string;
     vehicleTypeRequired: string;
   };
-  dutySlip: {
+  dutySlip?: {
     dutySlipNumber: string;
-    startKm: string;
-    endKm: string;
+    startKm?: string;
+    endKm?: string;
+    startDateTime?: string;
+    reportingTime?: string;
   };
 }
 
