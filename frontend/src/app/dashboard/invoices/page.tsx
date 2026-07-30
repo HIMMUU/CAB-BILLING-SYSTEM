@@ -1162,7 +1162,7 @@ export default function InvoicesPage() {
                                     {t.dutySlip.dutySlipNumber}
                                   </td>
                                   <td className="py-3 px-3 text-[#64748B]">
-                                    {new Date(t.booking.pickupDate).toLocaleDateString('en-GB')}
+                                    {new Date(t.dutySlip?.startDateTime || t.dutySlip?.reportingTime || t.booking?.pickupDate).toLocaleDateString('en-GB')}
                                   </td>
                                   <td className="py-3 px-3 font-semibold">
                                     {t.booking.customer.name}

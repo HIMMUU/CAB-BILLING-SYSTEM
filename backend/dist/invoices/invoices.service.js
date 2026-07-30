@@ -1115,7 +1115,12 @@ let InvoicesService = class InvoicesService {
                         continue;
                     const ds = trip.dutySlip;
                     const booking = trip.booking;
-                    const dateStr = new Date(booking.pickupDate).toLocaleDateString('en-GB');
+                    const travelDate = ds?.startDateTime ||
+                        ds?.reportingTime ||
+                        booking?.pickupDate;
+                    const dateStr = travelDate
+                        ? new Date(travelDate).toLocaleDateString('en-GB')
+                        : 'N/A';
                     const dsNo = ds.dutySlipNumber.replace('DS-', '');
                     const vehicleModel = ds.vehicle.model.split(' ')[0] || ds.vehicle.vehicleType;
                     const vehicleNo = ds.vehicle.vehicleNumber.slice(-4);
