@@ -205,6 +205,7 @@ export default function DutySlipsPage() {
     isManualExtraKmCharged: false,
     isManualExtraHoursCharged: false,
     isManualDriverAllowance: false,
+    isManualNightCharges: false,
   });
 
   const resetDirectForm = () => {
@@ -1516,7 +1517,7 @@ export default function DutySlipsPage() {
                 </div>
                 <div className="p-5 space-y-4">
                   {/* Vehicle Section */}
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className={df.vehicleId === 'MANUAL' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" : "grid grid-cols-1 md:grid-cols-3 gap-4"}>
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Vehicle *</label>
@@ -1547,7 +1548,7 @@ export default function DutySlipsPage() {
                             carName:
                               v?.model ||
                               (val === 'MANUAL' ? f.manualVehicleModel : ''),
-                            carGroup: v?.vehicleType || '',
+                            carGroup: v?.vehicleType || f.carGroup || '',
                           }));
                         }}
                         className={sel}
