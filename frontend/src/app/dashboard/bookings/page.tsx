@@ -1303,8 +1303,14 @@ export default function BookingsPage() {
 
       {/* Delete Booking Modal */}
       {deletingBooking && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-100">
+        <div
+          onClick={() => setDeletingBooking(null)}
+          className="fixed inset-0 bg-slate-900/60 z-[99999] flex items-center justify-center p-4 min-h-screen overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200 relative z-[100000]"
+          >
             <div className="flex items-center gap-3">
               <div className="p-3 bg-red-50 text-red-600 rounded-xl border border-red-100">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
