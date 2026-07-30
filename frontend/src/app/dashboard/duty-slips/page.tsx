@@ -344,6 +344,34 @@ export default function DutySlipsPage() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  /* ── Compute dynamic available Car Groups from selected customer rate cards + master categories ── */
+  const availableCarGroups = useMemo(() => {
+    const groupsSet = new Set<string>();
+
+    // 1. Prioritize categories from the selected Customer's custom Rate Cards
+    if (fullCustomer && fullCustomer.rateCards && Array.isArray(fullCustomer.rateCards)) {
+      fullCustomer.rateCards.forEach((rc: any) => {
+        if (rc.vehicleCategory?.name) {
+          groupsSet.add(rc.vehicleCategory.name);
+        }
+      });
+    }
+
+    // 2. Add categories from system master categories
+    if (categories && Array.isArray(categories)) {
+      categories.forEach((cat: any) => {
+        if (cat.name) groupsSet.add(cat.name);
+      });
+    }
+
+    // 3. Fallback defaults if list is empty
+    if (groupsSet.size === 0) {
+      ['Sedan', 'SUV', 'Luxury', 'Executive', 'Hatchback', 'Tempo Traveller'].forEach((g) => groupsSet.add(g));
+    }
+
+    return Array.from(groupsSet);
+  }, [fullCustomer, categories]);
+
   /* ── Fetch Customer details on selection ── */
   useEffect(() => {
     if (!df.customerId) {
@@ -355,12 +383,14 @@ export default function DutySlipsPage() {
         const customer = await api.request(`/customers/${df.customerId}`);
         setFullCustomer(customer);
         const taxRate = Number(customer.cgstRate || 0) + Number(customer.sgstRate || 0) + Number(customer.igstRate || 0);
+        const firstCategory = customer.rateCards && customer.rateCards.length > 0 ? customer.rateCards[0].vehicleCategory?.name : null;
         setDf(f => ({
           ...f,
           address: customer.billingAddress || f.address,
           phone: customer.phone || f.phone,
           clientType: customer.clientType || f.clientType,
           serviceTax: taxRate || f.serviceTax,
+          carGroup: f.carGroup || firstCategory || '',
         }));
       } catch (err) {
         console.error('Failed to fetch customer details:', err);
@@ -1548,6 +1578,26 @@ export default function DutySlipsPage() {
                             placeholder="e.g. DL1CA9999"
                           />
                         </Field>
+                        <Field label="Car Group / Category *">
+                          <select
+                            required
+                            value={df.carGroup}
+                            onChange={(e) =>
+                              setDf((f) => ({ ...f, carGroup: e.target.value }))
+                            }
+                            className={sel}
+                          >
+                            <option value="">— Select Category —</option>
+                            {availableCarGroups.map((groupName) => {
+                              const hasCustomRc = fullCustomer?.rateCards?.some((rc: any) => rc.vehicleCategory?.name?.toLowerCase() === groupName.toLowerCase());
+                              return (
+                                <option key={groupName} value={groupName}>
+                                  {groupName}{hasCustomRc ? ' ★ (Custom Rate Card)' : ''}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </Field>
                         <Field label="Vehicle Model *">
                           <input
                             type="text"
@@ -1576,11 +1626,14 @@ export default function DutySlipsPage() {
                             className={sel}
                           >
                             <option value="">— Select —</option>
-                            {categories.map((cat) => (
-                              <option key={cat.id} value={cat.name}>
-                                {cat.name}
-                              </option>
-                            ))}
+                            {availableCarGroups.map((groupName) => {
+                              const hasCustomRc = fullCustomer?.rateCards?.some((rc: any) => rc.vehicleCategory?.name?.toLowerCase() === groupName.toLowerCase());
+                              return (
+                                <option key={groupName} value={groupName}>
+                                  {groupName}{hasCustomRc ? ' ★ (Custom Rate Card)' : ''}
+                                </option>
+                              );
+                            })}
                           </select>
                         </Field>
                         <Field label="Car Name">

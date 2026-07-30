@@ -916,10 +916,16 @@ export class DutySlipsService {
       doc.font(fontBold).text('Pickup Address:', 60, sec2BoxY + 40);
       doc.font(fontRegular).text(pickupLoc, 150, sec2BoxY + 40, {
         width: 380,
+        height: 14,
+        lineBreak: false,
       });
 
       doc.font(fontBold).text('Drop Address:', 60, sec2BoxY + 57);
-      doc.font(fontRegular).text(dropLoc, 150, sec2BoxY + 57, { width: 380 });
+      doc.font(fontRegular).text(dropLoc, 150, sec2BoxY + 57, {
+        width: 380,
+        height: 14,
+        lineBreak: false,
+      });
 
       // Section 3: Driver & Vehicle Allocation Details (VEHICLE NUMBER)
       const sec3TitleY = sec2BoxY + 110;
@@ -960,7 +966,7 @@ export class DutySlipsService {
       doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal.slice(0, 25) : '____________________', 380, sec4BoxY + 9);
 
       doc.font(fontBold).text('Driver Remarks:', 60, sec4BoxY + 27);
-      doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal : '__________________________________________________________', 150, sec4BoxY + 27, { width: 380 });
+      doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal : '__________________________________________________________', 150, sec4BoxY + 27, { width: 380, height: 14, lineBreak: false });
 
       // Section 5: Operational Trip Logs
       const sec5TitleY = sec4BoxY + 55;

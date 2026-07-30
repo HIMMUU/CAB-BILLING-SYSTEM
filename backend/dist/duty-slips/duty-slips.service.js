@@ -770,9 +770,15 @@ let DutySlipsService = class DutySlipsService {
             doc.font(fontBold).text('Pickup Address:', 60, sec2BoxY + 40);
             doc.font(fontRegular).text(pickupLoc, 150, sec2BoxY + 40, {
                 width: 380,
+                height: 14,
+                lineBreak: false,
             });
             doc.font(fontBold).text('Drop Address:', 60, sec2BoxY + 57);
-            doc.font(fontRegular).text(dropLoc, 150, sec2BoxY + 57, { width: 380 });
+            doc.font(fontRegular).text(dropLoc, 150, sec2BoxY + 57, {
+                width: 380,
+                height: 14,
+                lineBreak: false,
+            });
             const sec3TitleY = sec2BoxY + 110;
             const sec3BoxY = sec3TitleY + 15;
             doc.fontSize(12).font(fontBold).text('Allocated Resources', 50, sec3TitleY);
@@ -802,7 +808,7 @@ let DutySlipsService = class DutySlipsService {
             doc.font(fontBold).text('Driver Notes:', 307, sec4BoxY + 9);
             doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal.slice(0, 25) : '____________________', 380, sec4BoxY + 9);
             doc.font(fontBold).text('Driver Remarks:', 60, sec4BoxY + 27);
-            doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal : '__________________________________________________________', 150, sec4BoxY + 27, { width: 380 });
+            doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal : '__________________________________________________________', 150, sec4BoxY + 27, { width: 380, height: 14, lineBreak: false });
             const sec5TitleY = sec4BoxY + 55;
             const sec5BoxY = sec5TitleY + 15;
             doc.fontSize(12).font(fontBold).text('Operational Trip Logs', 50, sec5TitleY);
