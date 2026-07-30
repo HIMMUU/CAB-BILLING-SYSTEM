@@ -1031,11 +1031,12 @@ export default function DutySlipsPage() {
     const s = splitDT(slip.startDateTime);
     const e = splitDT(slip.endDateTime);
     const rep = splitDT(slip.reportingTime);
+    const bDate = splitDT(slip.booking?.pickupDate);
 
-    const resolvedStartDate = s.date || rep.date || '';
-    const resolvedStartTime = s.time || rep.time || '';
-    const resolvedRepDate = rep.date || resolvedStartDate;
-    const resolvedRepTime = rep.time || resolvedStartTime;
+    const resolvedStartDate = s.date || rep.date || bDate.date || '';
+    const resolvedStartTime = s.time || rep.time || bDate.time || '09:00';
+    const resolvedRepDate = s.date || rep.date || bDate.date || '';
+    const resolvedRepTime = s.time || rep.time || bDate.time || '09:00';
 
     // Fetch customer details to get custom rate cards and tax rates
     let customerObj = null;
@@ -1657,7 +1658,7 @@ export default function DutySlipsPage() {
                   </div>
 
                   {/* Driver & Reporting Time Section */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Driver *</label>
@@ -1694,40 +1695,46 @@ export default function DutySlipsPage() {
                       </select>
                     </div>
 
-                    <Field label="Reporting Time *">
-                      <div className="flex gap-2">
-                        <div className="w-2/3">
+                    <div className="md:col-span-2">
+                      <Field label="Reporting Date & Time *">
+                        <div className="grid grid-cols-2 gap-2">
                           <DatePicker
                             value={df.reportingDate}
                             onChange={(val) =>
-                              setDf((f) => ({ ...f, reportingDate: val }))
+                              setDf((f) => ({
+                                ...f,
+                                reportingDate: val,
+                                dutyStartDate: f.dutyStartDate || val,
+                              }))
                             }
                             format="DD/MM/YYYY"
                             placeholder="DD/MM/YYYY"
                             required
                           />
+                          <input
+                            type="text"
+                            placeholder="HH:mm"
+                            maxLength={5}
+                            required
+                            value={df.reportingTime}
+                            onChange={(e) => {
+                              const timeVal = handleTimeChange(e.target.value);
+                              setDf((f) => ({
+                                ...f,
+                                reportingTime: timeVal,
+                                dutyStartTime: f.dutyStartTime || timeVal,
+                              }));
+                            }}
+                            className={inp}
+                          />
                         </div>
-                        <input
-                          type="text"
-                          placeholder="HH:mm"
-                          maxLength={5}
-                          required
-                          value={df.reportingTime}
-                          onChange={(e) =>
-                            setDf((f) => ({
-                              ...f,
-                              reportingTime: handleTimeChange(e.target.value),
-                            }))
-                          }
-                          className={inp + ' w-1/3'}
-                        />
-                      </div>
-                    </Field>
+                      </Field>
+                    </div>
                   </div>
 
                   {/* Manual Driver Fields Row */}
                   {df.driverId === 'MANUAL' && (
-                    <div className="grid grid-cols-2 gap-4 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
+                    <div className="grid grid-cols-2 gap-4 p-3 bg-blue-50/50 rounded-lg border border-blue-100 animate-fade-in">
                       <Field label="Driver Name *">
                         <input
                           type="text"
@@ -1760,7 +1767,8 @@ export default function DutySlipsPage() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-3 gap-4">
+                  {/* Route & Passenger Details Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
                     <Field label="Pickup Location">
                       <input type="text" value={df.pickupLocation} onChange={e => setDf(f => ({ ...f, pickupLocation: e.target.value }))} className={inp} placeholder="IGI Airport T3" />
                     </Field>
