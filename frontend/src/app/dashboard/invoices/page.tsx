@@ -1161,7 +1161,7 @@ export default function InvoicesPage() {
                                     />
                                   </td>
                                   <td className="py-3 px-3 font-mono font-bold text-blue-600">
-                                    {t.dutySlip.dutySlipNumber}
+                                    {t.dutySlip?.dutySlipNumber || '—'}
                                   </td>
                                   <td className="py-3 px-3 text-[#64748B]">
                                     {new Date(t.dutySlip?.startDateTime || t.dutySlip?.reportingTime || t.booking?.pickupDate).toLocaleDateString('en-GB')}
@@ -1288,7 +1288,7 @@ export default function InvoicesPage() {
                         <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                           {selectedTrips.map((t) => (
                             <div key={t.id} className="flex justify-between text-[#475569] text-[11px]">
-                              <span>{t.dutySlip.dutySlipNumber}</span>
+                              <span>{t.dutySlip?.dutySlipNumber || '—'}</span>
                               <span>₹{Number(t.totalAmount).toLocaleString()}</span>
                             </div>
                           ))}
@@ -1338,7 +1338,7 @@ export default function InvoicesPage() {
                         {selectedTrips.map((t) => (
                           <div key={t.id} className="border border-[#E2E8F0] rounded-xl p-4 bg-white shadow-sm space-y-3">
                             <div className="flex items-center justify-between bg-gray-50 p-2 rounded-lg border">
-                              <span className="font-mono font-bold text-blue-600">{t.dutySlip.dutySlipNumber}</span>
+                              <span className="font-mono font-bold text-blue-600">{t.dutySlip?.dutySlipNumber || '—'}</span>
                               <span className="text-xs text-[#64748B]">{new Date(t.booking.pickupDate).toLocaleDateString('en-GB')}</span>
                             </div>
                             
@@ -1600,9 +1600,9 @@ export default function InvoicesPage() {
                         </div>
                         {item.trip && (
                           <div className="grid grid-cols-2 gap-1.5 text-[#64748B] pt-1 border-t border-gray-100">
-                            <div>Duty Slip: <span className="font-semibold text-[#0F172A]">{item.trip.dutySlip.dutySlipNumber}</span></div>
-                            <div>Vehicle: <span className="font-semibold text-[#0F172A]">{item.trip.dutySlip.vehicle.vehicleNumber}</span></div>
-                            <div>Driver: <span className="font-semibold text-[#0F172A]">{item.trip.dutySlip.driver.name}</span></div>
+                            <div>Duty Slip: <span className="font-semibold text-[#0F172A]">{item.trip.dutySlip?.dutySlipNumber || '—'}</span></div>
+                            <div>Vehicle: <span className="font-semibold text-[#0F172A]">{item.trip.dutySlip?.vehicle?.vehicleNumber || '—'}</span></div>
+                            <div>Driver: <span className="font-semibold text-[#0F172A]">{item.trip.dutySlip?.driver?.name || '—'}</span></div>
                             <div>Distance: <span className="font-semibold text-[#0F172A]">{item.trip.totalKm} KM ({item.trip.startKm}-{item.trip.endKm})</span></div>
                           </div>
                         )}
@@ -1889,7 +1889,7 @@ export default function InvoicesPage() {
                             className="h-4 w-4 text-blue-600 rounded border-gray-300"
                           />
                           <div>
-                            <span className="font-bold text-slate-900 block">{trip.dutySlip.dutySlipNumber}</span>
+                            <span className="font-bold text-slate-900 block">{trip.dutySlip?.dutySlipNumber || '—'}</span>
                             <span className="text-[11px] text-slate-500 block">Route: {trip.booking.pickupLocation} ➔ {trip.booking.dropLocation}</span>
                           </div>
                         </div>
@@ -2078,7 +2078,7 @@ export default function InvoicesPage() {
                       {availableTrips.map((trip) => (
                         <div key={trip.id} className="p-2.5 flex items-center justify-between text-xs hover:bg-blue-50/50">
                           <div>
-                            <span className="font-bold text-slate-800 block">{trip.dutySlip.dutySlipNumber}</span>
+                            <span className="font-bold text-slate-800 block">{trip.dutySlip?.dutySlipNumber || '—'}</span>
                             <span className="text-[10px] text-slate-500">{trip.booking.pickupLocation} ➔ {trip.booking.dropLocation} ({trip.totalKm} KM)</span>
                           </div>
                           <div className="flex items-center gap-2">
