@@ -144,7 +144,16 @@ export default function InvoicesPage() {
   const [previewTitle, setPreviewTitle] = useState<string>('');
   const [previewLoading, setPreviewLoading] = useState<boolean>(false);
 
-  // Form State: Record Payment
+  // Custom Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: 'danger' | 'warning' | 'info';
+    onConfirm: () => Promise<void> | void;
+  } | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [payAmount, setPayAmount] = useState<string>('');
   const [payMode, setPayMode] = useState<'BANK_TRANSFER' | 'UPI' | 'CASH' | 'CHEQUE'>('UPI');
   const [payReference, setPayReference] = useState('');
@@ -518,17 +527,21 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleCancelInvoice = async (invoiceId: string) => {
-    if (!confirm('Are you sure you want to CANCEL this bill?')) return;
-    try {
-      await api.request(`/invoices/${invoiceId}/cancel`, { method: 'PATCH' });
-      if (selectedInvoice && selectedInvoice.id === invoiceId) {
-        setSelectedInvoice({ ...selectedInvoice, status: 'CANCELLED', dueAmount: '0.00' });
-      }
-      fetchInvoices();
-    } catch (err: any) {
-      alert(err.message || 'Failed to cancel invoice');
-    }
+  const handleCancelInvoice = (invoiceId: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Cancel Invoice',
+      message: 'Are you sure you want to CANCEL this bill? All duty slips will be restored as unbilled.',
+      confirmText: 'Cancel Invoice',
+      variant: 'warning',
+      onConfirm: async () => {
+        await api.request(`/invoices/${invoiceId}/cancel`, { method: 'PATCH' });
+        if (selectedInvoice && selectedInvoice.id === invoiceId) {
+          setSelectedInvoice({ ...selectedInvoice, status: 'CANCELLED', dueAmount: '0.00' });
+        }
+        fetchInvoices();
+      },
+    });
   };
 
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -593,32 +606,30 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleRemoveItemInModify = async (itemId: string) => {
+  const handleRemoveItemInModify = (itemId: string) => {
     if (!editInvoice) return;
-    if (
-      !confirm(
-        'Remove this duty slip from the invoice? The duty slip will be set as unbilled/uninvoiced and available for re-billing.'
-      )
-    ) {
-      return;
-    }
-    try {
-      const updatedInvoice = await api.request(`/invoices/${editInvoice.id}/items/${itemId}`, {
-        method: 'DELETE',
-      });
-      setEditInvoice(updatedInvoice);
-      if (selectedInvoice && selectedInvoice.id === editInvoice.id) {
-        setSelectedInvoice(updatedInvoice);
-      }
-      const tripsRes = await api.request('/invoices/uninvoiced-trips');
-      const custTrips = (tripsRes || []).filter(
-        (t: ClosedTrip) => t.booking?.customer?.id === editInvoice.customerId
-      );
-      setAvailableTrips(custTrips);
-      fetchInvoices();
-    } catch (err: any) {
-      alert(err.message || 'Failed to remove duty slip from invoice');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Remove Duty Slip',
+      message: 'Remove this duty slip from the invoice? The duty slip will be set as unbilled/uninvoiced and available for re-billing.',
+      confirmText: 'Remove Duty Slip',
+      variant: 'danger',
+      onConfirm: async () => {
+        const updatedInvoice = await api.request(`/invoices/${editInvoice.id}/items/${itemId}`, {
+          method: 'DELETE',
+        });
+        setEditInvoice(updatedInvoice);
+        if (selectedInvoice && selectedInvoice.id === editInvoice.id) {
+          setSelectedInvoice(updatedInvoice);
+        }
+        const tripsRes = await api.request('/invoices/uninvoiced-trips');
+        const custTrips = (tripsRes || []).filter(
+          (t: ClosedTrip) => t.booking?.customer?.id === editInvoice.customerId
+        );
+        setAvailableTrips(custTrips);
+        fetchInvoices();
+      },
+    });
   };
 
   const handleAddTripInModify = async (tripId: string) => {
@@ -643,42 +654,61 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleCancelInModify = async () => {
+  const handleCancelInModify = () => {
     if (!editInvoice) return;
-    if (!confirm('Are you sure you want to CANCEL this bill? All duty slips will be restored as unbilled.')) return;
-    try {
-      await api.request(`/invoices/${editInvoice.id}/cancel`, { method: 'PATCH' });
-      setIsEditOpen(false);
-      setEditInvoice(null);
-      if (selectedInvoice && selectedInvoice.id === editInvoice.id) {
-        setSelectedInvoice(null);
-      }
-      fetchInvoices();
-    } catch (err: any) {
-      alert(err.message || 'Failed to cancel invoice');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Cancel Bill',
+      message: 'Are you sure you want to CANCEL this bill? All duty slips will be restored as unbilled.',
+      confirmText: 'Cancel Bill',
+      variant: 'warning',
+      onConfirm: async () => {
+        await api.request(`/invoices/${editInvoice.id}/cancel`, { method: 'PATCH' });
+        setIsEditOpen(false);
+        setEditInvoice(null);
+        if (selectedInvoice && selectedInvoice.id === editInvoice.id) {
+          setSelectedInvoice(null);
+        }
+        fetchInvoices();
+      },
+    });
   };
 
-  const handleDeleteInModify = async () => {
+  const handleDeleteInModify = () => {
     if (!editInvoice) return;
-    if (
-      !confirm(
-        `Are you sure you want to DELETE Invoice ${editInvoice.invoiceNumber}? This will permanently remove the invoice and restore its duty slips.`
-      )
-    ) {
-      return;
-    }
-    try {
-      await api.request(`/invoices/${editInvoice.id}`, { method: 'DELETE' });
-      setIsEditOpen(false);
-      setEditInvoice(null);
-      if (selectedInvoice && selectedInvoice.id === editInvoice.id) {
-        setSelectedInvoice(null);
-      }
-      fetchInvoices();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete invoice');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Invoice',
+      message: `Are you sure you want to DELETE Invoice ${editInvoice.invoiceNumber}? This will permanently remove the invoice and restore its duty slips.`,
+      confirmText: 'Delete Invoice',
+      variant: 'danger',
+      onConfirm: async () => {
+        await api.request(`/invoices/${editInvoice.id}`, { method: 'DELETE' });
+        setIsEditOpen(false);
+        setEditInvoice(null);
+        if (selectedInvoice && selectedInvoice.id === editInvoice.id) {
+          setSelectedInvoice(null);
+        }
+        fetchInvoices();
+      },
+    });
+  };
+
+  const handleRemoveItemFromInvoice = (invoiceId: string, itemId: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Remove Duty Slip',
+      message: 'Remove this duty slip from the invoice? The duty slip will be set as unbilled/uninvoiced and available for re-billing.',
+      confirmText: 'Remove Duty Slip',
+      variant: 'danger',
+      onConfirm: async () => {
+        const updatedInvoice = await api.request(`/invoices/${invoiceId}/items/${itemId}`, {
+          method: 'DELETE',
+        });
+        setSelectedInvoice(updatedInvoice);
+        fetchInvoices();
+      },
+    });
   };
 
   const [isAddDutySlipOpen, setIsAddDutySlipOpen] = useState(false);
@@ -716,25 +746,6 @@ export default function InvoicesPage() {
       fetchInvoices();
     } catch (err: any) {
       alert(err.message || 'Failed to add duty slip to invoice');
-    }
-  };
-
-  const handleRemoveItemFromInvoice = async (invoiceId: string, itemId: string) => {
-    if (
-      !confirm(
-        'Remove this duty slip from the invoice? The duty slip will be set as unbilled/uninvoiced and available for re-billing.'
-      )
-    ) {
-      return;
-    }
-    try {
-      const updatedInvoice = await api.request(`/invoices/${invoiceId}/items/${itemId}`, {
-        method: 'DELETE',
-      });
-      setSelectedInvoice(updatedInvoice);
-      fetchInvoices();
-    } catch (err: any) {
-      alert(err.message || 'Failed to remove duty slip from invoice');
     }
   };
 
@@ -2148,6 +2159,62 @@ export default function InvoicesPage() {
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm transition disabled:opacity-50"
               >
                 {editSubmitting ? 'Saving...' : 'Save Invoice Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Custom Confirmation Modal */}
+      {confirmModal && confirmModal.isOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className={`p-3 rounded-xl border ${
+                confirmModal.variant === 'warning'
+                  ? 'bg-amber-50 text-amber-600 border-amber-100'
+                  : 'bg-red-50 text-red-600 border-red-100'
+              }`}>
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-800">{confirmModal.title}</h3>
+                <p className="text-xs text-slate-500 font-medium">Confirmation Required</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              {confirmModal.message}
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isConfirming}
+                onClick={async () => {
+                  setIsConfirming(true);
+                  try {
+                    await confirmModal.onConfirm();
+                    setConfirmModal(null);
+                  } catch (err: any) {
+                    alert(err.message || 'Action failed');
+                  } finally {
+                    setIsConfirming(false);
+                  }
+                }}
+                className={`px-4 py-2 text-xs font-semibold text-white rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                  confirmModal.variant === 'warning'
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                {isConfirming ? 'Processing...' : (confirmModal.confirmText || 'Confirm')}
               </button>
             </div>
           </div>

@@ -153,6 +153,8 @@ export default function BookingsPage() {
   const [drawerError, setDrawerError] = useState<string | null>(null);
 
   // Form inputs
+  const [deletingBooking, setDeletingBooking] = useState<Booking | null>(null);
+  const [isDeletingBooking, setIsDeletingBooking] = useState(false);
   const [formData, setFormData] = useState({
     customerId: '',
     pickupLocation: '',
@@ -682,8 +684,8 @@ export default function BookingsPage() {
                             Edit
                           </button>
                           <button
-                            onClick={() => handleDelete(booking.id)}
-                            className="px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 border border-red-100 rounded-lg transition"
+                            onClick={() => setDeletingBooking(booking)}
+                            className="px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 border border-red-100 rounded-lg transition cursor-pointer"
                           >
                             Delete
                           </button>
@@ -1293,6 +1295,56 @@ export default function BookingsPage() {
                 className="w-1/2 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm transition font-semibold flex items-center justify-center shadow-sm"
               >
                 {assigningSubmitting ? 'Dispatching...' : 'Dispatch Assignment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Booking Modal */}
+      {deletingBooking && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-red-50 text-red-600 rounded-xl border border-red-100">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-800">Delete Booking</h3>
+                <p className="text-xs text-slate-500 font-mono">{deletingBooking.bookingNumber}</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Are you sure you want to delete booking <strong className="text-slate-800 font-mono">{deletingBooking.bookingNumber}</strong>? This action will cancel associated assignments and duty slips.
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeletingBooking(null)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingBooking}
+                onClick={async () => {
+                  setIsDeletingBooking(true);
+                  try {
+                    await api.request(`/bookings/${deletingBooking.id}`, { method: 'DELETE' });
+                    setDeletingBooking(null);
+                    fetchBookings();
+                  } catch (err: any) {
+                    alert(err.message || 'Failed to delete booking.');
+                  } finally {
+                    setIsDeletingBooking(false);
+                  }
+                }}
+                className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                {isDeletingBooking ? 'Deleting...' : 'Delete Booking'}
               </button>
             </div>
           </div>
