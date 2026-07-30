@@ -369,6 +369,7 @@ let DutySlipsService = class DutySlipsService {
                 booking: { include: { customer: true } },
                 driver: true,
                 vehicle: true,
+                trip: true,
             },
         });
         if (!dutySlip) {
@@ -719,13 +720,25 @@ let DutySlipsService = class DutySlipsService {
             doc.font(fontBold).text('Booking Code:', 307, tableStartY + 8);
             doc.font(fontRegular).text(bookingCode, 400, tableStartY + 8);
             doc.font(fontBold).text('Trip Date & Time:', 60, tableStartY + 33);
-            const repDate = new Date(slip.reportingTime).toLocaleDateString('en-GB');
-            const repTime = new Date(slip.reportingTime).toLocaleTimeString('en-GB', {
+            const tripDateVal = slip.startDateTime || slip.reportingTime || slip.booking?.pickupDate;
+            const repDate = new Date(tripDateVal).toLocaleDateString('en-GB');
+            const repTime = new Date(tripDateVal).toLocaleTimeString('en-GB', {
                 hour: '2-digit',
                 minute: '2-digit',
                 hour12: false,
             });
             doc.font(fontRegular).text(`${repDate} ${repTime}`, 180, tableStartY + 33);
+            doc.font(fontBold).text('Status:', 307, tableStartY + 33);
+            const statusColor = slip.status === 'CLOSED'
+                ? '#16A34A'
+                : slip.status === 'FILLED'
+                    ? '#2563EB'
+                    : '#D97706';
+            doc
+                .font(fontBold)
+                .fillColor(statusColor)
+                .text(slip.status, 400, tableStartY + 33);
+            doc.fillColor('#0F172A');
             const sec2TitleY = tableStartY + 60;
             const sec2BoxY = sec2TitleY + 15;
             doc.fontSize(12).font(fontBold).text('Customer & Route Details', 50, sec2TitleY);
@@ -785,10 +798,11 @@ let DutySlipsService = class DutySlipsService {
             const reqVehicleStr = slip.booking?.vehicleTypeRequired || slip.vehicle.vehicleType;
             doc.fontSize(9.5).font(fontBold).text('Req. Vehicle:', 60, sec4BoxY + 9);
             doc.font(fontRegular).text(reqVehicleStr, 150, sec4BoxY + 9);
+            const driverRemarksVal = (slip.remarks || slip.booking?.remarks || '').trim();
             doc.font(fontBold).text('Driver Notes:', 307, sec4BoxY + 9);
-            doc.font(fontRegular).text('____________________', 380, sec4BoxY + 9);
+            doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal.slice(0, 25) : '____________________', 380, sec4BoxY + 9);
             doc.font(fontBold).text('Driver Remarks:', 60, sec4BoxY + 27);
-            doc.font(fontRegular).text('__________________________________________________________', 150, sec4BoxY + 27);
+            doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal : '__________________________________________________________', 150, sec4BoxY + 27, { width: 380 });
             const sec5TitleY = sec4BoxY + 55;
             const sec5BoxY = sec5TitleY + 15;
             doc.fontSize(12).font(fontBold).text('Operational Trip Logs', 50, sec5TitleY);
@@ -804,11 +818,25 @@ let DutySlipsService = class DutySlipsService {
             doc.text('END KM', 170, sec5BoxY + 10);
             doc.text('START DATE & TIME', 285, sec5BoxY + 10);
             doc.text('END DATE & TIME', 400, sec5BoxY + 10);
-            doc.fontSize(9).font(fontBold);
-            doc.text('___________ KM', 55, sec5BoxY + 45);
-            doc.text('___________ KM', 170, sec5BoxY + 45);
-            doc.text('___/___/___  ___:___', 285, sec5BoxY + 45);
-            doc.text('___/___/___  ___:___', 400, sec5BoxY + 45);
+            const hasStartKm = slip.startKm !== null && slip.startKm !== undefined;
+            const startKmVal = hasStartKm ? Number(slip.startKm) : (slip.trip?.startKm ? Number(slip.trip.startKm) : null);
+            const startKmDisplay = startKmVal !== null ? `${startKmVal.toFixed(2)} KM` : '___________ KM';
+            const endKmRaw = slip.endKm || slip.trip?.endKm;
+            const hasEndKm = endKmRaw !== null && endKmRaw !== undefined && Number(endKmRaw) > 0;
+            const endKmDisplay = hasEndKm ? `${Number(endKmRaw).toFixed(2)} KM` : '___________ KM';
+            const sDateVal = slip.startDateTime || slip.reportingTime || slip.trip?.startDateTime;
+            const sDateDisplay = sDateVal
+                ? `${new Date(sDateVal).toLocaleDateString('en-GB')} ${new Date(sDateVal).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+                : '___/___/___  ___:___';
+            const eDateVal = slip.endDateTime || slip.trip?.endDateTime;
+            const eDateDisplay = eDateVal
+                ? `${new Date(eDateVal).toLocaleDateString('en-GB')} ${new Date(eDateVal).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+                : '___/___/___  ___:___';
+            doc.fontSize(8.5).font(fontBold);
+            doc.text(startKmDisplay, 55, sec5BoxY + 45);
+            doc.text(endKmDisplay, 170, sec5BoxY + 45);
+            doc.text(sDateDisplay, 285, sec5BoxY + 45);
+            doc.text(eDateDisplay, 400, sec5BoxY + 45);
             const sec6TitleY = sec5BoxY + 80;
             const sec6BoxY = sec6TitleY + 15;
             doc
@@ -822,50 +850,51 @@ let DutySlipsService = class DutySlipsService {
             if (!isRefined) {
                 doc.moveTo(297, sec6BoxY).lineTo(297, sec6BoxY + 120).stroke('#E2E8F0');
             }
+            const isClosedOrFilled = slip.status !== 'DRAFT' || hasEndKm || !!slip.trip;
             doc.fontSize(9.5).font(fontBold);
             doc.text('Toll Charges:', 60, sec6BoxY + 10);
             doc
                 .font(fontRegular)
-                .text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.toll}`, 180, sec6BoxY + 10);
+                .text(!isClosedOrFilled ? 'INR ___________' : `INR ${Number(slip.toll || 0).toFixed(2)}`, 180, sec6BoxY + 10);
             doc.font(fontBold).text('Parking Charges:', 307, sec6BoxY + 10);
             doc
                 .font(fontRegular)
-                .text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.parking}`, 420, sec6BoxY + 10);
+                .text(!isClosedOrFilled ? 'INR ___________' : `INR ${Number(slip.parking || 0).toFixed(2)}`, 420, sec6BoxY + 10);
             doc.font(fontBold).text('State Tax:', 60, sec6BoxY + 40);
             doc
                 .font(fontRegular)
-                .text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.stateTax}`, 180, sec6BoxY + 40);
+                .text(!isClosedOrFilled ? 'INR ___________' : `INR ${Number(slip.stateTax || 0).toFixed(2)}`, 180, sec6BoxY + 40);
             doc.font(fontBold).text('MCD Toll:', 307, sec6BoxY + 40);
             doc
                 .font(fontRegular)
-                .text(slip.status === 'DRAFT' ? 'INR ___________' : `INR ${slip.mcd}`, 420, sec6BoxY + 40);
+                .text(!isClosedOrFilled ? 'INR ___________' : `INR ${Number(slip.mcd || 0).toFixed(2)}`, 420, sec6BoxY + 40);
             doc.font(fontBold).text('Night Allowance:', 60, sec6BoxY + 70);
             doc
                 .font(fontRegular)
-                .text(slip.status === 'DRAFT'
+                .text(!isClosedOrFilled
                 ? 'INR ___________'
-                : `INR ${slip.nightCharges}`, 180, sec6BoxY + 70);
+                : `INR ${Number(slip.nightCharges || 0).toFixed(2)}`, 180, sec6BoxY + 70);
             doc.font(fontBold).text('Driver Allowance:', 307, sec6BoxY + 70);
             doc
                 .font(fontRegular)
-                .text(slip.status === 'DRAFT'
+                .text(!isClosedOrFilled
                 ? 'INR ___________'
-                : `INR ${slip.driverAllowance}`, 420, sec6BoxY + 70);
+                : `INR ${Number(slip.driverAllowance || 0).toFixed(2)}`, 420, sec6BoxY + 70);
             doc.font(fontBold).text('Extra / Misc Charges:', 60, sec6BoxY + 100);
             doc
                 .font(fontRegular)
-                .text(slip.status === 'DRAFT'
+                .text(!isClosedOrFilled
                 ? 'INR ___________'
-                : `INR ${slip.extraCharges}`, 180, sec6BoxY + 100);
-            const totalTolls = Number(slip.toll) +
-                Number(slip.parking) +
-                Number(slip.stateTax) +
-                Number(slip.mcd) +
-                Number(slip.nightCharges) +
-                Number(slip.driverAllowance) +
-                Number(slip.extraCharges);
+                : `INR ${Number(slip.extraCharges || 0).toFixed(2)}`, 180, sec6BoxY + 100);
+            const totalTolls = Number(slip.toll || 0) +
+                Number(slip.parking || 0) +
+                Number(slip.stateTax || 0) +
+                Number(slip.mcd || 0) +
+                Number(slip.nightCharges || 0) +
+                Number(slip.driverAllowance || 0) +
+                Number(slip.extraCharges || 0);
             doc.font(fontBold).text('Total Incidentals:', 307, sec6BoxY + 100);
-            if (slip.status === 'DRAFT') {
+            if (!isClosedOrFilled) {
                 doc
                     .font(fontBold)
                     .fillColor(primaryColor)

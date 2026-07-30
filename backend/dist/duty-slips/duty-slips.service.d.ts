@@ -279,6 +279,35 @@ export declare class DutySlipsService {
             bookingBy: string | null;
             remarks: string | null;
         };
+        trip: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            tenantId: string;
+            driverAllowance: import("@prisma/client/runtime/library").Decimal;
+            bookingId: string;
+            startKm: import("@prisma/client/runtime/library").Decimal;
+            endKm: import("@prisma/client/runtime/library").Decimal;
+            toll: import("@prisma/client/runtime/library").Decimal;
+            parking: import("@prisma/client/runtime/library").Decimal;
+            extraCharges: import("@prisma/client/runtime/library").Decimal;
+            startDateTime: Date | null;
+            endDateTime: Date | null;
+            dutySlipId: string;
+            totalKm: import("@prisma/client/runtime/library").Decimal;
+            baseFareCharged: import("@prisma/client/runtime/library").Decimal;
+            extraKmCharged: import("@prisma/client/runtime/library").Decimal;
+            extraHoursCharged: import("@prisma/client/runtime/library").Decimal;
+            nightChargesCharged: import("@prisma/client/runtime/library").Decimal;
+            miscChargesCharged: import("@prisma/client/runtime/library").Decimal;
+            totalAmount: import("@prisma/client/runtime/library").Decimal;
+            totalHours: import("@prisma/client/runtime/library").Decimal;
+            totalDays: number;
+            stateTaxCharged: import("@prisma/client/runtime/library").Decimal;
+            mcdCharged: import("@prisma/client/runtime/library").Decimal;
+            closedAt: Date;
+            closedById: string | null;
+        } | null;
     } & {
         id: string;
         status: import(".prisma/client").$Enums.DutySlipStatus;

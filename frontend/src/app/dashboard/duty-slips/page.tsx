@@ -197,16 +197,61 @@ export default function DutySlipsPage() {
     extraHourRate: 0,
     extraKmCharged: 0,
     extraHoursCharged: 0,
-    includeDriverAllowance: true,
-    includeNightCharges: true,
+    includeDriverAllowance: false,
+    includeNightCharges: false,
     isManualBaseFare: false,
     isManualExtraKmRate: false,
     isManualExtraHourRate: false,
     isManualExtraKmCharged: false,
     isManualExtraHoursCharged: false,
     isManualDriverAllowance: false,
-    isManualNightCharges: false,
   });
+
+  const resetDirectForm = () => {
+    setEditingSlip(null);
+    setFullCustomer(null);
+    setCustomParticulars([]);
+    setFormError(null);
+    const today = new Date().toISOString().split('T')[0];
+    setDf({
+      customerType: 'regular',
+      modeOfPayment: 'Credit', modeOfReservation: 'Email', clientType: 'COMPANY',
+      customerId: '', state: '', city: '', address: '', phone: '',
+      bookingBy: '', guestSalutation: 'Mr', guestName: '',
+      reportingAt: '', fileCode: '', employeeId: '',
+      reportingDate: today, reportingTime: '09:00',
+      pickupType: 'other',
+      vehicleId: '', carGroup: '', carName: '', carFrom: '',
+      driverId: '', pickupLocation: '', dropLocation: '', remarks: '',
+      dutyStartDate: today, dutyStartTime: '09:00', dutyStartMeter: 0,
+      dutyEndDate: '', dutyEndTime: '', dutyEndMeter: 0,
+      actualKm: 0, billedKm: 0, actualHours: 0, billedHours: 0,
+      dayHours: 0, nightHours: 0,
+      clientAdvance: 0, clientRemarks: '',
+      serviceTax: 5, parking: 0, toll: 0, mcdToll: 0, stateTax: 0,
+      driverAdvance: 0, driverAllowance: 0, driverRefund: 0, feedbackPoint: '', driverRemark: '',
+      dutyType: 'L', tourCode: '', localBill: '', nightChargesOnTime: 0,
+      billingMode: 'N',
+      extraCharges: 0,
+      manualDriverName: '', manualDriverPhone: '',
+      manualVehicleNumber: '', manualVehicleModel: '',
+
+      baseFare: 0,
+      extraKmRate: 0,
+      extraHourRate: 0,
+      extraKmCharged: 0,
+      extraHoursCharged: 0,
+      includeDriverAllowance: false,
+      includeNightCharges: false,
+      isManualBaseFare: false,
+      isManualExtraKmRate: false,
+      isManualExtraHourRate: false,
+      isManualExtraKmCharged: false,
+      isManualExtraHoursCharged: false,
+      isManualDriverAllowance: false,
+      isManualNightCharges: false,
+    });
+  };
 
   /* Flexible Duty Slip custom line items state */
   const [customParticulars, setCustomParticulars] = useState<
@@ -505,10 +550,20 @@ export default function DutySlipsPage() {
       const extraKmRateVal = f.isManualExtraKmRate ? f.extraKmRate : calculatedExtraKmRate;
       const extraHourRateVal = f.isManualExtraHourRate ? f.extraHourRate : calculatedExtraHourRate;
 
-      const driverAllowanceVal = f.includeDriverAllowance
+      const isOutstation = f.dutyType === 'O' || f.dutyType === 'T';
+      const autoIncludeDA = f.isManualDriverAllowance
+        ? f.includeDriverAllowance
+        : isOutstation;
+
+      const driverAllowanceVal = autoIncludeDA
         ? (f.isManualDriverAllowance ? f.driverAllowance : (calculatedDriverAllowance || 250))
         : 0;
-      const nightChargesVal = f.includeNightCharges
+
+      const autoIncludeNight = f.isManualNightCharges
+        ? f.includeNightCharges
+        : (nightHrs > 0);
+
+      const nightChargesVal = autoIncludeNight
         ? (f.isManualNightCharges ? f.nightChargesOnTime : (calculatedNightCharges || 200))
         : 0;
 
@@ -532,6 +587,8 @@ export default function DutySlipsPage() {
         extraHourRate: extraHourRateVal,
         extraKmCharged: parseFloat(extraKmChargedVal.toFixed(2)),
         extraHoursCharged: parseFloat(extraHoursChargedVal.toFixed(2)),
+        includeDriverAllowance: autoIncludeDA,
+        includeNightCharges: autoIncludeNight,
         driverAllowance: driverAllowanceVal,
         nightChargesOnTime: nightChargesVal,
       };
@@ -924,7 +981,7 @@ export default function DutySlipsPage() {
       }
 
       setIsDirectOpen(false);
-      setEditingSlip(null);
+      resetDirectForm();
       fetchDutySlips();
     } catch (e: any) { setFormError(e.message); }
     finally { setSubmitting(false); }
@@ -1039,15 +1096,15 @@ export default function DutySlipsPage() {
       extraHourRate: 0,
       extraKmCharged: slip.trip ? Number((slip.trip as any).extraKmCharged) : 0,
       extraHoursCharged: slip.trip ? Number((slip.trip as any).extraHoursCharged) : 0,
-      includeDriverAllowance: Number(slip.driverAllowance) > 0 || !slip.trip,
-      includeNightCharges: Number(slip.nightCharges) > 0 || !slip.trip,
+      includeDriverAllowance: Number(slip.driverAllowance) > 0,
+      includeNightCharges: Number(slip.nightCharges) > 0,
       isManualBaseFare: !!slip.trip,
       isManualExtraKmRate: false,
       isManualExtraHourRate: false,
       isManualExtraKmCharged: !!slip.trip,
       isManualExtraHoursCharged: !!slip.trip,
-      isManualDriverAllowance: Number(slip.driverAllowance) > 0,
-      isManualNightCharges: Number(slip.nightCharges) > 0,
+      isManualDriverAllowance: true,
+      isManualNightCharges: true,
     });
 
     setIsDirectOpen(true);
@@ -1134,7 +1191,7 @@ export default function DutySlipsPage() {
               From Booking
             </button>
             <button
-              onClick={() => { loadAssets(); setFormError(null); setIsDirectOpen(true); }}
+              onClick={() => { loadAssets(); resetDirectForm(); setIsDirectOpen(true); }}
               className="py-2 px-5 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition flex items-center gap-2 shadow-sm"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
