@@ -745,26 +745,51 @@ let DutySlipsService = class DutySlipsService {
             doc.rect(50, sec2BoxY, 495, 95).stroke('#E2E8F0');
             const custName = slip.booking?.customer?.name
                 ? slip.booking.customer.name +
-                    (slip.booking.customer.companyName
+                    (slip.booking.customer.companyName && slip.booking.customer.companyName !== slip.booking.customer.name
                         ? ` (${slip.booking.customer.companyName})`
                         : '')
                 : slip.manualCustomerName || 'Direct Customer';
             doc.fontSize(10).font(fontBold).text('Customer Name:', 60, sec2BoxY + 8);
-            doc.font(fontRegular).text(custName, 150, sec2BoxY + 8);
+            doc.font(fontRegular).text(custName, 150, sec2BoxY + 8, {
+                width: 150,
+                height: 14,
+                lineBreak: false,
+                ellipsis: true,
+            });
             const guestDisplay = (slip.booking?.guestSalutation
                 ? slip.booking.guestSalutation + ' '
                 : '') + (slip.booking?.guestName || slip.manualGuestName || '---');
             doc.font(fontBold).text('Guest Name:', 307, sec2BoxY + 8);
-            doc.font(fontRegular).text(guestDisplay, 400, sec2BoxY + 8);
+            doc.font(fontRegular).text(guestDisplay, 375, sec2BoxY + 8, {
+                width: 160,
+                height: 14,
+                lineBreak: false,
+                ellipsis: true,
+            });
             const dutyTypeVal = (slip.booking?.tripType || 'LOCAL').replace(/_/g, ' ');
             doc.font(fontBold).text('Duty Type:', 60, sec2BoxY + 23);
-            doc.font(fontRegular).text(dutyTypeVal, 150, sec2BoxY + 23);
+            doc.font(fontRegular).text(dutyTypeVal, 150, sec2BoxY + 23, {
+                width: 100,
+                height: 14,
+                lineBreak: false,
+                ellipsis: true,
+            });
             const empId = slip.employeeId || slip.booking?.employeeId;
             doc.font(fontBold).text('Emp ID:', 260, sec2BoxY + 23);
-            doc.font(fontRegular).text(empId || '---', 305, sec2BoxY + 23);
+            doc.font(fontRegular).text(empId || '---', 305, sec2BoxY + 23, {
+                width: 60,
+                height: 14,
+                lineBreak: false,
+                ellipsis: true,
+            });
             const bookedBy = slip.booking?.bookingBy || 'Direct Walk-in';
             doc.font(fontBold).text('Booked By:', 370, sec2BoxY + 23);
-            doc.font(fontRegular).text(bookedBy, 435, sec2BoxY + 23);
+            doc.font(fontRegular).text(bookedBy, 435, sec2BoxY + 23, {
+                width: 100,
+                height: 14,
+                lineBreak: false,
+                ellipsis: true,
+            });
             const pickupLoc = slip.booking?.pickupLocation || slip.manualPickupLocation || '---';
             const dropLoc = slip.booking?.dropLocation || slip.manualDropLocation || '---';
             doc.font(fontBold).text('Pickup Address:', 60, sec2BoxY + 40);
@@ -772,12 +797,14 @@ let DutySlipsService = class DutySlipsService {
                 width: 380,
                 height: 14,
                 lineBreak: false,
+                ellipsis: true,
             });
             doc.font(fontBold).text('Drop Address:', 60, sec2BoxY + 57);
             doc.font(fontRegular).text(dropLoc, 150, sec2BoxY + 57, {
                 width: 380,
                 height: 14,
                 lineBreak: false,
+                ellipsis: true,
             });
             const sec3TitleY = sec2BoxY + 110;
             const sec3BoxY = sec3TitleY + 15;
@@ -787,13 +814,28 @@ let DutySlipsService = class DutySlipsService {
                 doc.moveTo(297, sec3BoxY).lineTo(297, sec3BoxY + 40).stroke('#E2E8F0');
             }
             doc.fontSize(10).font(fontBold).text('Driver Name:', 60, sec3BoxY + 12);
-            doc.font(fontRegular).text(slip.driver.name, 150, sec3BoxY + 12);
+            doc.font(fontRegular).text(slip.driver.name, 150, sec3BoxY + 12, {
+                width: 140,
+                height: 14,
+                lineBreak: false,
+                ellipsis: true,
+            });
             doc.font(fontBold).text('VEHICLE NUMBER:', 307, sec3BoxY + 7);
-            doc.font(fontRegular).text(slip.vehicle.vehicleNumber, 415, sec3BoxY + 7);
+            doc.font(fontRegular).text(slip.vehicle.vehicleNumber, 415, sec3BoxY + 7, {
+                width: 120,
+                height: 14,
+                lineBreak: false,
+                ellipsis: true,
+            });
             doc.font(fontBold).text('CAR TYPE:', 307, sec3BoxY + 22);
             doc
                 .font(fontRegular)
-                .text(`${slip.vehicle.model} (${slip.vehicle.vehicleType})`, 380, sec3BoxY + 22);
+                .text(`${slip.vehicle.model} (${slip.vehicle.vehicleType})`, 380, sec3BoxY + 22, {
+                width: 155,
+                height: 14,
+                lineBreak: false,
+                ellipsis: true,
+            });
             const sec4TitleY = sec3BoxY + 50;
             const sec4BoxY = sec4TitleY + 15;
             doc.fontSize(12).font(fontBold).text('Trip Details', 50, sec4TitleY);
@@ -803,12 +845,27 @@ let DutySlipsService = class DutySlipsService {
             }
             const reqVehicleStr = slip.booking?.vehicleTypeRequired || slip.vehicle.vehicleType;
             doc.fontSize(9.5).font(fontBold).text('Req. Vehicle:', 60, sec4BoxY + 9);
-            doc.font(fontRegular).text(reqVehicleStr, 150, sec4BoxY + 9);
+            doc.font(fontRegular).text(reqVehicleStr, 150, sec4BoxY + 9, {
+                width: 140,
+                height: 14,
+                lineBreak: false,
+                ellipsis: true,
+            });
             const driverRemarksVal = (slip.remarks || slip.booking?.remarks || '').trim();
             doc.font(fontBold).text('Driver Notes:', 307, sec4BoxY + 9);
-            doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal.slice(0, 25) : '____________________', 380, sec4BoxY + 9);
+            doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal.slice(0, 25) : '____________________', 380, sec4BoxY + 9, {
+                width: 155,
+                height: 14,
+                lineBreak: false,
+                ellipsis: true,
+            });
             doc.font(fontBold).text('Driver Remarks:', 60, sec4BoxY + 27);
-            doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal : '__________________________________________________________', 150, sec4BoxY + 27, { width: 380, height: 14, lineBreak: false });
+            doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal : '__________________________________________________________', 150, sec4BoxY + 27, {
+                width: 380,
+                height: 14,
+                lineBreak: false,
+                ellipsis: true,
+            });
             const sec5TitleY = sec4BoxY + 55;
             const sec5BoxY = sec5TitleY + 15;
             doc.fontSize(12).font(fontBold).text('Operational Trip Logs', 50, sec5TitleY);

@@ -883,32 +883,57 @@ export class DutySlipsService {
 
       const custName = slip.booking?.customer?.name
         ? slip.booking.customer.name +
-          (slip.booking.customer.companyName
+          (slip.booking.customer.companyName && slip.booking.customer.companyName !== slip.booking.customer.name
             ? ` (${slip.booking.customer.companyName})`
             : '')
         : (slip as any).manualCustomerName || 'Direct Customer';
 
       doc.fontSize(10).font(fontBold).text('Customer Name:', 60, sec2BoxY + 8);
-      doc.font(fontRegular).text(custName, 150, sec2BoxY + 8);
+      doc.font(fontRegular).text(custName, 150, sec2BoxY + 8, {
+        width: 150,
+        height: 14,
+        lineBreak: false,
+        ellipsis: true,
+      });
 
       const guestDisplay =
         (slip.booking?.guestSalutation
           ? slip.booking.guestSalutation + ' '
           : '') + (slip.booking?.guestName || (slip as any).manualGuestName || '---');
       doc.font(fontBold).text('Guest Name:', 307, sec2BoxY + 8);
-      doc.font(fontRegular).text(guestDisplay, 400, sec2BoxY + 8);
+      doc.font(fontRegular).text(guestDisplay, 375, sec2BoxY + 8, {
+        width: 160,
+        height: 14,
+        lineBreak: false,
+        ellipsis: true,
+      });
 
       const dutyTypeVal = (slip.booking?.tripType || 'LOCAL').replace(/_/g, ' ');
       doc.font(fontBold).text('Duty Type:', 60, sec2BoxY + 23);
-      doc.font(fontRegular).text(dutyTypeVal, 150, sec2BoxY + 23);
+      doc.font(fontRegular).text(dutyTypeVal, 150, sec2BoxY + 23, {
+        width: 100,
+        height: 14,
+        lineBreak: false,
+        ellipsis: true,
+      });
 
       const empId = slip.employeeId || slip.booking?.employeeId;
       doc.font(fontBold).text('Emp ID:', 260, sec2BoxY + 23);
-      doc.font(fontRegular).text(empId || '---', 305, sec2BoxY + 23);
+      doc.font(fontRegular).text(empId || '---', 305, sec2BoxY + 23, {
+        width: 60,
+        height: 14,
+        lineBreak: false,
+        ellipsis: true,
+      });
 
       const bookedBy = slip.booking?.bookingBy || 'Direct Walk-in';
       doc.font(fontBold).text('Booked By:', 370, sec2BoxY + 23);
-      doc.font(fontRegular).text(bookedBy, 435, sec2BoxY + 23);
+      doc.font(fontRegular).text(bookedBy, 435, sec2BoxY + 23, {
+        width: 100,
+        height: 14,
+        lineBreak: false,
+        ellipsis: true,
+      });
 
       const pickupLoc = slip.booking?.pickupLocation || (slip as any).manualPickupLocation || '---';
       const dropLoc = slip.booking?.dropLocation || (slip as any).manualDropLocation || '---';
@@ -918,6 +943,7 @@ export class DutySlipsService {
         width: 380,
         height: 14,
         lineBreak: false,
+        ellipsis: true,
       });
 
       doc.font(fontBold).text('Drop Address:', 60, sec2BoxY + 57);
@@ -925,6 +951,7 @@ export class DutySlipsService {
         width: 380,
         height: 14,
         lineBreak: false,
+        ellipsis: true,
       });
 
       // Section 3: Driver & Vehicle Allocation Details (VEHICLE NUMBER)
@@ -938,15 +965,30 @@ export class DutySlipsService {
 
       // Left Column (Driver)
       doc.fontSize(10).font(fontBold).text('Driver Name:', 60, sec3BoxY + 12);
-      doc.font(fontRegular).text(slip.driver.name, 150, sec3BoxY + 12);
+      doc.font(fontRegular).text(slip.driver.name, 150, sec3BoxY + 12, {
+        width: 140,
+        height: 14,
+        lineBreak: false,
+        ellipsis: true,
+      });
 
       // Right Column (Vehicle Number & Car Type)
       doc.font(fontBold).text('VEHICLE NUMBER:', 307, sec3BoxY + 7);
-      doc.font(fontRegular).text(slip.vehicle.vehicleNumber, 415, sec3BoxY + 7);
+      doc.font(fontRegular).text(slip.vehicle.vehicleNumber, 415, sec3BoxY + 7, {
+        width: 120,
+        height: 14,
+        lineBreak: false,
+        ellipsis: true,
+      });
       doc.font(fontBold).text('CAR TYPE:', 307, sec3BoxY + 22);
       doc
         .font(fontRegular)
-        .text(`${slip.vehicle.model} (${slip.vehicle.vehicleType})`, 380, sec3BoxY + 22);
+        .text(`${slip.vehicle.model} (${slip.vehicle.vehicleType})`, 380, sec3BoxY + 22, {
+          width: 155,
+          height: 14,
+          lineBreak: false,
+          ellipsis: true,
+        });
 
       // Section 4: Trip Details
       const sec4TitleY = sec3BoxY + 50;
@@ -959,14 +1001,29 @@ export class DutySlipsService {
 
       const reqVehicleStr = slip.booking?.vehicleTypeRequired || slip.vehicle.vehicleType;
       doc.fontSize(9.5).font(fontBold).text('Req. Vehicle:', 60, sec4BoxY + 9);
-      doc.font(fontRegular).text(reqVehicleStr, 150, sec4BoxY + 9);
+      doc.font(fontRegular).text(reqVehicleStr, 150, sec4BoxY + 9, {
+        width: 140,
+        height: 14,
+        lineBreak: false,
+        ellipsis: true,
+      });
 
       const driverRemarksVal = ((slip as any).remarks || slip.booking?.remarks || '').trim();
       doc.font(fontBold).text('Driver Notes:', 307, sec4BoxY + 9);
-      doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal.slice(0, 25) : '____________________', 380, sec4BoxY + 9);
+      doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal.slice(0, 25) : '____________________', 380, sec4BoxY + 9, {
+        width: 155,
+        height: 14,
+        lineBreak: false,
+        ellipsis: true,
+      });
 
       doc.font(fontBold).text('Driver Remarks:', 60, sec4BoxY + 27);
-      doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal : '__________________________________________________________', 150, sec4BoxY + 27, { width: 380, height: 14, lineBreak: false });
+      doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal : '__________________________________________________________', 150, sec4BoxY + 27, {
+        width: 380,
+        height: 14,
+        lineBreak: false,
+        ellipsis: true,
+      });
 
       // Section 5: Operational Trip Logs
       const sec5TitleY = sec4BoxY + 55;
