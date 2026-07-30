@@ -850,13 +850,16 @@ export default function DutySlipsPage() {
       return;
     }
 
-    const rdt = df.reportingDate && df.reportingTime
-      ? mergeDT(df.reportingDate, df.reportingTime)
-      : new Date().toISOString();
-
     const startD = df.dutyStartDate || df.reportingDate;
     const startT = df.dutyStartTime || df.reportingTime;
-    const startDateTime = mergeDT(startD, startT) || rdt;
+    const repD = df.reportingDate || startD;
+    const repT = df.reportingTime || startT;
+
+    const rdt = repD && repT
+      ? mergeDT(repD, repT)
+      : (startD && startT ? mergeDT(startD, startT) : new Date().toISOString());
+
+    const startDateTime = startD && startT ? mergeDT(startD, startT) : rdt;
     const endDateTime = mergeDT(df.dutyEndDate, df.dutyEndTime);
 
     let targetStatus: 'DRAFT' | 'FILLED' | 'CLOSED' = 'DRAFT';
@@ -1025,6 +1028,11 @@ export default function DutySlipsPage() {
     const e = splitDT(slip.endDateTime);
     const rep = splitDT(slip.reportingTime);
 
+    const resolvedStartDate = s.date || rep.date || '';
+    const resolvedStartTime = s.time || rep.time || '';
+    const resolvedRepDate = rep.date || resolvedStartDate;
+    const resolvedRepTime = rep.time || resolvedStartTime;
+
     // Fetch customer details to get custom rate cards and tax rates
     let customerObj = null;
     try {
@@ -1071,8 +1079,8 @@ export default function DutySlipsPage() {
       reportingAt: slip.pickupLocation || '',
       fileCode: slip.booking?.fileCode || '',
       employeeId: slip.employeeId || '',
-      reportingDate: rep.date || '',
-      reportingTime: rep.time || '',
+      reportingDate: resolvedRepDate,
+      reportingTime: resolvedRepTime,
       pickupType: (slip.booking?.pickupType || 'other') as any,
       vehicleId: slip.vehicleId || '',
       carGroup: slip.vehicle?.vehicleType || '',
@@ -1082,8 +1090,8 @@ export default function DutySlipsPage() {
       pickupLocation: slip.pickupLocation || '',
       dropLocation: slip.dropLocation || '',
       remarks: remarksText,
-      dutyStartDate: s.date || rep.date || '',
-      dutyStartTime: s.time || rep.time || '',
+      dutyStartDate: resolvedStartDate,
+      dutyStartTime: resolvedStartTime,
       dutyStartMeter: Number(slip.startKm) || 0,
       dutyEndDate: e.date || '',
       dutyEndTime: e.time || '',
@@ -1284,8 +1292,8 @@ export default function DutySlipsPage() {
                     <td className="px-4 py-3.5 text-slate-700 text-xs">{slip.driver?.name || '—'}</td>
                     <td className="px-4 py-3.5 text-xs font-mono text-slate-600">{slip.vehicle?.vehicleNumber || '—'}</td>
                     <td className="px-4 py-3.5 text-xs text-slate-500">
-                      <div className="text-slate-800 font-medium">{fmtDate(slip.reportingTime)}</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5 font-medium">{fmtTime(slip.reportingTime)}</div>
+                      <div className="text-slate-800 font-medium">{fmtDate(slip.startDateTime || slip.reportingTime || slip.booking?.pickupDate)}</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5 font-medium">{fmtTime(slip.startDateTime || slip.reportingTime || slip.booking?.pickupDate)}</div>
                     </td>
                     <td className="px-4 py-3.5">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wide ${STATUS_STYLES[slip.status]}`}>
