@@ -955,7 +955,7 @@ export class DutySlipsService {
       doc.fontSize(9.5).font(fontBold).text('Req. Vehicle:', 60, sec4BoxY + 9);
       doc.font(fontRegular).text(reqVehicleStr, 150, sec4BoxY + 9);
 
-      const driverRemarksVal = (slip.remarks || slip.booking?.remarks || '').trim();
+      const driverRemarksVal = ((slip as any).remarks || slip.booking?.remarks || '').trim();
       doc.font(fontBold).text('Driver Notes:', 307, sec4BoxY + 9);
       doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal.slice(0, 25) : '____________________', 380, sec4BoxY + 9);
 
