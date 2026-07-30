@@ -345,32 +345,28 @@ export default function DutySlipsPage() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  /* ── Compute dynamic available Car Groups from selected customer rate cards + master categories ── */
+  /* ── Compute dynamic available Car Groups ── */
   const availableCarGroups = useMemo(() => {
-    const groupsSet = new Set<string>();
-
-    // 1. Prioritize categories from the selected Customer's custom Rate Cards
-    if (fullCustomer && fullCustomer.rateCards && Array.isArray(fullCustomer.rateCards)) {
+    // 1. If selected Customer has specific Rate Cards, show ONLY those rate card categories
+    if (fullCustomer && fullCustomer.rateCards && Array.isArray(fullCustomer.rateCards) && fullCustomer.rateCards.length > 0) {
+      const custCategories: string[] = [];
       fullCustomer.rateCards.forEach((rc: any) => {
-        if (rc.vehicleCategory?.name) {
-          groupsSet.add(rc.vehicleCategory.name);
+        if (rc.vehicleCategory?.name && !custCategories.includes(rc.vehicleCategory.name)) {
+          custCategories.push(rc.vehicleCategory.name);
         }
       });
+      if (custCategories.length > 0) {
+        return custCategories;
+      }
     }
 
-    // 2. Add categories from system master categories
-    if (categories && Array.isArray(categories)) {
-      categories.forEach((cat: any) => {
-        if (cat.name) groupsSet.add(cat.name);
-      });
+    // 2. Otherwise fall back to master categories
+    if (categories && Array.isArray(categories) && categories.length > 0) {
+      return categories.map((cat: any) => cat.name).filter(Boolean);
     }
 
     // 3. Fallback defaults if list is empty
-    if (groupsSet.size === 0) {
-      ['Sedan', 'SUV', 'Luxury', 'Executive', 'Hatchback', 'Tempo Traveller'].forEach((g) => groupsSet.add(g));
-    }
-
-    return Array.from(groupsSet);
+    return ['Sedan', 'SUV', 'Luxury', 'Executive', 'Hatchback', 'Tempo Traveller'];
   }, [fullCustomer, categories]);
 
   /* ── Fetch Customer details on selection ── */
@@ -1589,14 +1585,11 @@ export default function DutySlipsPage() {
                             className={sel}
                           >
                             <option value="">— Select Category —</option>
-                            {availableCarGroups.map((groupName) => {
-                              const hasCustomRc = fullCustomer?.rateCards?.some((rc: any) => rc.vehicleCategory?.name?.toLowerCase() === groupName.toLowerCase());
-                              return (
-                                <option key={groupName} value={groupName}>
-                                  {groupName}{hasCustomRc ? ' ★ (Custom Rate Card)' : ''}
-                                </option>
-                              );
-                            })}
+                            {availableCarGroups.map((groupName) => (
+                              <option key={groupName} value={groupName}>
+                                {groupName}
+                              </option>
+                            ))}
                           </select>
                         </Field>
                         <Field label="Vehicle Model *">
@@ -1627,14 +1620,11 @@ export default function DutySlipsPage() {
                             className={sel}
                           >
                             <option value="">— Select —</option>
-                            {availableCarGroups.map((groupName) => {
-                              const hasCustomRc = fullCustomer?.rateCards?.some((rc: any) => rc.vehicleCategory?.name?.toLowerCase() === groupName.toLowerCase());
-                              return (
-                                <option key={groupName} value={groupName}>
-                                  {groupName}{hasCustomRc ? ' ★ (Custom Rate Card)' : ''}
-                                </option>
-                              );
-                            })}
+                            {availableCarGroups.map((groupName) => (
+                              <option key={groupName} value={groupName}>
+                                {groupName}
+                              </option>
+                            ))}
                           </select>
                         </Field>
                         <Field label="Car Name">
