@@ -224,11 +224,11 @@ export default function DutySlipsPage() {
       customerId: '', state: '', city: '', address: '', phone: '',
       bookingBy: '', guestSalutation: 'Mr', guestName: '',
       reportingAt: '', fileCode: '', employeeId: '',
-      reportingDate: today, reportingTime: '09:00',
+      reportingDate: '', reportingTime: '',
       pickupType: 'other',
       vehicleId: '', carGroup: '', carName: '', carFrom: '',
       driverId: '', pickupLocation: '', dropLocation: '', remarks: '',
-      dutyStartDate: today, dutyStartTime: '09:00', dutyStartMeter: 0,
+      dutyStartDate: '', dutyStartTime: '', dutyStartMeter: 0,
       dutyEndDate: '', dutyEndTime: '', dutyEndMeter: 0,
       actualKm: 0, billedKm: 0, actualHours: 0, billedHours: 0,
       dayHours: 0, nightHours: 0,
@@ -854,16 +854,17 @@ export default function DutySlipsPage() {
       return;
     }
 
-    const startD = df.dutyStartDate || df.reportingDate;
-    const startT = df.dutyStartTime || df.reportingTime;
-    const repD = df.reportingDate || startD;
-    const repT = df.reportingTime || startT;
+    const now = new Date();
+    const todayDDMMYYYY = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+    const nowHHmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-    const rdt = repD && repT
-      ? mergeDT(repD, repT)
-      : (startD && startT ? mergeDT(startD, startT) : new Date().toISOString());
+    const startD = df.dutyStartDate || df.reportingDate || todayDDMMYYYY;
+    const startT = df.dutyStartTime || df.reportingTime || nowHHmm;
+    const repD = df.reportingDate || startD || todayDDMMYYYY;
+    const repT = df.reportingTime || startT || nowHHmm;
 
-    const startDateTime = startD && startT ? mergeDT(startD, startT) : rdt;
+    const rdt = mergeDT(repD, repT);
+    const startDateTime = mergeDT(startD, startT);
     const endDateTime = mergeDT(df.dutyEndDate, df.dutyEndTime);
 
     let targetStatus: 'DRAFT' | 'FILLED' | 'CLOSED' = 'DRAFT';
