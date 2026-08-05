@@ -12,8 +12,8 @@ async function bootstrap() {
 
   app.use(cookieParser());
 
-  // Set global prefix
-  app.setGlobalPrefix('api/v1');
+  // Set global prefix (excluding /health so root pings work directly)
+  app.setGlobalPrefix('api/v1', { exclude: ['health'] });
 
   // Enable CORS
   const frontendUrl = process.env.FRONTEND_URL;

@@ -12,7 +12,7 @@ async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.use((0, helmet_1.default)());
     app.use((0, cookie_parser_1.default)());
-    app.setGlobalPrefix('api/v1');
+    app.setGlobalPrefix('api/v1', { exclude: ['health'] });
     const frontendUrl = process.env.FRONTEND_URL;
     const corsOrigins = frontendUrl
         ? frontendUrl.split(',').map((url) => url.trim())

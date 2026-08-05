@@ -8,6 +8,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "pinger": "ts-node src/pinger.ts",
+    "start:pinger": "node dist/pinger.js",
+    "pinger:pm2": "pm2 start ecosystem.config.js --env production",
+    "pinger:stop": "pm2 stop backend-30s-pinger",
     "dev": "ts-node src/index.ts",
     "test": "jest --config jest.config.ts --runInBand",
     "test:coverage": "jest --config jest.config.ts --coverage"
