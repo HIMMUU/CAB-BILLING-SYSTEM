@@ -123,10 +123,10 @@ export declare class ReportsService {
         id: string;
         date: string;
         slipNo: string;
-        clientName: string;
-        guestName: string;
-        driverName: string;
-        vehicleNo: string;
+        clientName: any;
+        guestName: any;
+        driverName: any;
+        vehicleNo: any;
         startKm: number;
         endKm: string | number;
         runKm: string | number;

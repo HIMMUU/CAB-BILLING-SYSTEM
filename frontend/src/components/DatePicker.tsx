@@ -131,14 +131,20 @@ export default function DatePicker({
     }
   };
 
-  // Keyboard navigation: Pressing Enter moves focus to next field in form
+  // Keyboard navigation: Pressing Tab, Enter, or Escape closes calendar and moves cleanly to next field
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Tab' || e.key === 'Escape') {
+      setIsOpen(false);
+    } else if (e.key === 'Enter') {
       e.preventDefault();
       setIsOpen(false);
 
       if (inputRef.current) {
-        const root = inputRef.current.closest('form') || inputRef.current.closest('.space-y-6') || inputRef.current.closest('main') || document.body;
+        const root =
+          inputRef.current.closest('form') ||
+          inputRef.current.closest('.space-y-6') ||
+          inputRef.current.closest('main') ||
+          document.body;
         const focusables = Array.from(
           root.querySelectorAll<HTMLElement>(
             'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]):not([tabindex="-1"])'
@@ -177,7 +183,14 @@ export default function DatePicker({
       </div>
 
       {isOpen && (
-        <div className="absolute z-[100] mt-1.5 p-3 bg-white border border-[#E2E8F0] rounded-xl shadow-xl flex flex-col items-center">
+        <div
+          onKeyDown={(e) => {
+            if (e.key === 'Tab' || e.key === 'Escape') {
+              setIsOpen(false);
+            }
+          }}
+          className="absolute z-[100] mt-1.5 p-3 bg-white border border-[#E2E8F0] rounded-xl shadow-xl flex flex-col items-center"
+        >
           <DayPicker
             mode="single"
             selected={selectedDate}

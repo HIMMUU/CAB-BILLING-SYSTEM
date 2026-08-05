@@ -788,19 +788,23 @@ let ReportsService = class ReportsService {
             const start = Number(slip.startKm) || 0;
             const end = Number(slip.endKm) || 0;
             const run = end > start ? end - start : 0;
+            const clientName = slip.booking?.customer?.name || slip.manualCustomerName || 'Direct Customer';
+            const guestName = slip.guestName || slip.booking?.guestName || '—';
+            const driverName = slip.driver?.name || slip.manualDriverName || 'Manual Driver';
+            const vehicleNo = slip.vehicle?.vehicleNumber || slip.manualVehicleNumber || 'Manual Vehicle';
             return {
                 sn: idx + 1,
                 id: slip.id,
-                date: new Date(slip.reportingTime).toLocaleDateString('en-GB'),
-                slipNo: slip.dutySlipNumber,
-                clientName: slip.booking.customer.name,
-                guestName: slip.booking.guestName || '.',
-                driverName: slip.driver.name,
-                vehicleNo: slip.vehicle.vehicleNumber,
+                date: slip.reportingTime ? new Date(slip.reportingTime).toLocaleDateString('en-GB') : '-',
+                slipNo: slip.dutySlipNumber || '-',
+                clientName,
+                guestName,
+                driverName,
+                vehicleNo,
                 startKm: start,
                 endKm: end > 0 ? end : '-',
                 runKm: run > 0 ? run : '-',
-                status: slip.status,
+                status: slip.status || 'OPEN',
             };
         });
     }

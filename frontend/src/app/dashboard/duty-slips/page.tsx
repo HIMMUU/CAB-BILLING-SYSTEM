@@ -1389,9 +1389,29 @@ export default function DutySlipsPage() {
             <form onSubmit={handleBookingCreate} className="flex-1 overflow-y-auto p-6 space-y-5">
               <Field label="Select Assigned Booking *">
                 {loadingBookings ? <div className="text-sm text-slate-500 py-2">Loading bookings…</div> : (
-                  <select required value={bookingForm.bookingId} onChange={e => setBookingForm(f => ({ ...f, bookingId: e.target.value }))} className={sel}>
+                  <select
+                    required
+                    value={bookingForm.bookingId}
+                    onChange={(e) => {
+                      const selectedId = e.target.value;
+                      const found = assignedBookings.find((b: any) => b.id === selectedId);
+                      if (found) {
+                        const dt = splitDT(found.pickupDate || (found as any).reportingTime);
+                        setBookingForm((f) => ({
+                          ...f,
+                          bookingId: selectedId,
+                          reportingDate: dt.date || f.reportingDate || new Date().toISOString().split('T')[0],
+                          reportingTime: dt.time || f.reportingTime || '09:00',
+                          employeeId: found.employeeId || f.employeeId || '',
+                        }));
+                      } else {
+                        setBookingForm((f) => ({ ...f, bookingId: selectedId }));
+                      }
+                    }}
+                    className={sel}
+                  >
                     <option value="">— Choose Booking —</option>
-                    {assignedBookings.map(b => (
+                    {assignedBookings.map((b: any) => (
                       <option key={b.id} value={b.id}>{b.bookingNumber} · {b.customer?.name}</option>
                     ))}
                   </select>
