@@ -24,6 +24,7 @@ import { TenantGuard } from './common/guards/tenant.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { SuperAdminModule } from './super-admin/super-admin.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { SuperAdminModule } from './super-admin/super-admin.module';
     RateManagementModule,
     TenantSettingsModule,
     SuperAdminModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [

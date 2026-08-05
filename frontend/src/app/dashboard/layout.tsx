@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import api from '@/lib/api';
+import { KeepAlivePinger } from '@/components/KeepAlivePinger';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -338,7 +339,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           {/* User & Settings Section */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* 30-Second Backend Keep-Alive Widget */}
+            <KeepAlivePinger />
+
             {/* UI Font Size Scaler */}
             <div className="flex items-center gap-1 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg p-0.5" title="Adjust Interface Font Size">
               <button

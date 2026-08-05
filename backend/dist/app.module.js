@@ -33,6 +33,7 @@ const tenant_guard_1 = require("./common/guards/tenant.guard");
 const roles_guard_1 = require("./common/guards/roles.guard");
 const permissions_guard_1 = require("./common/guards/permissions.guard");
 const super_admin_module_1 = require("./super-admin/super-admin.module");
+const health_module_1 = require("./health/health.module");
 let AppModule = class AppModule {
     configure(consumer) {
         consumer.apply(tenant_context_middleware_1.TenantContextMiddleware).forRoutes('*');
@@ -65,6 +66,7 @@ exports.AppModule = AppModule = __decorate([
             rate_management_module_1.RateManagementModule,
             tenant_settings_module_1.TenantSettingsModule,
             super_admin_module_1.SuperAdminModule,
+            health_module_1.HealthModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [
