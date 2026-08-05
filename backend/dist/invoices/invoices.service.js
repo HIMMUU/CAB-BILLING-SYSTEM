@@ -108,9 +108,9 @@ let InvoicesService = class InvoicesService {
             mcd += Number(trip.mcdCharged || 0);
             nightCharges += Number(trip.nightChargesCharged);
             miscCharges +=
-                Number(trip.extraHoursCharged) +
-                    Number(trip.driverAllowance) +
-                    Number(trip.miscChargesCharged);
+                Number(trip.extraHoursCharged || 0) +
+                    Number(trip.driverAllowance || 0) +
+                    Number(trip.miscChargesCharged || trip.extraCharges || 0);
         }
         const subtotal = baseFare +
             extraKm +
@@ -231,10 +231,10 @@ let InvoicesService = class InvoicesService {
                     Number(trip.parking) +
                     Number(trip.stateTaxCharged || 0) +
                     Number(trip.mcdCharged || 0) +
-                    Number(trip.nightChargesCharged) +
-                    Number(trip.extraHoursCharged) +
-                    Number(trip.driverAllowance) +
-                    Number(trip.miscChargesCharged);
+                    Number(trip.nightChargesCharged || 0) +
+                    Number(trip.extraHoursCharged || 0) +
+                    Number(trip.driverAllowance || 0) +
+                    Number(trip.miscChargesCharged || trip.extraCharges || 0);
                 const description = `Duty Slip: ${trip.dutySlip.dutySlipNumber}, Route: ${trip.booking.pickupLocation} to ${trip.booking.dropLocation}`;
                 await tx.invoiceItem.create({
                     data: {
@@ -640,10 +640,10 @@ let InvoicesService = class InvoicesService {
                 Number(trip.parking) +
                 Number(trip.stateTaxCharged || 0) +
                 Number(trip.mcdCharged || 0) +
-                Number(trip.nightChargesCharged) +
-                Number(trip.extraHoursCharged) +
-                Number(trip.driverAllowance) +
-                Number(trip.miscChargesCharged);
+                Number(trip.nightChargesCharged || 0) +
+                Number(trip.extraHoursCharged || 0) +
+                Number(trip.driverAllowance || 0) +
+                Number(trip.miscChargesCharged || trip.extraCharges || 0);
             const description = `Duty Slip: ${trip.dutySlip.dutySlipNumber}, Route: ${trip.booking.pickupLocation} to ${trip.booking.dropLocation}`;
             await this.prisma.invoiceItem.create({
                 data: {
@@ -1136,6 +1136,7 @@ let InvoicesService = class InvoicesService {
                     let customParticulars = [];
                     let isFlexibleDuty = false;
                     let userRemarksText = (ds.remarks || booking.remarks || '').trim();
+                    let flexibleMiscCharges = 0;
                     try {
                         if (userRemarksText.startsWith('{')) {
                             const parsed = JSON.parse(userRemarksText);
@@ -1143,6 +1144,9 @@ let InvoicesService = class InvoicesService {
                                 isFlexibleDuty = true;
                                 customParticulars = parsed.items;
                                 userRemarksText = (parsed.userNotes || '').trim();
+                                if (typeof parsed.miscCharges !== 'undefined') {
+                                    flexibleMiscCharges = Number(parsed.miscCharges || 0);
+                                }
                             }
                         }
                     }
@@ -1262,22 +1266,29 @@ let InvoicesService = class InvoicesService {
                             amount: Number(trip.mcdCharged).toFixed(2),
                         });
                     }
-                    if (Number(trip.miscChargesCharged) > 0) {
+                    let actualMiscCharges = Number(trip.miscChargesCharged || trip.extraCharges || 0);
+                    if (isFlexibleDuty) {
+                        const customSum = customParticulars.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+                        if (flexibleMiscCharges > 0 || Math.abs(actualMiscCharges - customSum) < 0.01) {
+                            actualMiscCharges = flexibleMiscCharges;
+                        }
+                    }
+                    if (actualMiscCharges > 0) {
                         particularsRows.push({
                             label: 'Other/Misc Charges',
-                            amount: Number(trip.miscChargesCharged).toFixed(2),
+                            amount: actualMiscCharges.toFixed(2),
                         });
                     }
-                    const tripSubtotal = Number(trip.baseFareCharged) +
-                        Number(trip.extraKmCharged) +
-                        Number(trip.toll) +
-                        Number(trip.parking) +
+                    const tripSubtotal = Number(trip.baseFareCharged || 0) +
+                        Number(trip.extraKmCharged || 0) +
+                        Number(trip.toll || 0) +
+                        Number(trip.parking || 0) +
                         Number(trip.stateTaxCharged || 0) +
                         Number(trip.mcdCharged || 0) +
-                        Number(trip.nightChargesCharged) +
-                        Number(trip.extraHoursCharged) +
-                        Number(trip.driverAllowance) +
-                        Number(trip.miscChargesCharged);
+                        Number(trip.nightChargesCharged || 0) +
+                        Number(trip.extraHoursCharged || 0) +
+                        Number(trip.driverAllowance || 0) +
+                        actualMiscCharges;
                     particularsRows.push({
                         label: 'DUTY SLIP TOTAL',
                         amount: tripSubtotal.toFixed(2),
@@ -1392,7 +1403,7 @@ let InvoicesService = class InvoicesService {
                         Number(trip.parking || 0) +
                         Number(trip.stateTaxCharged || 0) +
                         Number(trip.mcdCharged || 0) +
-                        Number(trip.miscChargesCharged || 0);
+                        Number(trip.miscChargesCharged || trip.extraCharges || 0);
             }
             doc.rect(50, footerY, 495, 70).stroke('#CBD5E1');
             doc

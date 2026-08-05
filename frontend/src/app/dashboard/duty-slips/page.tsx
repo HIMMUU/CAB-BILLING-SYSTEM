@@ -880,7 +880,7 @@ export default function DutySlipsPage() {
     const isFlexibleDuty = df.dutyType === 'FLEXIBLE';
     const customSubtotal = isFlexibleDuty
       ? customParticulars.reduce((sum, p) => sum + Number(p.amount || 0), 0)
-      : Number(df.extraCharges) || 0;
+      : 0;
 
     let payloadRemarks = df.remarks || '';
     if (isFlexibleDuty) {
@@ -888,13 +888,14 @@ export default function DutySlipsPage() {
         isFlexible: true,
         items: customParticulars,
         userNotes: df.remarks || '',
+        miscCharges: Number(df.extraCharges) || 0,
       });
     }
 
-    const calcExtraCharges = customSubtotal;
+    const calcExtraCharges = Number(df.extraCharges) || 0;
     const calcDriverAllowance = isFlexibleDuty ? 0 : (df.includeDriverAllowance ? (Number(df.driverAllowance) || 0) : 0);
     const calcNightCharges = isFlexibleDuty ? 0 : (df.includeNightCharges ? (Number(df.nightChargesOnTime) || 0) : 0);
-    const calcBaseFare = isFlexibleDuty ? 0 : (Number(df.baseFare) || 0);
+    const calcBaseFare = isFlexibleDuty ? customSubtotal : (Number(df.baseFare) || 0);
     const calcExtraKm = isFlexibleDuty ? 0 : (Number(df.extraKmCharged) || 0);
     const calcExtraHours = isFlexibleDuty ? 0 : (Number(df.extraHoursCharged) || 0);
 

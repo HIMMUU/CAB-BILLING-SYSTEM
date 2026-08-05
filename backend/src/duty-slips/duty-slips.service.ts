@@ -1148,13 +1148,31 @@ export class DutySlipsService {
           sec6BoxY + 70,
         );
 
+      let extraChargesVal = Number(slip.extraCharges || 0);
+      try {
+        const remarksStr = ((slip as any).remarks || slip.booking?.remarks || '').trim();
+        if (remarksStr.startsWith('{')) {
+          const parsed = JSON.parse(remarksStr);
+          if (parsed.isFlexible) {
+            const customSum = Array.isArray(parsed.items)
+              ? parsed.items.reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0)
+              : 0;
+            if (typeof parsed.miscCharges !== 'undefined') {
+              extraChargesVal = Number(parsed.miscCharges || 0);
+            } else if (Math.abs(extraChargesVal - customSum) < 0.01) {
+              extraChargesVal = 0;
+            }
+          }
+        }
+      } catch (e) {}
+
       doc.font(fontBold).text('Extra / Misc Charges:', 60, sec6BoxY + 100);
       doc
         .font(fontRegular)
         .text(
           !isClosedOrFilled
             ? 'INR ___________'
-            : `INR ${Number(slip.extraCharges || 0).toFixed(2)}`,
+            : `INR ${extraChargesVal.toFixed(2)}`,
           180,
           sec6BoxY + 100,
         );
@@ -1166,7 +1184,7 @@ export class DutySlipsService {
         Number(slip.mcd || 0) +
         Number(slip.nightCharges || 0) +
         Number(slip.driverAllowance || 0) +
-        Number(slip.extraCharges || 0);
+        extraChargesVal;
       doc.font(fontBold).text('Total Incidentals:', 307, sec6BoxY + 100);
       if (!isClosedOrFilled) {
         doc
