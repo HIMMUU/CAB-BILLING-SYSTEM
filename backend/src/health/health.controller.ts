@@ -19,7 +19,9 @@ export class HealthController {
     const logMsg = `⚡ [30s KEEP-ALIVE PING #${this.pingCount}] ${timestamp} | Status: 200 OK | Server Uptime: ${uptimeSeconds}s | RAM RSS: ${rssMb}MB | Heap: ${heapUsedMb}MB`;
 
     // Standard console log (visible in raw stdout/stderr logs on Render & Docker)
-    console.log(`\n=======================================================\n${logMsg}\n=======================================================\n`);
+    console.log(
+      `\n=======================================================\n${logMsg}\n=======================================================\n`,
+    );
 
     // NestJS structured logger
     this.logger.log(logMsg);

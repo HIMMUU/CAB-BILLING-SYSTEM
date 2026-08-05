@@ -180,7 +180,9 @@ let InvoicesService = class InvoicesService {
         let isUnique = false;
         let currentInvVal = Math.max(startNum, countInvoices + startNum);
         while (!isUnique) {
-            invoiceNumber = prefix ? `${prefix}${currentInvVal}` : String(currentInvVal);
+            invoiceNumber = prefix
+                ? `${prefix}${currentInvVal}`
+                : String(currentInvVal);
             const existing = await this.prisma.invoice.findFirst({
                 where: { tenantId: trips[0].tenantId, invoiceNumber },
             });
@@ -499,9 +501,15 @@ let InvoicesService = class InvoicesService {
             const mcd = Number(invoice.mcd || 0);
             const stateTax = Number(invoice.stateTax || 0);
             const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd + stateTax));
-            const cgstRate = dto.cgstRate !== undefined ? dto.cgstRate : Number(invoice.cgstRate || 0);
-            const sgstRate = dto.sgstRate !== undefined ? dto.sgstRate : Number(invoice.sgstRate || 0);
-            const igstRate = dto.igstRate !== undefined ? dto.igstRate : Number(invoice.igstRate || 0);
+            const cgstRate = dto.cgstRate !== undefined
+                ? dto.cgstRate
+                : Number(invoice.cgstRate || 0);
+            const sgstRate = dto.sgstRate !== undefined
+                ? dto.sgstRate
+                : Number(invoice.sgstRate || 0);
+            const igstRate = dto.igstRate !== undefined
+                ? dto.igstRate
+                : Number(invoice.igstRate || 0);
             const cgstAmount = (gstTaxableAmount * cgstRate) / 100;
             const sgstAmount = (gstTaxableAmount * sgstRate) / 100;
             const igstAmount = (gstTaxableAmount * igstRate) / 100;
@@ -528,7 +536,8 @@ let InvoicesService = class InvoicesService {
                 else if (newPaid > 0) {
                     data.status = client_1.InvoiceStatus.PARTIALLY_PAID;
                 }
-                else if (invoice.status !== client_1.InvoiceStatus.CANCELLED && invoice.status !== client_1.InvoiceStatus.VOID) {
+                else if (invoice.status !== client_1.InvoiceStatus.CANCELLED &&
+                    invoice.status !== client_1.InvoiceStatus.VOID) {
                     data.status = client_1.InvoiceStatus.UNPAID;
                 }
             }
@@ -589,7 +598,8 @@ let InvoicesService = class InvoicesService {
     }
     async removeItemFromInvoice(invoiceId, itemId) {
         const invoice = await this.findOne(invoiceId);
-        if (invoice.status === client_1.InvoiceStatus.CANCELLED || invoice.status === client_1.InvoiceStatus.VOID) {
+        if (invoice.status === client_1.InvoiceStatus.CANCELLED ||
+            invoice.status === client_1.InvoiceStatus.VOID) {
             throw new common_1.BadRequestException('Cannot modify items on a cancelled invoice');
         }
         const item = await this.prisma.invoiceItem.findFirst({
@@ -605,7 +615,8 @@ let InvoicesService = class InvoicesService {
     }
     async addTripsToInvoice(invoiceId, tripIds) {
         const invoice = await this.findOne(invoiceId);
-        if (invoice.status === client_1.InvoiceStatus.CANCELLED || invoice.status === client_1.InvoiceStatus.VOID) {
+        if (invoice.status === client_1.InvoiceStatus.CANCELLED ||
+            invoice.status === client_1.InvoiceStatus.VOID) {
             throw new common_1.BadRequestException('Cannot add items to a cancelled invoice');
         }
         if (!tripIds || tripIds.length === 0) {
@@ -716,7 +727,8 @@ let InvoicesService = class InvoicesService {
         const paidAmount = Number(invoice.paidAmount || 0);
         const dueAmount = Math.max(0, totalAmount - paidAmount);
         let status = invoice.status;
-        if (status !== client_1.InvoiceStatus.CANCELLED && status !== client_1.InvoiceStatus.VOID) {
+        if (status !== client_1.InvoiceStatus.CANCELLED &&
+            status !== client_1.InvoiceStatus.VOID) {
             if (dueAmount === 0 && totalAmount > 0) {
                 status = client_1.InvoiceStatus.PAID;
             }
@@ -880,8 +892,7 @@ let InvoicesService = class InvoicesService {
                         console.warn('Failed to parse base64 digital signature:', e.message);
                     }
                 }
-                if (sigUrl.startsWith('http://') ||
-                    sigUrl.startsWith('https://')) {
+                if (sigUrl.startsWith('http://') || sigUrl.startsWith('https://')) {
                     try {
                         const res = await fetch(sigUrl, {
                             signal: AbortSignal.timeout(3000),
@@ -1115,9 +1126,7 @@ let InvoicesService = class InvoicesService {
                         continue;
                     const ds = trip.dutySlip;
                     const booking = trip.booking;
-                    const travelDate = ds?.startDateTime ||
-                        ds?.reportingTime ||
-                        booking?.pickupDate;
+                    const travelDate = ds?.startDateTime || ds?.reportingTime || booking?.pickupDate;
                     const dateStr = travelDate
                         ? new Date(travelDate).toLocaleDateString('en-GB')
                         : 'N/A';
@@ -1152,9 +1161,13 @@ let InvoicesService = class InvoicesService {
                     }
                     catch (e) { }
                     if (isFlexibleDuty) {
-                        particularsRows.push({ label: 'FLEXIBLE DUTY SLIP (MANUAL BILLING)' });
+                        particularsRows.push({
+                            label: 'FLEXIBLE DUTY SLIP (MANUAL BILLING)',
+                        });
                         if (booking.tripType === client_1.TripType.OUTSTATION && userRemarksText) {
-                            particularsRows.push({ label: `Remarks: ${userRemarksText.toUpperCase()}` });
+                            particularsRows.push({
+                                label: `Remarks: ${userRemarksText.toUpperCase()}`,
+                            });
                         }
                         for (const item of customParticulars) {
                             const rateVal = Number(item.rate) || 0;
@@ -1269,7 +1282,8 @@ let InvoicesService = class InvoicesService {
                     let actualMiscCharges = Number(trip.miscChargesCharged || trip.extraCharges || 0);
                     if (isFlexibleDuty) {
                         const customSum = customParticulars.reduce((s, i) => s + (Number(i.amount) || 0), 0);
-                        if (flexibleMiscCharges > 0 || Math.abs(actualMiscCharges - customSum) < 0.01) {
+                        if (flexibleMiscCharges > 0 ||
+                            Math.abs(actualMiscCharges - customSum) < 0.01) {
                             actualMiscCharges = flexibleMiscCharges;
                         }
                     }
@@ -1498,14 +1512,31 @@ let InvoicesService = class InvoicesService {
             if (hasPayment) {
                 doc.fillColor(primaryColor).fontSize(7.5).font(fontBold);
                 doc.text('TOTAL AMOUNT:', 355, totalBoxY + 5);
-                doc.fillColor('#0F172A').text(grandTotal.toFixed(2), 480, totalBoxY + 5, { width: 60, align: 'right' });
+                doc
+                    .fillColor('#0F172A')
+                    .text(grandTotal.toFixed(2), 480, totalBoxY + 5, {
+                    width: 60,
+                    align: 'right',
+                });
                 doc.fillColor('#15803D').fontSize(7.5).font(fontBold);
                 doc.text('LESS: RECEIVED:', 355, totalBoxY + 16);
-                doc.text(`-${paidAmountVal.toFixed(2)}`, 480, totalBoxY + 16, { width: 60, align: 'right' });
-                doc.moveTo(350, totalBoxY + 27).lineTo(545, totalBoxY + 27).stroke('#CBD5E1');
-                doc.fillColor(dueAmountVal > 0 ? '#B91C1C' : '#15803D').fontSize(8.5).font(fontBold);
+                doc.text(`-${paidAmountVal.toFixed(2)}`, 480, totalBoxY + 16, {
+                    width: 60,
+                    align: 'right',
+                });
+                doc
+                    .moveTo(350, totalBoxY + 27)
+                    .lineTo(545, totalBoxY + 27)
+                    .stroke('#CBD5E1');
+                doc
+                    .fillColor(dueAmountVal > 0 ? '#B91C1C' : '#15803D')
+                    .fontSize(8.5)
+                    .font(fontBold);
                 doc.text(dueAmountVal > 0 ? 'BALANCE DUE:' : 'NET DUE (PAID):', 355, totalBoxY + 30);
-                doc.text(dueAmountVal.toFixed(2), 480, totalBoxY + 30, { width: 60, align: 'right' });
+                doc.text(dueAmountVal.toFixed(2), 480, totalBoxY + 30, {
+                    width: 60,
+                    align: 'right',
+                });
             }
             else {
                 if (isRefined) {

@@ -43,16 +43,20 @@ let TenantSettingsService = class TenantSettingsService {
         if (!tenantId) {
             throw new common_1.NotFoundException('No active tenant context found');
         }
-        if (dto.invoiceStartingNumber !== undefined && dto.invoiceStartingNumber !== null) {
+        if (dto.invoiceStartingNumber !== undefined &&
+            dto.invoiceStartingNumber !== null) {
             dto.invoiceStartingNumber = Number(dto.invoiceStartingNumber) || 1001;
         }
-        if (dto.bookingStartingNumber !== undefined && dto.bookingStartingNumber !== null) {
+        if (dto.bookingStartingNumber !== undefined &&
+            dto.bookingStartingNumber !== null) {
             dto.bookingStartingNumber = Number(dto.bookingStartingNumber) || 1001;
         }
-        if (dto.dutySlipStartingNumber !== undefined && dto.dutySlipStartingNumber !== null) {
+        if (dto.dutySlipStartingNumber !== undefined &&
+            dto.dutySlipStartingNumber !== null) {
             dto.dutySlipStartingNumber = Number(dto.dutySlipStartingNumber) || 1001;
         }
-        if (dto.fiscalYearStartMonth !== undefined && dto.fiscalYearStartMonth !== null) {
+        if (dto.fiscalYearStartMonth !== undefined &&
+            dto.fiscalYearStartMonth !== null) {
             dto.fiscalYearStartMonth = Number(dto.fiscalYearStartMonth) || 4;
         }
         if (dto.companyGst === '') {
@@ -104,17 +108,26 @@ let TenantSettingsService = class TenantSettingsService {
             data.currentFiscalYear = body.newFiscalYear;
         }
         if (body.resetInvoices !== false) {
-            data.invoiceStartingNumber = body.newInvoiceStartingNumber !== undefined ? body.newInvoiceStartingNumber : 1001;
+            data.invoiceStartingNumber =
+                body.newInvoiceStartingNumber !== undefined
+                    ? body.newInvoiceStartingNumber
+                    : 1001;
             if (body.newInvoicePrefix)
                 data.invoicePrefix = body.newInvoicePrefix;
         }
         if (body.resetBookings !== false) {
-            data.bookingStartingNumber = body.newBookingStartingNumber !== undefined ? body.newBookingStartingNumber : 1001;
+            data.bookingStartingNumber =
+                body.newBookingStartingNumber !== undefined
+                    ? body.newBookingStartingNumber
+                    : 1001;
             if (body.newBookingPrefix)
                 data.bookingPrefix = body.newBookingPrefix;
         }
         if (body.resetDutySlips !== false) {
-            data.dutySlipStartingNumber = body.newDutySlipStartingNumber !== undefined ? body.newDutySlipStartingNumber : 1001;
+            data.dutySlipStartingNumber =
+                body.newDutySlipStartingNumber !== undefined
+                    ? body.newDutySlipStartingNumber
+                    : 1001;
             if (body.newDutySlipPrefix)
                 data.dutySlipPrefix = body.newDutySlipPrefix;
         }

@@ -790,12 +790,10 @@ export class DutySlipsService {
       if (addressStr) {
         doc.fontSize(8.5).font(fontRegular);
         const addrHeight = doc.heightOfString(addressStr, { width: textWidth });
-        doc
-          .fillColor('#475569')
-          .text(addressStr, textStartX, currentHeaderY, {
-            width: textWidth,
-            align: 'left',
-          });
+        doc.fillColor('#475569').text(addressStr, textStartX, currentHeaderY, {
+          width: textWidth,
+          align: 'left',
+        });
         currentHeaderY += addrHeight + 3;
       }
 
@@ -820,7 +818,11 @@ export class DutySlipsService {
       // Draw horizontal divider line
       const lineY = Math.max(currentHeaderY + 4, 82);
       if (isRefined) {
-        doc.moveTo(50, lineY).lineTo(545, lineY).lineWidth(1).stroke(primaryColor);
+        doc
+          .moveTo(50, lineY)
+          .lineTo(545, lineY)
+          .lineWidth(1)
+          .stroke(primaryColor);
         doc
           .moveTo(50, lineY + 2.5)
           .lineTo(545, lineY + 2.5)
@@ -828,7 +830,11 @@ export class DutySlipsService {
           .stroke(primaryColor);
         doc.lineWidth(1); // reset line width
       } else {
-        doc.moveTo(50, lineY).lineTo(545, lineY).lineWidth(0.5).stroke('#CBD5E1');
+        doc
+          .moveTo(50, lineY)
+          .lineTo(545, lineY)
+          .lineWidth(0.5)
+          .stroke('#CBD5E1');
       }
 
       // Reset text settings
@@ -838,9 +844,15 @@ export class DutySlipsService {
 
       // Section 1: Slip and Booking Info Metadata Table (Without Slip Status)
       doc.rect(50, tableStartY, 495, 52).stroke('#E2E8F0');
-      doc.moveTo(50, tableStartY + 26).lineTo(545, tableStartY + 26).stroke('#E2E8F0');
+      doc
+        .moveTo(50, tableStartY + 26)
+        .lineTo(545, tableStartY + 26)
+        .stroke('#E2E8F0');
       if (!isRefined) {
-        doc.moveTo(297, tableStartY).lineTo(297, tableStartY + 26).stroke('#E2E8F0');
+        doc
+          .moveTo(297, tableStartY)
+          .lineTo(297, tableStartY + 26)
+          .stroke('#E2E8F0');
       }
 
       // Row 1 Columns
@@ -853,14 +865,17 @@ export class DutySlipsService {
 
       // Row 2 Column: Trip Date & Time and Status
       doc.font(fontBold).text('Trip Date & Time:', 60, tableStartY + 33);
-      const tripDateVal = slip.startDateTime || slip.reportingTime || slip.booking?.pickupDate;
+      const tripDateVal =
+        slip.startDateTime || slip.reportingTime || slip.booking?.pickupDate;
       const repDate = new Date(tripDateVal).toLocaleDateString('en-GB');
       const repTime = new Date(tripDateVal).toLocaleTimeString('en-GB', {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false,
       });
-      doc.font(fontRegular).text(`${repDate} ${repTime}`, 180, tableStartY + 33);
+      doc
+        .font(fontRegular)
+        .text(`${repDate} ${repTime}`, 180, tableStartY + 33);
 
       doc.font(fontBold).text('Status:', 307, tableStartY + 33);
       const statusColor =
@@ -878,17 +893,24 @@ export class DutySlipsService {
       // Section 2: Customer & Route Information Card (With Duty Type)
       const sec2TitleY = tableStartY + 60;
       const sec2BoxY = sec2TitleY + 15;
-      doc.fontSize(12).font(fontBold).text('Customer & Route Details', 50, sec2TitleY);
+      doc
+        .fontSize(12)
+        .font(fontBold)
+        .text('Customer & Route Details', 50, sec2TitleY);
       doc.rect(50, sec2BoxY, 495, 95).stroke('#E2E8F0');
 
       const custName = slip.booking?.customer?.name
         ? slip.booking.customer.name +
-          (slip.booking.customer.companyName && slip.booking.customer.companyName !== slip.booking.customer.name
+          (slip.booking.customer.companyName &&
+          slip.booking.customer.companyName !== slip.booking.customer.name
             ? ` (${slip.booking.customer.companyName})`
             : '')
         : (slip as any).manualCustomerName || 'Direct Customer';
 
-      doc.fontSize(10).font(fontBold).text('Customer Name:', 60, sec2BoxY + 8);
+      doc
+        .fontSize(10)
+        .font(fontBold)
+        .text('Customer Name:', 60, sec2BoxY + 8);
       doc.font(fontRegular).text(custName, 150, sec2BoxY + 8, {
         width: 150,
         height: 14,
@@ -899,7 +921,8 @@ export class DutySlipsService {
       const guestDisplay =
         (slip.booking?.guestSalutation
           ? slip.booking.guestSalutation + ' '
-          : '') + (slip.booking?.guestName || (slip as any).manualGuestName || '---');
+          : '') +
+        (slip.booking?.guestName || (slip as any).manualGuestName || '---');
       doc.font(fontBold).text('Guest Name:', 307, sec2BoxY + 8);
       doc.font(fontRegular).text(guestDisplay, 375, sec2BoxY + 8, {
         width: 160,
@@ -908,7 +931,10 @@ export class DutySlipsService {
         ellipsis: true,
       });
 
-      const dutyTypeVal = (slip.booking?.tripType || 'LOCAL').replace(/_/g, ' ');
+      const dutyTypeVal = (slip.booking?.tripType || 'LOCAL').replace(
+        /_/g,
+        ' ',
+      );
       doc.font(fontBold).text('Duty Type:', 60, sec2BoxY + 23);
       doc.font(fontRegular).text(dutyTypeVal, 150, sec2BoxY + 23, {
         width: 100,
@@ -935,8 +961,12 @@ export class DutySlipsService {
         ellipsis: true,
       });
 
-      const pickupLoc = slip.booking?.pickupLocation || (slip as any).manualPickupLocation || '---';
-      const dropLoc = slip.booking?.dropLocation || (slip as any).manualDropLocation || '---';
+      const pickupLoc =
+        slip.booking?.pickupLocation ||
+        (slip as any).manualPickupLocation ||
+        '---';
+      const dropLoc =
+        slip.booking?.dropLocation || (slip as any).manualDropLocation || '---';
 
       doc.font(fontBold).text('Pickup Address:', 60, sec2BoxY + 40);
       doc.font(fontRegular).text(pickupLoc, 150, sec2BoxY + 40, {
@@ -957,14 +987,23 @@ export class DutySlipsService {
       // Section 3: Driver & Vehicle Allocation Details (VEHICLE NUMBER)
       const sec3TitleY = sec2BoxY + 110;
       const sec3BoxY = sec3TitleY + 15;
-      doc.fontSize(12).font(fontBold).text('Allocated Resources', 50, sec3TitleY);
+      doc
+        .fontSize(12)
+        .font(fontBold)
+        .text('Allocated Resources', 50, sec3TitleY);
       doc.rect(50, sec3BoxY, 495, 40).stroke('#E2E8F0');
       if (!isRefined) {
-        doc.moveTo(297, sec3BoxY).lineTo(297, sec3BoxY + 40).stroke('#E2E8F0');
+        doc
+          .moveTo(297, sec3BoxY)
+          .lineTo(297, sec3BoxY + 40)
+          .stroke('#E2E8F0');
       }
 
       // Left Column (Driver)
-      doc.fontSize(10).font(fontBold).text('Driver Name:', 60, sec3BoxY + 12);
+      doc
+        .fontSize(10)
+        .font(fontBold)
+        .text('Driver Name:', 60, sec3BoxY + 12);
       doc.font(fontRegular).text(slip.driver.name, 150, sec3BoxY + 12, {
         width: 140,
         height: 14,
@@ -974,21 +1013,28 @@ export class DutySlipsService {
 
       // Right Column (Vehicle Number & Car Type)
       doc.font(fontBold).text('VEHICLE NUMBER:', 307, sec3BoxY + 7);
-      doc.font(fontRegular).text(slip.vehicle.vehicleNumber, 415, sec3BoxY + 7, {
-        width: 120,
-        height: 14,
-        lineBreak: false,
-        ellipsis: true,
-      });
-      doc.font(fontBold).text('CAR TYPE:', 307, sec3BoxY + 22);
       doc
         .font(fontRegular)
-        .text(`${slip.vehicle.model} (${slip.vehicle.vehicleType})`, 380, sec3BoxY + 22, {
-          width: 155,
+        .text(slip.vehicle.vehicleNumber, 415, sec3BoxY + 7, {
+          width: 120,
           height: 14,
           lineBreak: false,
           ellipsis: true,
         });
+      doc.font(fontBold).text('CAR TYPE:', 307, sec3BoxY + 22);
+      doc
+        .font(fontRegular)
+        .text(
+          `${slip.vehicle.model} (${slip.vehicle.vehicleType})`,
+          380,
+          sec3BoxY + 22,
+          {
+            width: 155,
+            height: 14,
+            lineBreak: false,
+            ellipsis: true,
+          },
+        );
 
       // Section 4: Trip Details
       const sec4TitleY = sec3BoxY + 50;
@@ -996,11 +1042,18 @@ export class DutySlipsService {
       doc.fontSize(12).font(fontBold).text('Trip Details', 50, sec4TitleY);
       doc.rect(50, sec4BoxY, 495, 45).stroke('#E2E8F0');
       if (!isRefined) {
-        doc.moveTo(297, sec4BoxY).lineTo(297, sec4BoxY + 45).stroke('#E2E8F0');
+        doc
+          .moveTo(297, sec4BoxY)
+          .lineTo(297, sec4BoxY + 45)
+          .stroke('#E2E8F0');
       }
 
-      const reqVehicleStr = slip.booking?.vehicleTypeRequired || slip.vehicle.vehicleType;
-      doc.fontSize(9.5).font(fontBold).text('Req. Vehicle:', 60, sec4BoxY + 9);
+      const reqVehicleStr =
+        slip.booking?.vehicleTypeRequired || slip.vehicle.vehicleType;
+      doc
+        .fontSize(9.5)
+        .font(fontBold)
+        .text('Req. Vehicle:', 60, sec4BoxY + 9);
       doc.font(fontRegular).text(reqVehicleStr, 150, sec4BoxY + 9, {
         width: 140,
         height: 14,
@@ -1008,34 +1061,71 @@ export class DutySlipsService {
         ellipsis: true,
       });
 
-      const driverRemarksVal = ((slip as any).remarks || slip.booking?.remarks || '').trim();
+      const driverRemarksVal = (
+        (slip as any).remarks ||
+        slip.booking?.remarks ||
+        ''
+      ).trim();
       doc.font(fontBold).text('Driver Notes:', 307, sec4BoxY + 9);
-      doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal.slice(0, 25) : '____________________', 380, sec4BoxY + 9, {
-        width: 155,
-        height: 14,
-        lineBreak: false,
-        ellipsis: true,
-      });
+      doc
+        .font(fontRegular)
+        .text(
+          driverRemarksVal
+            ? driverRemarksVal.slice(0, 25)
+            : '____________________',
+          380,
+          sec4BoxY + 9,
+          {
+            width: 155,
+            height: 14,
+            lineBreak: false,
+            ellipsis: true,
+          },
+        );
 
       doc.font(fontBold).text('Driver Remarks:', 60, sec4BoxY + 27);
-      doc.font(fontRegular).text(driverRemarksVal ? driverRemarksVal : '__________________________________________________________', 150, sec4BoxY + 27, {
-        width: 380,
-        height: 14,
-        lineBreak: false,
-        ellipsis: true,
-      });
+      doc
+        .font(fontRegular)
+        .text(
+          driverRemarksVal
+            ? driverRemarksVal
+            : '__________________________________________________________',
+          150,
+          sec4BoxY + 27,
+          {
+            width: 380,
+            height: 14,
+            lineBreak: false,
+            ellipsis: true,
+          },
+        );
 
       // Section 5: Operational Trip Logs
       const sec5TitleY = sec4BoxY + 55;
       const sec5BoxY = sec5TitleY + 15;
-      doc.fontSize(12).font(fontBold).text('Operational Trip Logs', 50, sec5TitleY);
+      doc
+        .fontSize(12)
+        .font(fontBold)
+        .text('Operational Trip Logs', 50, sec5TitleY);
 
       doc.rect(50, sec5BoxY, 495, 70).stroke('#E2E8F0');
-      doc.moveTo(50, sec5BoxY + 30).lineTo(545, sec5BoxY + 30).stroke('#E2E8F0');
+      doc
+        .moveTo(50, sec5BoxY + 30)
+        .lineTo(545, sec5BoxY + 30)
+        .stroke('#E2E8F0');
       if (!isRefined) {
-        doc.moveTo(165, sec5BoxY).lineTo(165, sec5BoxY + 70).stroke('#E2E8F0');
-        doc.moveTo(280, sec5BoxY).lineTo(280, sec5BoxY + 70).stroke('#E2E8F0');
-        doc.moveTo(395, sec5BoxY).lineTo(395, sec5BoxY + 70).stroke('#E2E8F0');
+        doc
+          .moveTo(165, sec5BoxY)
+          .lineTo(165, sec5BoxY + 70)
+          .stroke('#E2E8F0');
+        doc
+          .moveTo(280, sec5BoxY)
+          .lineTo(280, sec5BoxY + 70)
+          .stroke('#E2E8F0');
+        doc
+          .moveTo(395, sec5BoxY)
+          .lineTo(395, sec5BoxY + 70)
+          .stroke('#E2E8F0');
       }
 
       // Table Header Row
@@ -1047,14 +1137,23 @@ export class DutySlipsService {
 
       // Resolve Start/End Values
       const hasStartKm = slip.startKm !== null && slip.startKm !== undefined;
-      const startKmVal = hasStartKm ? Number(slip.startKm) : (slip.trip?.startKm ? Number(slip.trip.startKm) : null);
-      const startKmDisplay = startKmVal !== null ? `${startKmVal.toFixed(2)} KM` : '___________ KM';
+      const startKmVal = hasStartKm
+        ? Number(slip.startKm)
+        : slip.trip?.startKm
+          ? Number(slip.trip.startKm)
+          : null;
+      const startKmDisplay =
+        startKmVal !== null ? `${startKmVal.toFixed(2)} KM` : '___________ KM';
 
       const endKmRaw = slip.endKm || slip.trip?.endKm;
-      const hasEndKm = endKmRaw !== null && endKmRaw !== undefined && Number(endKmRaw) > 0;
-      const endKmDisplay = hasEndKm ? `${Number(endKmRaw).toFixed(2)} KM` : '___________ KM';
+      const hasEndKm =
+        endKmRaw !== null && endKmRaw !== undefined && Number(endKmRaw) > 0;
+      const endKmDisplay = hasEndKm
+        ? `${Number(endKmRaw).toFixed(2)} KM`
+        : '___________ KM';
 
-      const sDateVal = slip.startDateTime || slip.reportingTime || slip.trip?.startDateTime;
+      const sDateVal =
+        slip.startDateTime || slip.reportingTime || slip.trip?.startDateTime;
       const sDateDisplay = sDateVal
         ? `${new Date(sDateVal).toLocaleDateString('en-GB')} ${new Date(sDateVal).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}`
         : '___/___/___  ___:___';
@@ -1080,21 +1179,36 @@ export class DutySlipsService {
         .text('Tolls & Incidentals Breakdown', 50, sec6TitleY);
 
       doc.rect(50, sec6BoxY, 495, 120).stroke('#E2E8F0');
-      doc.moveTo(50, sec6BoxY + 30).lineTo(545, sec6BoxY + 30).stroke('#E2E8F0');
-      doc.moveTo(50, sec6BoxY + 60).lineTo(545, sec6BoxY + 60).stroke('#E2E8F0');
-      doc.moveTo(50, sec6BoxY + 90).lineTo(545, sec6BoxY + 90).stroke('#E2E8F0');
+      doc
+        .moveTo(50, sec6BoxY + 30)
+        .lineTo(545, sec6BoxY + 30)
+        .stroke('#E2E8F0');
+      doc
+        .moveTo(50, sec6BoxY + 60)
+        .lineTo(545, sec6BoxY + 60)
+        .stroke('#E2E8F0');
+      doc
+        .moveTo(50, sec6BoxY + 90)
+        .lineTo(545, sec6BoxY + 90)
+        .stroke('#E2E8F0');
       if (!isRefined) {
-        doc.moveTo(297, sec6BoxY).lineTo(297, sec6BoxY + 120).stroke('#E2E8F0');
+        doc
+          .moveTo(297, sec6BoxY)
+          .lineTo(297, sec6BoxY + 120)
+          .stroke('#E2E8F0');
       }
 
-      const isClosedOrFilled = slip.status !== 'DRAFT' || hasEndKm || !!slip.trip;
+      const isClosedOrFilled =
+        slip.status !== 'DRAFT' || hasEndKm || !!slip.trip;
 
       doc.fontSize(9.5).font(fontBold);
       doc.text('Toll Charges:', 60, sec6BoxY + 10);
       doc
         .font(fontRegular)
         .text(
-          !isClosedOrFilled ? 'INR ___________' : `INR ${Number(slip.toll || 0).toFixed(2)}`,
+          !isClosedOrFilled
+            ? 'INR ___________'
+            : `INR ${Number(slip.toll || 0).toFixed(2)}`,
           180,
           sec6BoxY + 10,
         );
@@ -1103,7 +1217,9 @@ export class DutySlipsService {
       doc
         .font(fontRegular)
         .text(
-          !isClosedOrFilled ? 'INR ___________' : `INR ${Number(slip.parking || 0).toFixed(2)}`,
+          !isClosedOrFilled
+            ? 'INR ___________'
+            : `INR ${Number(slip.parking || 0).toFixed(2)}`,
           420,
           sec6BoxY + 10,
         );
@@ -1112,7 +1228,9 @@ export class DutySlipsService {
       doc
         .font(fontRegular)
         .text(
-          !isClosedOrFilled ? 'INR ___________' : `INR ${Number(slip.stateTax || 0).toFixed(2)}`,
+          !isClosedOrFilled
+            ? 'INR ___________'
+            : `INR ${Number(slip.stateTax || 0).toFixed(2)}`,
           180,
           sec6BoxY + 40,
         );
@@ -1121,7 +1239,9 @@ export class DutySlipsService {
       doc
         .font(fontRegular)
         .text(
-          !isClosedOrFilled ? 'INR ___________' : `INR ${Number(slip.mcd || 0).toFixed(2)}`,
+          !isClosedOrFilled
+            ? 'INR ___________'
+            : `INR ${Number(slip.mcd || 0).toFixed(2)}`,
           420,
           sec6BoxY + 40,
         );
@@ -1150,12 +1270,19 @@ export class DutySlipsService {
 
       let extraChargesVal = Number(slip.extraCharges || 0);
       try {
-        const remarksStr = ((slip as any).remarks || slip.booking?.remarks || '').trim();
+        const remarksStr = (
+          (slip as any).remarks ||
+          slip.booking?.remarks ||
+          ''
+        ).trim();
         if (remarksStr.startsWith('{')) {
           const parsed = JSON.parse(remarksStr);
           if (parsed.isFlexible) {
             const customSum = Array.isArray(parsed.items)
-              ? parsed.items.reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0)
+              ? parsed.items.reduce(
+                  (s: number, i: any) => s + (Number(i.amount) || 0),
+                  0,
+                )
               : 0;
             if (typeof parsed.miscCharges !== 'undefined') {
               extraChargesVal = Number(parsed.miscCharges || 0);

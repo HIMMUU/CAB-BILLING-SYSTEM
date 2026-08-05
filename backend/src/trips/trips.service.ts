@@ -79,7 +79,8 @@ export class TripsService {
     }
 
     // 1. Find mapped VehicleCategory (check booking requested category first, fallback to vehicle type & model)
-    const categoryName = slip.booking?.vehicleTypeRequired || slip.vehicle?.vehicleType;
+    const categoryName =
+      slip.booking?.vehicleTypeRequired || slip.vehicle?.vehicleType;
     let category = categoryName
       ? await this.prisma.vehicleCategory.findFirst({
           where: {
@@ -317,7 +318,10 @@ export class TripsService {
       miscCharges;
 
     // 3. Calculate Taxes based on GST rates in the invoice
-    const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd + stateTax));
+    const gstTaxableAmount = Math.max(
+      0,
+      subtotal - (toll + parking + mcd + stateTax),
+    );
 
     const cgstRate = Number(invoice.cgstRate || 0);
     const sgstRate = Number(invoice.sgstRate || 0);

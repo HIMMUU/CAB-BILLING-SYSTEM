@@ -75,7 +75,8 @@ export class AssignmentsService {
         where: { tenantId: booking.tenantId, vehicleNumber: vNum },
       });
       if (!existingVehicle) {
-        const vType = dto.manualVehicleType || booking.vehicleTypeRequired || 'Sedan';
+        const vType =
+          dto.manualVehicleType || booking.vehicleTypeRequired || 'Sedan';
         existingVehicle = await this.prisma.vehicle.create({
           data: {
             tenantId: booking.tenantId,
@@ -95,7 +96,9 @@ export class AssignmentsService {
     }
 
     if (!targetDriverId || !targetVehicleId) {
-      throw new BadRequestException('Driver and Vehicle details must be provided');
+      throw new BadRequestException(
+        'Driver and Vehicle details must be provided',
+      );
     }
 
     // 2. Fetch driver and verify status

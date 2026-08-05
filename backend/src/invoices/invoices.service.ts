@@ -124,7 +124,10 @@ export class InvoicesService {
     const custStateCode = getGstStateCode(customerGst);
     const isSameState = compStateCode === custStateCode;
 
-    const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd + stateTax));
+    const gstTaxableAmount = Math.max(
+      0,
+      subtotal - (toll + parking + mcd + stateTax),
+    );
 
     let cgstRate = 0;
     let sgstRate = 0;
@@ -164,7 +167,8 @@ export class InvoicesService {
 
     // 5. Generate unique invoice number with tenant prefix & starting serial number
     const startNum = Number(tenant?.invoiceStartingNumber || 1001);
-    const prefix = tenant?.invoicePrefix !== undefined ? tenant.invoicePrefix : 'INV-2026-';
+    const prefix =
+      tenant?.invoicePrefix !== undefined ? tenant.invoicePrefix : 'INV-2026-';
     const countInvoices = await this.prisma.invoice.count({
       where: { tenantId: trips[0].tenantId },
     });
@@ -172,7 +176,9 @@ export class InvoicesService {
     let isUnique = false;
     let currentInvVal = Math.max(startNum, countInvoices + startNum);
     while (!isUnique) {
-      invoiceNumber = prefix ? `${prefix}${currentInvVal}` : String(currentInvVal);
+      invoiceNumber = prefix
+        ? `${prefix}${currentInvVal}`
+        : String(currentInvVal);
       const existing = await this.prisma.invoice.findFirst({
         where: { tenantId: trips[0].tenantId, invoiceNumber },
       });
@@ -351,7 +357,10 @@ export class InvoicesService {
       nightCharges +
       miscCharges;
 
-    const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd + stateTax));
+    const gstTaxableAmount = Math.max(
+      0,
+      subtotal - (toll + parking + mcd + stateTax),
+    );
 
     const cgstRate = Number(invoice.cgstRate || 0);
     const sgstRate = Number(invoice.sgstRate || 0);
@@ -512,7 +521,8 @@ export class InvoicesService {
 
       const data: any = {};
       if (dto.status !== undefined) data.status = dto.status;
-      if (dto.invoiceDate !== undefined) data.invoiceDate = new Date(dto.invoiceDate);
+      if (dto.invoiceDate !== undefined)
+        data.invoiceDate = new Date(dto.invoiceDate);
       if (dto.dueDate !== undefined) data.dueDate = new Date(dto.dueDate);
       if (dto.isRcm !== undefined) data.isRcm = dto.isRcm;
       if (dto.cgstRate !== undefined) data.cgstRate = dto.cgstRate;
@@ -524,11 +534,23 @@ export class InvoicesService {
       const parking = Number(invoice.parking || 0);
       const mcd = Number(invoice.mcd || 0);
       const stateTax = Number(invoice.stateTax || 0);
-      const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd + stateTax));
+      const gstTaxableAmount = Math.max(
+        0,
+        subtotal - (toll + parking + mcd + stateTax),
+      );
 
-      const cgstRate = dto.cgstRate !== undefined ? dto.cgstRate : Number(invoice.cgstRate || 0);
-      const sgstRate = dto.sgstRate !== undefined ? dto.sgstRate : Number(invoice.sgstRate || 0);
-      const igstRate = dto.igstRate !== undefined ? dto.igstRate : Number(invoice.igstRate || 0);
+      const cgstRate =
+        dto.cgstRate !== undefined
+          ? dto.cgstRate
+          : Number(invoice.cgstRate || 0);
+      const sgstRate =
+        dto.sgstRate !== undefined
+          ? dto.sgstRate
+          : Number(invoice.sgstRate || 0);
+      const igstRate =
+        dto.igstRate !== undefined
+          ? dto.igstRate
+          : Number(invoice.igstRate || 0);
 
       const cgstAmount = (gstTaxableAmount * cgstRate) / 100;
       const sgstAmount = (gstTaxableAmount * sgstRate) / 100;
@@ -545,7 +567,8 @@ export class InvoicesService {
       data.totalAmount = totalAmount;
 
       const currentPaid = Number(invoice.paidAmount);
-      const newPaid = dto.paidAmount !== undefined ? dto.paidAmount : currentPaid;
+      const newPaid =
+        dto.paidAmount !== undefined ? dto.paidAmount : currentPaid;
       const diff = newPaid - currentPaid;
 
       if (dto.paidAmount !== undefined) {
@@ -559,7 +582,10 @@ export class InvoicesService {
           data.status = InvoiceStatus.PAID;
         } else if (newPaid > 0) {
           data.status = InvoiceStatus.PARTIALLY_PAID;
-        } else if (invoice.status !== (InvoiceStatus as any).CANCELLED && invoice.status !== InvoiceStatus.VOID) {
+        } else if (
+          invoice.status !== (InvoiceStatus as any).CANCELLED &&
+          invoice.status !== InvoiceStatus.VOID
+        ) {
           data.status = InvoiceStatus.UNPAID;
         }
       }
@@ -631,8 +657,13 @@ export class InvoicesService {
 
   async removeItemFromInvoice(invoiceId: string, itemId: string) {
     const invoice = await this.findOne(invoiceId);
-    if (invoice.status === (InvoiceStatus as any).CANCELLED || invoice.status === InvoiceStatus.VOID) {
-      throw new BadRequestException('Cannot modify items on a cancelled invoice');
+    if (
+      invoice.status === (InvoiceStatus as any).CANCELLED ||
+      invoice.status === InvoiceStatus.VOID
+    ) {
+      throw new BadRequestException(
+        'Cannot modify items on a cancelled invoice',
+      );
     }
 
     const item = await this.prisma.invoiceItem.findFirst({
@@ -651,7 +682,10 @@ export class InvoicesService {
 
   async addTripsToInvoice(invoiceId: string, tripIds: string[]) {
     const invoice = await this.findOne(invoiceId);
-    if (invoice.status === (InvoiceStatus as any).CANCELLED || invoice.status === InvoiceStatus.VOID) {
+    if (
+      invoice.status === (InvoiceStatus as any).CANCELLED ||
+      invoice.status === InvoiceStatus.VOID
+    ) {
       throw new BadRequestException('Cannot add items to a cancelled invoice');
     }
 
@@ -664,7 +698,9 @@ export class InvoicesService {
     });
     if (existingItems.length > 0) {
       const alreadyInvoiced = existingItems.map((i) => i.tripId).join(', ');
-      throw new BadRequestException(`Trip(s) already invoiced: ${alreadyInvoiced}`);
+      throw new BadRequestException(
+        `Trip(s) already invoiced: ${alreadyInvoiced}`,
+      );
     }
 
     const trips = await this.prisma.trip.findMany({
@@ -681,7 +717,9 @@ export class InvoicesService {
 
     for (const t of trips) {
       if (t.booking.customerId !== invoice.customerId) {
-        throw new BadRequestException('Selected trip does not belong to this customer');
+        throw new BadRequestException(
+          'Selected trip does not belong to this customer',
+        );
       }
     }
 
@@ -762,7 +800,10 @@ export class InvoicesService {
       nightCharges +
       miscCharges;
 
-    const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd + stateTax));
+    const gstTaxableAmount = Math.max(
+      0,
+      subtotal - (toll + parking + mcd + stateTax),
+    );
     const cgstRate = Number(invoice.cgstRate || 0);
     const sgstRate = Number(invoice.sgstRate || 0);
     const igstRate = Number(invoice.igstRate || 0);
@@ -778,7 +819,10 @@ export class InvoicesService {
     const dueAmount = Math.max(0, totalAmount - paidAmount);
 
     let status = invoice.status;
-    if (status !== (InvoiceStatus as any).CANCELLED && status !== InvoiceStatus.VOID) {
+    if (
+      status !== (InvoiceStatus as any).CANCELLED &&
+      status !== InvoiceStatus.VOID
+    ) {
       if (dueAmount === 0 && totalAmount > 0) {
         status = InvoiceStatus.PAID;
       } else if (paidAmount > 0) {
@@ -968,14 +1012,14 @@ export class InvoicesService {
               const base64Data = sigUrl.split(',')[1];
               if (base64Data) return Buffer.from(base64Data, 'base64');
             } catch (e: any) {
-              console.warn('Failed to parse base64 digital signature:', e.message);
+              console.warn(
+                'Failed to parse base64 digital signature:',
+                e.message,
+              );
             }
           }
 
-          if (
-            sigUrl.startsWith('http://') ||
-            sigUrl.startsWith('https://')
-          ) {
+          if (sigUrl.startsWith('http://') || sigUrl.startsWith('https://')) {
             try {
               const res = await fetch(sigUrl, {
                 signal: AbortSignal.timeout(3000),
@@ -1304,9 +1348,7 @@ export class InvoicesService {
           const booking = trip.booking;
 
           const travelDate =
-            ds?.startDateTime ||
-            ds?.reportingTime ||
-            booking?.pickupDate;
+            ds?.startDateTime || ds?.reportingTime || booking?.pickupDate;
           const dateStr = travelDate
             ? new Date(travelDate).toLocaleDateString('en-GB')
             : 'N/A';
@@ -1333,7 +1375,12 @@ export class InvoicesService {
           particularsRows.push({ label: `Guest - ${guestVal}` });
 
           const defaultRoute = `${booking.pickupLocation.toUpperCase()} TO ${booking.dropLocation.toUpperCase()}`;
-          let customParticulars: Array<{ particular: string; rate: number; quantity: number; amount: number }> = [];
+          let customParticulars: Array<{
+            particular: string;
+            rate: number;
+            quantity: number;
+            amount: number;
+          }> = [];
           let isFlexibleDuty = false;
           let userRemarksText = (ds.remarks || booking.remarks || '').trim();
 
@@ -1353,9 +1400,13 @@ export class InvoicesService {
           } catch (e) {}
 
           if (isFlexibleDuty) {
-            particularsRows.push({ label: 'FLEXIBLE DUTY SLIP (MANUAL BILLING)' });
+            particularsRows.push({
+              label: 'FLEXIBLE DUTY SLIP (MANUAL BILLING)',
+            });
             if (booking.tripType === TripType.OUTSTATION && userRemarksText) {
-              particularsRows.push({ label: `Remarks: ${userRemarksText.toUpperCase()}` });
+              particularsRows.push({
+                label: `Remarks: ${userRemarksText.toUpperCase()}`,
+              });
             }
 
             for (const item of customParticulars) {
@@ -1397,7 +1448,8 @@ export class InvoicesService {
                 : booking.tripType === TripType.AIRPORT_TRANSFER
                   ? 40
                   : 80;
-            const baseHr = booking.tripType === TripType.OUTSTATION ? 24 * totalDays : 8;
+            const baseHr =
+              booking.tripType === TripType.OUTSTATION ? 24 * totalDays : 8;
             particularsRows.push({
               label:
                 booking.tripType === TripType.OUTSTATION
@@ -1484,10 +1536,18 @@ export class InvoicesService {
               amount: Number(trip.mcdCharged).toFixed(2),
             });
           }
-          let actualMiscCharges = Number(trip.miscChargesCharged || trip.extraCharges || 0);
+          let actualMiscCharges = Number(
+            trip.miscChargesCharged || trip.extraCharges || 0,
+          );
           if (isFlexibleDuty) {
-            const customSum = customParticulars.reduce((s, i) => s + (Number(i.amount) || 0), 0);
-            if (flexibleMiscCharges > 0 || Math.abs(actualMiscCharges - customSum) < 0.01) {
+            const customSum = customParticulars.reduce(
+              (s, i) => s + (Number(i.amount) || 0),
+              0,
+            );
+            if (
+              flexibleMiscCharges > 0 ||
+              Math.abs(actualMiscCharges - customSum) < 0.01
+            ) {
               actualMiscCharges = flexibleMiscCharges;
             }
           }
@@ -1774,17 +1834,38 @@ export class InvoicesService {
         // Draw Payment Breakdown (Total Amount, Less: Received, Balance Due)
         doc.fillColor(primaryColor).fontSize(7.5).font(fontBold);
         doc.text('TOTAL AMOUNT:', 355, totalBoxY + 5);
-        doc.fillColor('#0F172A').text(grandTotal.toFixed(2), 480, totalBoxY + 5, { width: 60, align: 'right' });
+        doc
+          .fillColor('#0F172A')
+          .text(grandTotal.toFixed(2), 480, totalBoxY + 5, {
+            width: 60,
+            align: 'right',
+          });
 
         doc.fillColor('#15803D').fontSize(7.5).font(fontBold);
         doc.text('LESS: RECEIVED:', 355, totalBoxY + 16);
-        doc.text(`-${paidAmountVal.toFixed(2)}`, 480, totalBoxY + 16, { width: 60, align: 'right' });
+        doc.text(`-${paidAmountVal.toFixed(2)}`, 480, totalBoxY + 16, {
+          width: 60,
+          align: 'right',
+        });
 
-        doc.moveTo(350, totalBoxY + 27).lineTo(545, totalBoxY + 27).stroke('#CBD5E1');
+        doc
+          .moveTo(350, totalBoxY + 27)
+          .lineTo(545, totalBoxY + 27)
+          .stroke('#CBD5E1');
 
-        doc.fillColor(dueAmountVal > 0 ? '#B91C1C' : '#15803D').fontSize(8.5).font(fontBold);
-        doc.text(dueAmountVal > 0 ? 'BALANCE DUE:' : 'NET DUE (PAID):', 355, totalBoxY + 30);
-        doc.text(dueAmountVal.toFixed(2), 480, totalBoxY + 30, { width: 60, align: 'right' });
+        doc
+          .fillColor(dueAmountVal > 0 ? '#B91C1C' : '#15803D')
+          .fontSize(8.5)
+          .font(fontBold);
+        doc.text(
+          dueAmountVal > 0 ? 'BALANCE DUE:' : 'NET DUE (PAID):',
+          355,
+          totalBoxY + 30,
+        );
+        doc.text(dueAmountVal.toFixed(2), 480, totalBoxY + 30, {
+          width: 60,
+          align: 'right',
+        });
       } else {
         if (isRefined) {
           doc.rect(350, totalBoxY, 195, 30).fill(primaryColor);

@@ -79,7 +79,8 @@ export class BookingsService {
         where: { tenantId: customer.tenantId, vehicleNumber: vNum },
       });
       if (!existingVehicle) {
-        const vType = dto.manualVehicleType || dto.vehicleTypeRequired || 'Sedan';
+        const vType =
+          dto.manualVehicleType || dto.vehicleTypeRequired || 'Sedan';
         existingVehicle = await this.prisma.vehicle.create({
           data: {
             tenantId: customer.tenantId,
@@ -386,7 +387,11 @@ export class BookingsService {
         where: { tenantId: booking.tenantId, vehicleNumber: vNum },
       });
       if (!existingVehicle) {
-        const vType = dto.manualVehicleType || dto.vehicleTypeRequired || booking.vehicleTypeRequired || 'Sedan';
+        const vType =
+          dto.manualVehicleType ||
+          dto.vehicleTypeRequired ||
+          booking.vehicleTypeRequired ||
+          'Sedan';
         existingVehicle = await this.prisma.vehicle.create({
           data: {
             tenantId: booking.tenantId,
@@ -484,7 +489,7 @@ export class BookingsService {
           });
         } else {
           const countSlips = await tx.dutySlip.count();
-          let dutySlipNumber = String(countSlips + 1);
+          const dutySlipNumber = String(countSlips + 1);
           await tx.dutySlip.create({
             data: {
               tenantId: booking.tenantId,
