@@ -1753,18 +1753,19 @@ export class InvoicesService {
       }
 
       // Summary lines
-      doc.rect(50, footerY, 495, 70).stroke('#CBD5E1');
+      const summaryBoxHeight = 82;
+      doc.rect(50, footerY, 495, summaryBoxHeight).stroke('#CBD5E1');
       doc
         .moveTo(350, footerY)
-        .lineTo(350, footerY + 70)
+        .lineTo(350, footerY + summaryBoxHeight)
         .stroke('#CBD5E1');
 
       doc.fillColor(primaryColor).font(fontBold).fontSize(8.5);
-      doc.text('TOTAL DUTY SLIP ENCLOSE', 55, footerY + 6);
-      doc.fillColor('#0F172A').text(`${totalSlipsEnclosed}`, 215, footerY + 6);
+      doc.text('TOTAL DUTY SLIP ENCLOSE', 55, footerY + 5);
+      doc.fillColor('#0F172A').text(`${totalSlipsEnclosed}`, 215, footerY + 5);
 
-      doc.fillColor(primaryColor).text('TOTAL AMOUNT', 355, footerY + 6);
-      doc.fillColor('#0F172A').text(amountColSum.toFixed(2), 480, footerY + 6, {
+      doc.fillColor(primaryColor).text('TOTAL AMOUNT', 355, footerY + 5);
+      doc.fillColor('#0F172A').text(amountColSum.toFixed(2), 480, footerY + 5, {
         width: 60,
         align: 'right',
       });
@@ -1775,32 +1776,32 @@ export class InvoicesService {
           .fillColor(primaryColor)
           .fontSize(8)
           .font(fontBold)
-          .text('BANK DETAILS:', 55, footerY + 16);
+          .text('BANK DETAILS:', 55, footerY + 15);
         doc.fillColor('#334155').font(fontRegular).fontSize(7.5);
-        doc.text(`A/c Name: ${bankAccountHolder}`, 55, footerY + 26, {
+        doc.text(`A/c Name: ${bankAccountHolder}`, 55, footerY + 25, {
           width: 130,
           ellipsis: true,
         });
-        doc.text(`Bank Name: ${bankName}`, 55, footerY + 36, {
+        doc.text(`Bank Name: ${bankName}`, 55, footerY + 35, {
           width: 130,
           ellipsis: true,
         });
-        doc.text(`A/c No: ${bankAccountNo}`, 190, footerY + 26);
-        doc.text(`IFSC: ${bankIfsc}`, 190, footerY + 36);
-        doc.text(`Branch: ${bankBranch}`, 190, footerY + 46);
+        doc.text(`A/c No: ${bankAccountNo}`, 190, footerY + 25);
+        doc.text(`IFSC: ${bankIfsc}`, 190, footerY + 35);
+        doc.text(`Branch: ${bankBranch}`, 190, footerY + 45);
       }
 
       const isRcm = !!parsedInvoice.isRcm;
       if (isRcm) {
         doc
           .fillColor('#E11D48')
-          .fontSize(7.5)
+          .fontSize(6.5)
           .font(fontBold)
           .text(
             'RCM: As per Notification No. 22/2019-Central Tax (Rate), GST is payable by the recipient.',
             55,
-            footerY + 44,
-            { width: 280 },
+            footerY + 57,
+            { width: 290 },
           );
 
         let rcmBreakupText = '';
@@ -1847,26 +1848,26 @@ export class InvoicesService {
         if (rcmBreakupText) {
           doc
             .fillColor('#0F172A')
-            .fontSize(7.5)
+            .fontSize(7)
             .font(fontBold)
-            .text(rcmBreakupText, 55, footerY + 56, { width: 280 });
+            .text(rcmBreakupText, 55, footerY + 68, { width: 290 });
         }
       }
 
       doc
         .fillColor(primaryColor)
         .fontSize(8.5)
-        .text('Parking/TollTax Detail', 355, footerY + 20);
+        .text('Parking/TollTax Detail', 355, footerY + 18);
       doc
         .fillColor('#0F172A')
-        .text(tollParkingTaxSum.toFixed(2), 480, footerY + 20, {
+        .text(tollParkingTaxSum.toFixed(2), 480, footerY + 18, {
           width: 60,
           align: 'right',
         });
 
       // GST rows (only rendered inside summary box for non-RCM invoices)
       if (!isRcm) {
-        let gstLineY = footerY + 34;
+        let gstLineY = footerY + 31;
         if (Number(parsedInvoice.cgstAmount) > 0) {
           doc
             .fillColor(primaryColor)
@@ -1907,7 +1908,7 @@ export class InvoicesService {
       const hasPayment = paidAmountVal > 0;
       const totalBoxHeight = hasPayment ? 42 : 30;
 
-      const totalBoxY = footerY + 70;
+      const totalBoxY = footerY + summaryBoxHeight;
       doc.rect(50, totalBoxY, 495, totalBoxHeight).stroke('#CBD5E1');
       doc
         .moveTo(350, totalBoxY)
