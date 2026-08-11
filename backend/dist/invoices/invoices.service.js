@@ -1464,14 +1464,21 @@ let InvoicesService = class InvoicesService {
             if (showBank) {
                 doc
                     .fillColor(primaryColor)
-                    .fontSize(8.5)
+                    .fontSize(8)
                     .font(fontBold)
                     .text('BANK DETAILS:', 55, footerY + 16);
-                doc.fillColor('#334155').font(fontRegular).fontSize(8);
-                doc.text(`Bank Name: ${bankName}`, 55, footerY + 27);
-                doc.text(`A/c No: ${bankAccountNo}`, 55, footerY + 38);
-                doc.text(`IFSC: ${bankIfsc}`, 190, footerY + 27);
-                doc.text(`Branch: ${bankBranch}`, 190, footerY + 38);
+                doc.fillColor('#334155').font(fontRegular).fontSize(7.5);
+                doc.text(`A/c Name: ${bankAccountHolder}`, 55, footerY + 26, {
+                    width: 130,
+                    ellipsis: true,
+                });
+                doc.text(`Bank Name: ${bankName}`, 55, footerY + 36, {
+                    width: 130,
+                    ellipsis: true,
+                });
+                doc.text(`A/c No: ${bankAccountNo}`, 190, footerY + 26);
+                doc.text(`IFSC: ${bankIfsc}`, 190, footerY + 36);
+                doc.text(`Branch: ${bankBranch}`, 190, footerY + 46);
             }
             const isRcm = !!parsedInvoice.isRcm;
             if (isRcm) {

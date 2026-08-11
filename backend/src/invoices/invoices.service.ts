@@ -1773,14 +1773,21 @@ export class InvoicesService {
       if (showBank) {
         doc
           .fillColor(primaryColor)
-          .fontSize(8.5)
+          .fontSize(8)
           .font(fontBold)
           .text('BANK DETAILS:', 55, footerY + 16);
-        doc.fillColor('#334155').font(fontRegular).fontSize(8);
-        doc.text(`Bank Name: ${bankName}`, 55, footerY + 27);
-        doc.text(`A/c No: ${bankAccountNo}`, 55, footerY + 38);
-        doc.text(`IFSC: ${bankIfsc}`, 190, footerY + 27);
-        doc.text(`Branch: ${bankBranch}`, 190, footerY + 38);
+        doc.fillColor('#334155').font(fontRegular).fontSize(7.5);
+        doc.text(`A/c Name: ${bankAccountHolder}`, 55, footerY + 26, {
+          width: 130,
+          ellipsis: true,
+        });
+        doc.text(`Bank Name: ${bankName}`, 55, footerY + 36, {
+          width: 130,
+          ellipsis: true,
+        });
+        doc.text(`A/c No: ${bankAccountNo}`, 190, footerY + 26);
+        doc.text(`IFSC: ${bankIfsc}`, 190, footerY + 36);
+        doc.text(`Branch: ${bankBranch}`, 190, footerY + 46);
       }
 
       const isRcm = !!parsedInvoice.isRcm;
@@ -1797,17 +1804,44 @@ export class InvoicesService {
           );
 
         let rcmBreakupText = '';
-        const cgstAmt = Number(parsedInvoice.cgstAmount || 0);
-        const sgstAmt = Number(parsedInvoice.sgstAmount || 0);
-        const igstAmt = Number(parsedInvoice.igstAmount || 0);
-        const totalTaxAmt = Number(
-          parsedInvoice.totalTax || cgstAmt + sgstAmt + igstAmt,
-        );
+        const cgstRate = Number(parsedInvoice.cgstRate || 0);
+        const sgstRate = Number(parsedInvoice.sgstRate || 0);
+        const igstRate = Number(parsedInvoice.igstRate || 0);
+        const subtotal = Number(parsedInvoice.subtotal || amountColSum || 0);
 
-        if (cgstAmt > 0 || sgstAmt > 0) {
-          rcmBreakupText = `CGST( @ ${Number(parsedInvoice.cgstRate)} % ) : ${cgstAmt.toFixed(2)}    SGST( @ ${Number(parsedInvoice.sgstRate)} % ) : ${sgstAmt.toFixed(2)}    Total : ${totalTaxAmt.toFixed(2)}`;
-        } else if (igstAmt > 0) {
-          rcmBreakupText = `IGST( @ ${Number(parsedInvoice.igstRate)} % ) : ${igstAmt.toFixed(2)}    Total : ${totalTaxAmt.toFixed(2)}`;
+        let cgstAmt = Number(parsedInvoice.cgstAmount || 0);
+        let sgstAmt = Number(parsedInvoice.sgstAmount || 0);
+        let igstAmt = Number(parsedInvoice.igstAmount || 0);
+
+        if (cgstAmt === 0 && cgstRate > 0) {
+          cgstAmt = (subtotal * cgstRate) / 100;
+        }
+        if (sgstAmt === 0 && sgstRate > 0) {
+          sgstAmt = (subtotal * sgstRate) / 100;
+        }
+        if (igstAmt === 0 && igstRate > 0) {
+          igstAmt = (subtotal * igstRate) / 100;
+        }
+
+        let totalTaxAmt = Number(parsedInvoice.totalTax || 0);
+        if (totalTaxAmt === 0) {
+          totalTaxAmt = cgstAmt + sgstAmt + igstAmt;
+        }
+        if (totalTaxAmt === 0) {
+          const defaultCgst = (subtotal * 2.5) / 100;
+          const defaultSgst = (subtotal * 2.5) / 100;
+          cgstAmt = defaultCgst;
+          sgstAmt = defaultSgst;
+          totalTaxAmt = defaultCgst + defaultSgst;
+        }
+
+        if (igstRate > 0 || (igstAmt > 0 && cgstAmt === 0)) {
+          const rateStr = igstRate || 5;
+          rcmBreakupText = `IGST( @ ${rateStr} % ) : ${igstAmt.toFixed(2)}    Total : ${totalTaxAmt.toFixed(2)}`;
+        } else {
+          const cRateStr = cgstRate || 2.5;
+          const sRateStr = sgstRate || 2.5;
+          rcmBreakupText = `CGST( @ ${cRateStr} % ) : ${cgstAmt.toFixed(2)}    SGST( @ ${sRateStr} % ) : ${sgstAmt.toFixed(2)}    Total : ${totalTaxAmt.toFixed(2)}`;
         }
 
         if (rcmBreakupText) {
