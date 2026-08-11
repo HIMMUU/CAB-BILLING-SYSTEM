@@ -1226,7 +1226,7 @@ export class InvoicesService {
         doc.text('STATE CODE:', 55, gridY + 35);
         doc.text('S.T.Ctgry:', 55, gridY + 45);
 
-        doc.fillColor('#334155').font(fontRegular);
+        doc.fillColor('#0e1218ff').font(fontRegular);
         doc.text(companyGst, 105, gridY + 5);
         doc.text(sacNo, 105, gridY + 15);
         doc.text(companyPan, 105, gridY + 25);
@@ -1234,14 +1234,14 @@ export class InvoicesService {
         doc.text(serviceCategory, 105, gridY + 45);
 
         // Column 2: Full Address
-        doc.fillColor('#334155').font(fontRegular).fontSize(7.5);
+        doc.fillColor('#0e1218ff').font(fontRegular).fontSize(7.5);
         doc.text(companyAddress, 180, gridY + 5, { width: 195 });
         doc
           .fillColor(primaryColor)
           .font(fontBold)
           .text('Email ID:', 180, gridY + 42);
         doc
-          .fillColor('#334155')
+          .fillColor('#0e1218ff')
           .font(fontRegular)
           .text(companyEmail, 220, gridY + 42);
 
@@ -1250,7 +1250,7 @@ export class InvoicesService {
           .fillColor(primaryColor)
           .font(fontBold)
           .text('Contact No.:', 385, gridY + 5);
-        doc.fillColor('#334155').font(fontRegular);
+        doc.fillColor('#0e1218ff').font(fontRegular);
         const contactLines = companyPhone.split('\n');
         let contactY = gridY + 15;
         for (const line of contactLines) {
@@ -1276,7 +1276,7 @@ export class InvoicesService {
 
         doc.fillColor(primaryColor).font(fontBold);
         doc.text(parsedInvoice.customer.name, 115, billY + 5);
-        doc.fillColor('#334155').font(fontRegular);
+        doc.fillColor('#0e1218ff').font(fontRegular);
         doc.text(parsedInvoice.customer.billingAddress, 115, billY + 15, {
           width: 230,
         });
@@ -1301,7 +1301,7 @@ export class InvoicesService {
         doc.text('Bill No. :', 355, billY + 5);
         doc.text('Bill Date :', 355, billY + 18);
 
-        doc.fillColor('#334155').font(fontRegular);
+        doc.fillColor('#0e1218ff').font(fontRegular);
         doc.text(parsedInvoice.invoiceNumber, 405, billY + 5);
         doc.text(
           new Date(parsedInvoice.invoiceDate).toLocaleDateString('en-GB'),
@@ -1683,7 +1683,7 @@ export class InvoicesService {
             }
 
             doc.fillColor(
-              subRow.label === 'DUTY SLIP TOTAL' ? primaryColor : '#334155',
+              subRow.label === 'DUTY SLIP TOTAL' ? primaryColor : '#0e1218ff',
             );
             doc
               .font(
@@ -1777,7 +1777,7 @@ export class InvoicesService {
           .fontSize(8)
           .font(fontBold)
           .text('BANK DETAILS:', 55, footerY + 15);
-        doc.fillColor('#334155').font(fontRegular).fontSize(7.5);
+        doc.fillColor('#0e1218ff').font(fontRegular).fontSize(7.5);
         doc.text(`A/c Name: ${bankAccountHolder}`, 55, footerY + 25, {
           width: 130,
           ellipsis: true,
