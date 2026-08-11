@@ -1540,6 +1540,20 @@ export default function DutySlipsPage() {
                       <input type="text" value={df.employeeId} onChange={e => setDf(f => ({ ...f, employeeId: e.target.value }))} className={inp} placeholder="EMP-001" />
                     </Field>
                   </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1">Salutation</label>
+                      <select value={df.guestSalutation} onChange={e => setDf(f => ({ ...f, guestSalutation: e.target.value }))} className={sel}>
+                        {['Mr', 'Ms', 'Mrs', 'Dr', 'Prof'].map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className="col-span-3">
+                      <Field label="Guest / Passenger Name">
+                        <input type="text" value={df.guestName} onChange={e => setDf(f => ({ ...f, guestName: e.target.value }))} className={inp} placeholder="Guest / Passenger Name (e.g. Mr John Doe)" />
+                      </Field>
+                    </div>
+                  </div>
                 </div>
               </div>
 

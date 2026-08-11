@@ -232,6 +232,8 @@ export class DutySlipsService {
             startKm: dto.startKm,
             status: DutySlipStatus.DRAFT,
             employeeId: dto.employeeId,
+            guestName: dto.guestName || dto.manualCustomerName,
+            guestSalutation: dto.guestSalutation,
           } as any,
         });
 
@@ -315,6 +317,8 @@ export class DutySlipsService {
         startKm: dto.startKm,
         status: DutySlipStatus.DRAFT,
         employeeId: employeeId || booking.employeeId,
+        guestName: dto.guestName || booking.guestName,
+        guestSalutation: dto.guestSalutation || booking.guestSalutation,
       } as any,
       include: {
         booking: { include: { customer: true } },
@@ -489,6 +493,8 @@ export class DutySlipsService {
         employeeId: dto.employeeId,
         driverId: dto.driverId,
         vehicleId: dto.vehicleId,
+        guestName: dto.guestName,
+        guestSalutation: dto.guestSalutation,
       },
       include: {
         booking: { include: { customer: true } },

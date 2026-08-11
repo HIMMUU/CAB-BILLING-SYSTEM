@@ -86,6 +86,8 @@ export declare class DutySlipsController {
         driverAllowance: import("@prisma/client/runtime/library").Decimal;
         driverId: string;
         employeeId: string | null;
+        guestName: string | null;
+        guestSalutation: string | null;
         bookingId: string;
         vehicleId: string;
         dutySlipNumber: string;
@@ -182,6 +184,8 @@ export declare class DutySlipsController {
             driverAllowance: import("@prisma/client/runtime/library").Decimal;
             driverId: string;
             employeeId: string | null;
+            guestName: string | null;
+            guestSalutation: string | null;
             bookingId: string;
             vehicleId: string;
             dutySlipNumber: string;
@@ -313,6 +317,8 @@ export declare class DutySlipsController {
         driverAllowance: import("@prisma/client/runtime/library").Decimal;
         driverId: string;
         employeeId: string | null;
+        guestName: string | null;
+        guestSalutation: string | null;
         bookingId: string;
         vehicleId: string;
         dutySlipNumber: string;
@@ -408,6 +414,8 @@ export declare class DutySlipsController {
         driverAllowance: import("@prisma/client/runtime/library").Decimal;
         driverId: string;
         employeeId: string | null;
+        guestName: string | null;
+        guestSalutation: string | null;
         bookingId: string;
         vehicleId: string;
         dutySlipNumber: string;
@@ -432,6 +440,8 @@ export declare class DutySlipsController {
         driverAllowance: import("@prisma/client/runtime/library").Decimal;
         driverId: string;
         employeeId: string | null;
+        guestName: string | null;
+        guestSalutation: string | null;
         bookingId: string;
         vehicleId: string;
         dutySlipNumber: string;

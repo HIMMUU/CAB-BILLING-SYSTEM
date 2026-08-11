@@ -1126,11 +1126,35 @@ let InvoicesService = class InvoicesService {
                         continue;
                     const ds = trip.dutySlip;
                     const booking = trip.booking;
-                    const travelDate = ds?.startDateTime || ds?.reportingTime || booking?.pickupDate;
-                    const dateStr = travelDate
-                        ? new Date(travelDate).toLocaleDateString('en-GB')
-                        : 'N/A';
-                    const dsNo = ds.dutySlipNumber.replace('DS-', '');
+                    const startDateRaw = ds?.startDateTime || trip?.startDateTime || ds?.reportingTime || booking?.pickupDate;
+                    const endDateRaw = ds?.endDateTime || trip?.endDateTime;
+                    const formatDateStr = (dt) => {
+                        if (!dt)
+                            return '';
+                        const d = new Date(dt);
+                        if (isNaN(d.getTime()))
+                            return '';
+                        const day = String(d.getDate()).padStart(2, '0');
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const year = d.getFullYear();
+                        return `${day}/${month}/${year}`;
+                    };
+                    const startDateStr = formatDateStr(startDateRaw);
+                    const endDateStr = formatDateStr(endDateRaw);
+                    const rawDsNo = ds.dutySlipNumber || '';
+                    const dsNo = rawDsNo.replace(/^(DS|BK|INV)-/i, '').replace(/^20\d\d-/, '');
+                    const dateLines = [];
+                    if (startDateStr && endDateStr && startDateStr !== endDateStr) {
+                        dateLines.push(startDateStr);
+                        dateLines.push('To');
+                        dateLines.push(endDateStr);
+                        dateLines.push(dsNo);
+                    }
+                    else {
+                        if (startDateStr)
+                            dateLines.push(startDateStr);
+                        dateLines.push(dsNo);
+                    }
                     const vehicleModel = ds.vehicle.model.split(' ')[0] || ds.vehicle.vehicleType;
                     const vehicleNo = ds.vehicle.vehicleNumber.slice(-4);
                     const particularsRows = [];
@@ -1138,9 +1162,14 @@ let InvoicesService = class InvoicesService {
                     if (empId) {
                         particularsRows.push({ label: `Emp Id - ${empId}` });
                     }
-                    const guestVal = (booking.guestSalutation ? booking.guestSalutation + ' ' : '') +
-                        (booking.guestName || booking.customer.name);
-                    particularsRows.push({ label: `Guest - ${guestVal}` });
+                    const rawGuest = (ds.guestName ||
+                        booking.guestName ||
+                        '').trim();
+                    if (rawGuest) {
+                        const salutation = ds.guestSalutation || booking.guestSalutation;
+                        const guestVal = (salutation ? salutation.trim() + ' ' : '') + rawGuest;
+                        particularsRows.push({ label: `Guest - ${guestVal}` });
+                    }
                     const defaultRoute = `${booking.pickupLocation.toUpperCase()} TO ${booking.dropLocation.toUpperCase()}`;
                     let customParticulars = [];
                     let isFlexibleDuty = false;
@@ -1161,9 +1190,6 @@ let InvoicesService = class InvoicesService {
                     }
                     catch (e) { }
                     if (isFlexibleDuty) {
-                        particularsRows.push({
-                            label: 'FLEXIBLE DUTY SLIP (MANUAL BILLING)',
-                        });
                         if (booking.tripType === client_1.TripType.OUTSTATION && userRemarksText) {
                             particularsRows.push({
                                 label: `Remarks: ${userRemarksText.toUpperCase()}`,
@@ -1192,9 +1218,6 @@ let InvoicesService = class InvoicesService {
                         });
                     }
                     else if (booking.tripType === client_1.TripType.HOURLY_RENTAL) {
-                        particularsRows.push({
-                            label: `FLEXIBLE DUTY PACKAGE`,
-                        });
                     }
                     else {
                         particularsRows.push({
@@ -1341,9 +1364,14 @@ let InvoicesService = class InvoicesService {
                             .lineTo(490, currentY + rowHeight)
                             .stroke('#F1F5F9');
                     }
-                    doc.fillColor('#0F172A').font(fontBold).fontSize(8.5);
-                    doc.text(dateStr, 52, currentY + 5, { width: 61, align: 'center' });
-                    doc.text(dsNo, 52, currentY + 16, { width: 61, align: 'center' });
+                    doc.fillColor('#0F172A').font(fontBold).fontSize(7.5);
+                    let dateY = currentY + 4;
+                    for (const line of dateLines) {
+                        if (line) {
+                            doc.text(line, 52, dateY, { width: 61, align: 'center' });
+                            dateY += 9.5;
+                        }
+                    }
                     doc.text(vehicleModel.toUpperCase(), 117, currentY + 5, {
                         width: 56,
                         align: 'center',

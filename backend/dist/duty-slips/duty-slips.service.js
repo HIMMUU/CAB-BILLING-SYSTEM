@@ -238,6 +238,8 @@ let DutySlipsService = class DutySlipsService {
                         startKm: dto.startKm,
                         status: client_1.DutySlipStatus.DRAFT,
                         employeeId: dto.employeeId,
+                        guestName: dto.guestName || dto.manualCustomerName,
+                        guestSalutation: dto.guestSalutation,
                     },
                 });
                 return newSlip;
@@ -301,6 +303,8 @@ let DutySlipsService = class DutySlipsService {
                 startKm: dto.startKm,
                 status: client_1.DutySlipStatus.DRAFT,
                 employeeId: employeeId || booking.employeeId,
+                guestName: dto.guestName || booking.guestName,
+                guestSalutation: dto.guestSalutation || booking.guestSalutation,
             },
             include: {
                 booking: { include: { customer: true } },
@@ -442,6 +446,8 @@ let DutySlipsService = class DutySlipsService {
                 employeeId: dto.employeeId,
                 driverId: dto.driverId,
                 vehicleId: dto.vehicleId,
+                guestName: dto.guestName,
+                guestSalutation: dto.guestSalutation,
             },
             include: {
                 booking: { include: { customer: true } },
