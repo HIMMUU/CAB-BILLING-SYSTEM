@@ -1274,8 +1274,9 @@ export class InvoicesService {
         doc.text('PAN No :', 55, billY + 49);
         doc.text('State Code :', 55, billY + 57);
 
-        doc.fillColor('#334155').font(fontRegular);
+        doc.fillColor(primaryColor).font(fontBold);
         doc.text(parsedInvoice.customer.name, 115, billY + 5);
+        doc.fillColor('#334155').font(fontRegular);
         doc.text(parsedInvoice.customer.billingAddress, 115, billY + 15, {
           width: 230,
         });
@@ -1786,12 +1787,12 @@ export class InvoicesService {
       if (isRcm) {
         doc
           .fillColor('#E11D48')
-          .fontSize(6.5)
+          .fontSize(7.5)
           .font(fontBold)
           .text(
             'RCM: As per Notification No. 22/2019-Central Tax (Rate), GST is payable by the recipient.',
             55,
-            footerY + 46,
+            footerY + 44,
             { width: 280 },
           );
 
@@ -1799,19 +1800,22 @@ export class InvoicesService {
         const cgstAmt = Number(parsedInvoice.cgstAmount || 0);
         const sgstAmt = Number(parsedInvoice.sgstAmount || 0);
         const igstAmt = Number(parsedInvoice.igstAmount || 0);
+        const totalTaxAmt = Number(
+          parsedInvoice.totalTax || cgstAmt + sgstAmt + igstAmt,
+        );
 
         if (cgstAmt > 0 || sgstAmt > 0) {
-          rcmBreakupText = `CGST( @ ${Number(parsedInvoice.cgstRate)} % ) : ${cgstAmt.toFixed(2)}    SGST( @ ${Number(parsedInvoice.sgstRate)} % ) : ${sgstAmt.toFixed(2)}`;
+          rcmBreakupText = `CGST( @ ${Number(parsedInvoice.cgstRate)} % ) : ${cgstAmt.toFixed(2)}    SGST( @ ${Number(parsedInvoice.sgstRate)} % ) : ${sgstAmt.toFixed(2)}    Total : ${totalTaxAmt.toFixed(2)}`;
         } else if (igstAmt > 0) {
-          rcmBreakupText = `IGST( @ ${Number(parsedInvoice.igstRate)} % ) : ${igstAmt.toFixed(2)}`;
+          rcmBreakupText = `IGST( @ ${Number(parsedInvoice.igstRate)} % ) : ${igstAmt.toFixed(2)}    Total : ${totalTaxAmt.toFixed(2)}`;
         }
 
         if (rcmBreakupText) {
           doc
-            .fillColor('#E11D48')
-            .fontSize(6.5)
+            .fillColor('#0F172A')
+            .fontSize(7.5)
             .font(fontBold)
-            .text(rcmBreakupText, 55, footerY + 57, { width: 280 });
+            .text(rcmBreakupText, 55, footerY + 56, { width: 280 });
         }
       }
 
