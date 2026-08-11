@@ -18,7 +18,7 @@ export class InvoicesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tripsService: TripsService,
-  ) {}
+  ) { }
 
   async create(dto: CreateInvoiceDto) {
     const tripIds =
@@ -1429,7 +1429,7 @@ export class InvoicesService {
                 }
               }
             }
-          } catch (e) {}
+          } catch (e) { }
 
           if (isFlexibleDuty) {
             if (booking.tripType === TripType.OUTSTATION && userRemarksText) {
@@ -1989,11 +1989,11 @@ export class InvoicesService {
         const customTerms =
           tenant?.termsAndConditions ||
           'E. & O.E. Subject to Delhi Jurisdiction.\n' +
-            'Our Responsibility of the signed duty slip resets till we handover them to you with the bill.\n' +
-            'Interest chargable on bills not paid on presentation @ 18% p.a.\n' +
-            'Passengers Tax, Toll tax, Interstate taxes, Car parking Etc. will be charged on actual basis on production of receipts.\n' +
-            'GST, if Applicable will be charged extra. A subsequent bill will be issued for the same.\n' +
-            'In case of discrepancy , Kindly return the bill for necessary correction within 10 days or it shall be treated as O.K. and you shall be liable to pay the full amount.';
+          'Our Responsibility of the signed duty slip resets till we handover them to you with the bill.\n' +
+          'Interest chargable on bills not paid on presentation @ 18% p.a.\n' +
+          'Passengers Tax, Toll tax, Interstate taxes, Car parking Etc. will be charged on actual basis on production of receipts.\n' +
+          'GST, if Applicable will be charged extra. A subsequent bill will be issued for the same.\n' +
+          'In case of discrepancy , Kindly return the bill for necessary correction within 10 days or it shall be treated as O.K. and you shall be liable to pay the full amount.';
         doc
           .fillColor(primaryColor)
           .font(fontBold)
@@ -2002,7 +2002,7 @@ export class InvoicesService {
         doc
           .fillColor('#475569')
           .font(fontRegular)
-          .fontSize(7)
+          .fontSize(7.5)
           .text(customTerms, 55, termsY + 12, { width: 330, lineGap: 1.5 });
       }
 
@@ -2015,7 +2015,7 @@ export class InvoicesService {
           align: 'center',
           width: 150,
         });
-      doc.fillColor('#000000');
+      doc.fillColor('#040ac1ff');
 
       // In place of bank details show digital signature of tenant
       if (signatureBuffer) {
