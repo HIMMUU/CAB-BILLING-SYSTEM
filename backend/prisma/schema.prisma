@@ -459,7 +459,7 @@ model Trip {
   totalAmount         Decimal  @map("total_amount") @db.Decimal(12, 2)
   startDateTime       DateTime?      @map("start_date_time") @db.Timestamptz
   endDateTime         DateTime?      @map("end_date_time") @db.Timestamptz
-  totalHours          Decimal        @default(0.00) @map("total_hours") @db.Decimal(5, 2)
+  totalHours          Decimal        @default(0.00) @map("total_hours") @db.Decimal(10, 2)
   totalDays           Int            @default(1) @map("total_days")
   stateTaxCharged     Decimal        @default(0.00) @map("state_tax_charged") @db.Decimal(10, 2)
   mcdCharged          Decimal        @default(0.00) @map("mcd_charged") @db.Decimal(10, 2)

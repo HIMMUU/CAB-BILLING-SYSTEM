@@ -34,9 +34,6 @@ export class UpdateCustomerDto {
 
   @IsString()
   @IsOptional()
-  @Matches(/^\+?[0-9]{10,15}$/, {
-    message: 'Phone number must be a valid 10-15 digit string',
-  })
   phone?: string;
 
   @IsString()

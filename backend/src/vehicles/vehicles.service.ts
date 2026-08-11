@@ -14,7 +14,7 @@ export class VehiclesService {
   constructor(private readonly prisma: PrismaService) {}
 
   private cleanVehicleNumber(num: string): string {
-    return num.replace(/[\s-]/g, '').toUpperCase();
+    return num ? num.trim().toUpperCase() : '';
   }
 
   async create(dto: CreateVehicleDto) {

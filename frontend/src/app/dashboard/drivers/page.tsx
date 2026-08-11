@@ -129,11 +129,7 @@ export default function DriversPage() {
       return;
     }
 
-    const mobileRegex = /^\+?[0-9]{10,15}$/;
-    if (!mobileRegex.test(formData.mobile)) {
-      setFormError('Mobile number must be a valid 10-15 digit string.');
-      return;
-    }
+
 
     setSubmitting(true);
 

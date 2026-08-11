@@ -137,7 +137,7 @@ export default function VehiclesPage() {
   };
 
   const cleanVehicleNumber = (num: string): string => {
-    return num.replace(/[\s-]/g, '').toUpperCase();
+    return num ? num.trim().toUpperCase() : '';
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {

@@ -34,9 +34,6 @@ export class CreateCustomerDto {
 
   @IsString()
   @IsNotEmpty({ message: 'Phone number is required' })
-  @Matches(/^\+?[0-9]{10,15}$/, {
-    message: 'Phone number must be a valid 10-15 digit string',
-  })
   phone: string;
 
   @IsString()

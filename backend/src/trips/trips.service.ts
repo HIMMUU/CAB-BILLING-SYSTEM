@@ -65,7 +65,9 @@ export class TripsService {
     if (startDateTime && endDateTime) {
       const diffMs =
         new Date(endDateTime).getTime() - new Date(startDateTime).getTime();
-      calculatedHours = diffMs / (1000 * 60 * 60);
+      calculatedHours = Number(
+        (diffMs / (1000 * 60 * 60)).toFixed(2),
+      );
 
       const startD = new Date(startDateTime);
       startD.setHours(0, 0, 0, 0);

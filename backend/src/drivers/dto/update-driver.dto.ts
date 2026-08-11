@@ -14,9 +14,6 @@ export class UpdateDriverDto {
 
   @IsString()
   @IsOptional()
-  @Matches(/^\+?[0-9]{10,15}$/, {
-    message: 'Mobile number must be a valid 10-15 digit string',
-  })
   mobile?: string;
 
   @IsString()

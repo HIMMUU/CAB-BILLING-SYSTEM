@@ -23,9 +23,6 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.Matches)(/^\+?[0-9]{10,15}$/, {
-        message: 'Mobile number must be a valid 10-15 digit string',
-    }),
     __metadata("design:type", String)
 ], UpdateDriverDto.prototype, "mobile", void 0);
 __decorate([

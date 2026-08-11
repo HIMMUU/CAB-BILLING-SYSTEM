@@ -18,7 +18,7 @@ let VehiclesService = class VehiclesService {
         this.prisma = prisma;
     }
     cleanVehicleNumber(num) {
-        return num.replace(/[\s-]/g, '').toUpperCase();
+        return num ? num.trim().toUpperCase() : '';
     }
     async create(dto) {
         const cleanedNumber = this.cleanVehicleNumber(dto.vehicleNumber);
