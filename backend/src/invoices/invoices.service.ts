@@ -1226,7 +1226,7 @@ export class InvoicesService {
         doc.text('STATE CODE:', 55, gridY + 35);
         doc.text('S.T.Ctgry:', 55, gridY + 45);
 
-        doc.fillColor('#0e1218ff').font(fontRegular);
+        doc.fillColor('#0E1218').font(fontRegular);
         doc.text(companyGst, 105, gridY + 5);
         doc.text(sacNo, 105, gridY + 15);
         doc.text(companyPan, 105, gridY + 25);
@@ -1234,14 +1234,14 @@ export class InvoicesService {
         doc.text(serviceCategory, 105, gridY + 45);
 
         // Column 2: Full Address
-        doc.fillColor('#0e1218ff').font(fontRegular).fontSize(7.5);
+        doc.fillColor('#0E1218').font(fontRegular).fontSize(7.5);
         doc.text(companyAddress, 180, gridY + 5, { width: 195 });
         doc
           .fillColor(primaryColor)
           .font(fontBold)
           .text('Email ID:', 180, gridY + 42);
         doc
-          .fillColor('#0e1218ff')
+          .fillColor('#0E1218')
           .font(fontRegular)
           .text(companyEmail, 220, gridY + 42);
 
@@ -1250,7 +1250,7 @@ export class InvoicesService {
           .fillColor(primaryColor)
           .font(fontBold)
           .text('Contact No.:', 385, gridY + 5);
-        doc.fillColor('#0e1218ff').font(fontRegular);
+        doc.fillColor('#0E1218').font(fontRegular);
         const contactLines = companyPhone.split('\n');
         let contactY = gridY + 15;
         for (const line of contactLines) {
@@ -1276,7 +1276,7 @@ export class InvoicesService {
 
         doc.fillColor(primaryColor).font(fontBold);
         doc.text(parsedInvoice.customer.name, 115, billY + 5);
-        doc.fillColor('#0e1218ff').font(fontRegular);
+        doc.fillColor('#0E1218').font(fontRegular);
         doc.text(parsedInvoice.customer.billingAddress, 115, billY + 15, {
           width: 230,
         });
@@ -1301,7 +1301,7 @@ export class InvoicesService {
         doc.text('Bill No. :', 355, billY + 5);
         doc.text('Bill Date :', 355, billY + 18);
 
-        doc.fillColor('#0e1218ff').font(fontRegular);
+        doc.fillColor('#0E1218').font(fontRegular);
         doc.text(parsedInvoice.invoiceNumber, 405, billY + 5);
         doc.text(
           new Date(parsedInvoice.invoiceDate).toLocaleDateString('en-GB'),
@@ -1652,7 +1652,7 @@ export class InvoicesService {
           }
 
           // Date / DS No
-          doc.fillColor('#0F172A').font(fontBold).fontSize(7.5);
+          doc.fillColor('#0E1218').font(fontBold).fontSize(7.5);
           let dateY = currentY + 4;
           for (const line of dateLines) {
             if (line) {
@@ -1683,7 +1683,7 @@ export class InvoicesService {
             }
 
             doc.fillColor(
-              subRow.label === 'DUTY SLIP TOTAL' ? primaryColor : '#0e1218ff',
+              subRow.label === 'DUTY SLIP TOTAL' ? primaryColor : '#0E1218',
             );
             doc
               .font(
@@ -1762,10 +1762,10 @@ export class InvoicesService {
 
       doc.fillColor(primaryColor).font(fontBold).fontSize(8.5);
       doc.text('TOTAL DUTY SLIP ENCLOSE', 55, footerY + 5);
-      doc.fillColor('#0F172A').text(`${totalSlipsEnclosed}`, 215, footerY + 5);
+      doc.fillColor('#0E1218').text(`${totalSlipsEnclosed}`, 215, footerY + 5);
 
       doc.fillColor(primaryColor).text('TOTAL AMOUNT', 355, footerY + 5);
-      doc.fillColor('#0F172A').text(amountColSum.toFixed(2), 480, footerY + 5, {
+      doc.fillColor('#0E1218').text(amountColSum.toFixed(2), 480, footerY + 5, {
         width: 60,
         align: 'right',
       });
@@ -1777,7 +1777,7 @@ export class InvoicesService {
           .fontSize(8)
           .font(fontBold)
           .text('BANK DETAILS:', 55, footerY + 15);
-        doc.fillColor('#0e1218ff').font(fontRegular).fontSize(7.5);
+        doc.fillColor('#0E1218').font(fontRegular).fontSize(7.5);
         doc.text(`A/c Name: ${bankAccountHolder}`, 55, footerY + 25, {
           width: 130,
           ellipsis: true,
@@ -1847,7 +1847,7 @@ export class InvoicesService {
 
         if (rcmBreakupText) {
           doc
-            .fillColor('#0F172A')
+            .fillColor('#0E1218')
             .fontSize(7)
             .font(fontBold)
             .text(rcmBreakupText, 55, footerY + 68, { width: 290 });
@@ -1859,7 +1859,7 @@ export class InvoicesService {
         .fontSize(8.5)
         .text('Parking/TollTax Detail', 355, footerY + 18);
       doc
-        .fillColor('#0F172A')
+        .fillColor('#0E1218')
         .text(tollParkingTaxSum.toFixed(2), 480, footerY + 18, {
           width: 60,
           align: 'right',
@@ -1873,7 +1873,7 @@ export class InvoicesService {
             .fillColor(primaryColor)
             .text(`CGST( @ ${Number(parsedInvoice.cgstRate)} % )`, 355, gstLineY);
           doc
-            .fillColor('#0F172A')
+            .fillColor('#0E1218')
             .text(Number(parsedInvoice.cgstAmount).toFixed(2), 480, gstLineY, {
               width: 60,
               align: 'right',
@@ -1884,7 +1884,7 @@ export class InvoicesService {
             .fillColor(primaryColor)
             .text(`SGST( @ ${Number(parsedInvoice.sgstRate)} % )`, 355, gstLineY);
           doc
-            .fillColor('#0F172A')
+            .fillColor('#0E1218')
             .text(Number(parsedInvoice.sgstAmount).toFixed(2), 480, gstLineY, {
               width: 60,
               align: 'right',
@@ -1894,7 +1894,7 @@ export class InvoicesService {
             .fillColor(primaryColor)
             .text(`IGST( @ ${Number(parsedInvoice.igstRate)} % )`, 355, gstLineY);
           doc
-            .fillColor('#0F172A')
+            .fillColor('#0E1218')
             .text(Number(parsedInvoice.igstAmount).toFixed(2), 480, gstLineY, {
               width: 60,
               align: 'right',
@@ -1983,7 +1983,7 @@ export class InvoicesService {
       }
 
       // Terms & Conditions and Signature
-      const termsY = totalBoxY + 35;
+      const termsY = totalBoxY + totalBoxHeight + 5;
 
       if (showTerms) {
         const customTerms =
@@ -2000,18 +2000,18 @@ export class InvoicesService {
           .fontSize(8.5)
           .text('Terms & Condition', 55, termsY);
         doc
-          .fillColor('#475569')
+          .fillColor('#0E1218')
           .font(fontRegular)
           .fontSize(7.5)
           .text(customTerms, 55, termsY + 12, { width: 330, lineGap: 1.5 });
       }
 
-      // Signature section on the right
+      // Company Signature Title
       doc
+        .fillColor(primaryColor)
         .font(fontBold)
         .fontSize(9)
-        .fillColor(primaryColor)
-        .text(companyName.toUpperCase(), 390, termsY + 5, {
+        .text(companyName.toUpperCase(), 395, termsY + 5, {
           align: 'center',
           width: 150,
         });
