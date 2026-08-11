@@ -1791,9 +1791,28 @@ export class InvoicesService {
           .text(
             'RCM: As per Notification No. 22/2019-Central Tax (Rate), GST is payable by the recipient.',
             55,
-            footerY + 49,
+            footerY + 46,
             { width: 280 },
           );
+
+        let rcmBreakupText = '';
+        const cgstAmt = Number(parsedInvoice.cgstAmount || 0);
+        const sgstAmt = Number(parsedInvoice.sgstAmount || 0);
+        const igstAmt = Number(parsedInvoice.igstAmount || 0);
+
+        if (cgstAmt > 0 || sgstAmt > 0) {
+          rcmBreakupText = `CGST( @ ${Number(parsedInvoice.cgstRate)} % ) : ${cgstAmt.toFixed(2)}    SGST( @ ${Number(parsedInvoice.sgstRate)} % ) : ${sgstAmt.toFixed(2)}`;
+        } else if (igstAmt > 0) {
+          rcmBreakupText = `IGST( @ ${Number(parsedInvoice.igstRate)} % ) : ${igstAmt.toFixed(2)}`;
+        }
+
+        if (rcmBreakupText) {
+          doc
+            .fillColor('#E11D48')
+            .fontSize(6.5)
+            .font(fontBold)
+            .text(rcmBreakupText, 55, footerY + 57, { width: 280 });
+        }
       }
 
       doc
@@ -1807,39 +1826,41 @@ export class InvoicesService {
           align: 'right',
         });
 
-      // GST rows
-      let gstLineY = footerY + 34;
-      if (Number(parsedInvoice.cgstAmount) > 0) {
-        doc
-          .fillColor(primaryColor)
-          .text(`CGST( @ ${Number(parsedInvoice.cgstRate)} % )`, 355, gstLineY);
-        doc
-          .fillColor('#0F172A')
-          .text(Number(parsedInvoice.cgstAmount).toFixed(2), 480, gstLineY, {
-            width: 60,
-            align: 'right',
-          });
-        gstLineY += 12;
+      // GST rows (only rendered inside summary box for non-RCM invoices)
+      if (!isRcm) {
+        let gstLineY = footerY + 34;
+        if (Number(parsedInvoice.cgstAmount) > 0) {
+          doc
+            .fillColor(primaryColor)
+            .text(`CGST( @ ${Number(parsedInvoice.cgstRate)} % )`, 355, gstLineY);
+          doc
+            .fillColor('#0F172A')
+            .text(Number(parsedInvoice.cgstAmount).toFixed(2), 480, gstLineY, {
+              width: 60,
+              align: 'right',
+            });
+          gstLineY += 12;
 
-        doc
-          .fillColor(primaryColor)
-          .text(`SGST( @ ${Number(parsedInvoice.sgstRate)} % )`, 355, gstLineY);
-        doc
-          .fillColor('#0F172A')
-          .text(Number(parsedInvoice.sgstAmount).toFixed(2), 480, gstLineY, {
-            width: 60,
-            align: 'right',
-          });
-      } else if (Number(parsedInvoice.igstAmount) > 0) {
-        doc
-          .fillColor(primaryColor)
-          .text(`IGST( @ ${Number(parsedInvoice.igstRate)} % )`, 355, gstLineY);
-        doc
-          .fillColor('#0F172A')
-          .text(Number(parsedInvoice.igstAmount).toFixed(2), 480, gstLineY, {
-            width: 60,
-            align: 'right',
-          });
+          doc
+            .fillColor(primaryColor)
+            .text(`SGST( @ ${Number(parsedInvoice.sgstRate)} % )`, 355, gstLineY);
+          doc
+            .fillColor('#0F172A')
+            .text(Number(parsedInvoice.sgstAmount).toFixed(2), 480, gstLineY, {
+              width: 60,
+              align: 'right',
+            });
+        } else if (Number(parsedInvoice.igstAmount) > 0) {
+          doc
+            .fillColor(primaryColor)
+            .text(`IGST( @ ${Number(parsedInvoice.igstRate)} % )`, 355, gstLineY);
+          doc
+            .fillColor('#0F172A')
+            .text(Number(parsedInvoice.igstAmount).toFixed(2), 480, gstLineY, {
+              width: 60,
+              align: 'right',
+            });
+        }
       }
 
       // Grand Total & Payment Breakdown Box
