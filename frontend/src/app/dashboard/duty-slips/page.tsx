@@ -145,6 +145,7 @@ export default function DutySlipsPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [selectedRateCard, setSelectedRateCard] = useState<any>(null);
+  const [availableRateCards, setAvailableRateCards] = useState<any[]>([]);
   const [fullCustomer, setFullCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [loadingBookings, setLoadingBookings] = useState(false);
@@ -405,85 +406,81 @@ export default function DutySlipsPage() {
     const matchRateCard = async () => {
       if (!df.customerId) {
         setSelectedRateCard(null);
+        setAvailableRateCards([]);
         return;
       }
-      // 1. Customer specific card
+      let allCards: any[] = [];
+      // 1. Customer specific cards
       if (fullCustomer && fullCustomer.rateCards && fullCustomer.rateCards.length > 0) {
-        const rc = df.carGroup
-          ? fullCustomer.rateCards.find(
-              (r: any) =>
-                r.vehicleCategory?.name?.toLowerCase() === df.carGroup.toLowerCase() ||
-                r.vehicleCategory?.name?.toLowerCase() === df.carName?.toLowerCase()
-            ) || fullCustomer.rateCards[0]
-          : fullCustomer.rateCards[0];
-
-        if (rc) {
-          setSelectedRateCard(rc);
-          const hasCustom = (
-            (Number(rc.fullKm || rc.minKm) !== 80 && Number(rc.fullKm || rc.minKm) !== 40) ||
-            (Number(rc.fullHr || rc.minHr) !== 8 && Number(rc.fullHr || rc.minHr) !== 4)
-          );
-          setDf(f => ({
-            ...f,
-            carGroup: f.carGroup || rc.vehicleCategory?.name || '',
-            billingMode: f.billingMode === 'N' || !f.billingMode ? (hasCustom ? 'C' : 'F') : f.billingMode,
-            driverAllowance: Number(rc.driverAllowance) || 0,
-            nightChargesOnTime: df.dutyType === 'O' || df.dutyType === 'T'
-              ? Number(rc.outstationNightCharge || rc.nightCharge) || 0
-              : Number(rc.nightCharge) || 0,
-          }));
-          return;
-        }
+        allCards = [...fullCustomer.rateCards];
       }
-      // 2. Default tenant card
+      // 2. Default tenant cards
       try {
-        const targetCategory = df.carGroup || df.carName;
-        const cat = targetCategory
-          ? categories.find(c => c.name.toLowerCase() === targetCategory.toLowerCase())
-          : categories[0];
-        if (cat) {
-          let mappedClientType = 'Company';
-          if (fullCustomer) {
-            if (fullCustomer.type === 'INDIVIDUAL') {
-              mappedClientType = 'Individual';
+        let mappedClientType = 'Company';
+        if (fullCustomer) {
+          if (fullCustomer.type === 'INDIVIDUAL') {
+            mappedClientType = 'Individual';
+          } else {
+            const lowerName = (fullCustomer.companyName || '').toLowerCase();
+            if (lowerName.includes('travel') || lowerName.includes('holiday') || lowerName.includes('resort') || lowerName.includes('tour')) {
+              mappedClientType = 'Travel Company';
             } else {
-              const lowerName = (fullCustomer.companyName || '').toLowerCase();
-              if (lowerName.includes('travel') || lowerName.includes('holiday') || lowerName.includes('resort') || lowerName.includes('tour')) {
-                mappedClientType = 'Travel Company';
-              } else {
-                mappedClientType = 'Company';
-              }
+              mappedClientType = 'Company';
             }
           }
-          const res = await api.request(
-            `/rate-management/rate-cards?customerId=ALL&vehicleCategoryId=${cat.id}&clientType=${mappedClientType}`
-          );
-          const rc = res.data?.find((r: any) => !r.customerId && r.status === 'ACTIVE') || res.data?.[0];
-          if (rc) {
-            setSelectedRateCard(rc);
-            const hasCustom = (
-              (Number(rc.fullKm || rc.minKm) !== 80 && Number(rc.fullKm || rc.minKm) !== 40) ||
-              (Number(rc.fullHr || rc.minHr) !== 8 && Number(rc.fullHr || rc.minHr) !== 4)
-            );
-            setDf(f => ({
-              ...f,
-              carGroup: f.carGroup || cat.name,
-              billingMode: f.billingMode === 'N' || !f.billingMode ? (hasCustom ? 'C' : 'F') : f.billingMode,
-              driverAllowance: Number(rc.driverAllowance) || 0,
-              nightChargesOnTime: df.dutyType === 'O' || df.dutyType === 'T'
-                ? Number(rc.outstationNightCharge || rc.nightCharge) || 0
-                : Number(rc.nightCharge) || 0,
-            }));
-            return;
-          }
+        }
+        const res = await api.request(
+          `/rate-management/rate-cards?customerId=ALL&clientType=${mappedClientType}`
+        );
+        if (res.data && Array.isArray(res.data)) {
+          const tenantCards = res.data.filter((r: any) => !r.customerId && r.status === 'ACTIVE');
+          allCards = [...allCards, ...tenantCards];
         }
       } catch (err) {
-        console.error('Failed to fetch default rate card:', err);
+        console.error('Failed to fetch default rate cards:', err);
       }
-      setSelectedRateCard(null);
+
+      setAvailableRateCards(allCards);
+
+      const targetCategory = df.carGroup || df.carName;
+      let rc = allCards.find(
+        (r: any) =>
+          targetCategory &&
+          r.vehicleCategory?.name?.toLowerCase() === targetCategory.toLowerCase() &&
+          r.customerId === df.customerId
+      );
+      if (!rc) {
+        rc = allCards.find(
+          (r: any) =>
+            targetCategory &&
+            r.vehicleCategory?.name?.toLowerCase() === targetCategory.toLowerCase()
+        );
+      }
+      if (!rc && allCards.length > 0) {
+        rc = allCards[0];
+      }
+
+      if (rc) {
+        setSelectedRateCard(rc);
+        const hasCustom = (
+          (Number(rc.fullKm || rc.minKm) !== 80 && Number(rc.fullKm || rc.minKm) !== 40) ||
+          (Number(rc.fullHr || rc.minHr) !== 8 && Number(rc.fullHr || rc.minHr) !== 4)
+        );
+        setDf(f => ({
+          ...f,
+          carGroup: f.carGroup || rc.vehicleCategory?.name || '',
+          billingMode: f.billingMode === 'N' || !f.billingMode ? (hasCustom ? 'C' : 'F') : f.billingMode,
+          driverAllowance: Number(rc.driverAllowance) || 0,
+          nightChargesOnTime: df.dutyType === 'O' || df.dutyType === 'T'
+            ? Number(rc.outstationNightCharge || rc.nightCharge) || 0
+            : Number(rc.nightCharge) || 0,
+        }));
+      } else {
+        setSelectedRateCard(null);
+      }
     };
     matchRateCard();
-  }, [fullCustomer, df.carGroup, df.dutyType]);
+  }, [fullCustomer, df.carGroup, df.carName, df.dutyType, categories]);
 
   /* ── Reactive KM and Hour metrics calculator ── */
   useEffect(() => {
@@ -1901,6 +1898,47 @@ export default function DutySlipsPage() {
                   <h3 className="text-sm font-bold text-slate-700">Trip & Billing Mode</h3>
                 </div>
                 <div className="p-5 space-y-4">
+                  {/* Applied Rate Card Selector */}
+                  {availableRateCards.length > 1 && (
+                    <Field label="Applied Rate Card">
+                      <select
+                        value={selectedRateCard?.id || ''}
+                        onChange={e => {
+                          const card = availableRateCards.find(c => c.id === e.target.value);
+                          if (card) {
+                            setSelectedRateCard(card);
+                            const hasCustom = (
+                              (Number(card.fullKm || card.minKm) !== 80 && Number(card.fullKm || card.minKm) !== 40) ||
+                              (Number(card.fullHr || card.minHr) !== 8 && Number(card.fullHr || card.minHr) !== 4)
+                            );
+                            setDf(f => ({
+                              ...f,
+                              carGroup: card.vehicleCategory?.name || f.carGroup,
+                              billingMode: hasCustom ? 'C' : 'F',
+                              driverAllowance: Number(card.driverAllowance) || 0,
+                              nightChargesOnTime: df.dutyType === 'O' || df.dutyType === 'T'
+                                ? Number(card.outstationNightCharge || card.nightCharge) || 0
+                                : Number(card.nightCharge) || 0,
+                            }));
+                          }
+                        }}
+                        className={sel}
+                      >
+                        {availableRateCards.map((rc: any) => {
+                          const baseKm = Number(rc.fullKm || rc.minKm || rc.includedKm || 120);
+                          const baseHr = Number(rc.fullHr || rc.minHr || 12);
+                          const baseFare = Number(rc.fullDayRate || rc.halfDayRate || 2000);
+                          const isCustomerCard = !!rc.customerId;
+                          return (
+                            <option key={rc.id} value={rc.id}>
+                              {rc.vehicleCategory?.name} • {baseKm}km / {baseHr}hr @ ₹{baseFare.toLocaleString('en-IN')} {isCustomerCard ? '(Company Custom)' : '(Default)'}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </Field>
+                  )}
+
                   <div className="grid grid-cols-1 gap-4">
                     <Field label="Service / Billing Option *">
                       {(() => {
@@ -1991,6 +2029,57 @@ export default function DutySlipsPage() {
                       })()}
                     </Field>
                   </div>
+
+                  {/* Available Rate Details Summary Panel */}
+                  {selectedRateCard && df.dutyType !== 'FLEXIBLE' && (
+                    <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-blue-500" />
+                          Rate Details • {selectedRateCard.vehicleCategory?.name || 'Standard'}
+                        </span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${selectedRateCard.customerId ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-200 text-slate-700'}`}>
+                          {selectedRateCard.customerId ? 'Company Custom Rate' : 'Standard Rate Card'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        <div className="bg-white p-2 rounded-lg border border-blue-100 shadow-2xs">
+                          <span className="text-[10px] text-slate-500 block">Base Package</span>
+                          <span className="font-bold text-slate-800">
+                            ₹{df.billingMode === 'H' || df.billingMode === 'T'
+                              ? (Number(selectedRateCard.halfDayRate) || 1000).toLocaleString('en-IN')
+                              : df.billingMode === 'C'
+                                ? (Number(selectedRateCard.fullDayRate || selectedRateCard.halfDayRate) || 2000).toLocaleString('en-IN')
+                                : (Number(selectedRateCard.fullDayRate) || 1600).toLocaleString('en-IN')}
+                          </span>
+                          <span className="text-[10px] text-blue-600 block font-semibold">
+                            {df.billingMode === 'H' || df.billingMode === 'T'
+                              ? `${Number(selectedRateCard.minKm) || 40} km / ${Number(selectedRateCard.minHr) || 4} hr`
+                              : df.billingMode === 'C'
+                                ? `${Number(selectedRateCard.fullKm || selectedRateCard.minKm || selectedRateCard.includedKm) || 120} km / ${Number(selectedRateCard.fullHr || selectedRateCard.minHr) || 12} hr`
+                                : `${Number(selectedRateCard.fullKm) || 80} km / ${Number(selectedRateCard.fullHr) || 8} hr`}
+                          </span>
+                        </div>
+                        <div className="bg-white p-2 rounded-lg border border-blue-100 shadow-2xs">
+                          <span className="text-[10px] text-slate-500 block">Extra KM Rate</span>
+                          <span className="font-bold text-slate-800 font-mono">₹{Number(selectedRateCard.extraKmRate || 12).toFixed(0)}/km</span>
+                        </div>
+                        <div className="bg-white p-2 rounded-lg border border-blue-100 shadow-2xs">
+                          <span className="text-[10px] text-slate-500 block">Extra Hour Rate</span>
+                          <span className="font-bold text-slate-800 font-mono">₹{Number(selectedRateCard.extraHourRate || 100).toFixed(0)}/hr</span>
+                        </div>
+                        <div className="bg-white p-2 rounded-lg border border-blue-100 shadow-2xs">
+                          <span className="text-[10px] text-slate-500 block">Night / DA</span>
+                          <span className="font-bold text-slate-800 font-mono">
+                            Night: ₹{Number(selectedRateCard.nightCharge || 200).toFixed(0)}
+                          </span>
+                          <span className="text-[10px] text-slate-500 block font-mono">
+                            DA: ₹{Number(selectedRateCard.driverAllowance || 250).toFixed(0)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {df.dutyType === 'FLEXIBLE' && (
                     <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 animate-fade-in">
