@@ -90,6 +90,8 @@ interface ClosedTrip {
     pickupDate: string;
     tripType: string;
     vehicleTypeRequired: string;
+    guestName?: string;
+    guestSalutation?: string;
   };
   dutySlip?: {
     dutySlipNumber: string;
@@ -97,6 +99,8 @@ interface ClosedTrip {
     endKm?: string;
     startDateTime?: string;
     reportingTime?: string;
+    guestName?: string;
+    guestSalutation?: string;
   };
 }
 
@@ -1144,7 +1148,7 @@ export default function InvoicesPage() {
                               <th className="py-2.5 px-3 w-10">✓</th>
                               <th className="py-2.5 px-3">Duty Slip No</th>
                               <th className="py-2.5 px-3">Date</th>
-                              <th className="py-2.5 px-3">Guest Name</th>
+                              <th className="py-2.5 px-3">Customer / Guest</th>
                               <th className="py-2.5 px-3">Vehicle</th>
                               <th className="py-2.5 px-3">Duty Type</th>
                               <th className="py-2.5 px-3">Start Date</th>
@@ -1177,8 +1181,18 @@ export default function InvoicesPage() {
                                   <td className="py-3 px-3 text-[#64748B]">
                                     {new Date(t.dutySlip?.startDateTime || t.dutySlip?.reportingTime || t.booking?.pickupDate).toLocaleDateString('en-GB')}
                                   </td>
-                                  <td className="py-3 px-3 font-semibold">
-                                    {t.booking.customer.name}
+                                  <td className="py-3 px-3">
+                                    <div className="font-semibold">{t.booking.customer.name}</div>
+                                    {(() => {
+                                      const gName = (t.dutySlip?.guestName || t.booking?.guestName || '').trim();
+                                      const gSal = (t.dutySlip?.guestSalutation || t.booking?.guestSalutation || '').trim();
+                                      if (!gName) return null;
+                                      return (
+                                        <div className="text-[11px] text-[#64748B]">
+                                          Guest: {gSal ? `${gSal} ` : ''}{gName}
+                                        </div>
+                                      );
+                                    })()}
                                   </td>
                                   <td className="py-3 px-3">
                                     {t.booking.vehicleTypeRequired}
@@ -1360,7 +1374,13 @@ export default function InvoicesPage() {
                               </div>
                               <div>
                                 <span className="block text-[10px] text-[#64748B] uppercase">Guest Name</span>
-                                <span className="font-semibold text-[#0F172A]">{t.booking.customer.name}</span>
+                                <span className="font-semibold text-[#0F172A]">
+                                  {(() => {
+                                    const gName = (t.dutySlip?.guestName || t.booking?.guestName || '').trim();
+                                    const gSal = (t.dutySlip?.guestSalutation || t.booking?.guestSalutation || '').trim();
+                                    return gName ? (gSal ? `${gSal} ${gName}` : gName) : '—';
+                                  })()}
+                                </span>
                               </div>
                               <div>
                                 <span className="block text-[10px] text-[#64748B] uppercase">Duty Description</span>

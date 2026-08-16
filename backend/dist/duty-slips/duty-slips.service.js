@@ -409,15 +409,21 @@ let DutySlipsService = class DutySlipsService {
         if (dto.endKm !== undefined && targetStatus === client_1.DutySlipStatus.DRAFT) {
             targetStatus = client_1.DutySlipStatus.FILLED;
         }
-        if (dto.guestName !== undefined ||
-            dto.guestSalutation !== undefined ||
+        const hasGuestUpdate = dto.guestName !== undefined || dto.guestSalutation !== undefined;
+        const cleanGuestName = dto.guestName !== undefined
+            ? (dto.guestName && dto.guestName.trim() ? dto.guestName.trim() : null)
+            : undefined;
+        const cleanGuestSalutation = hasGuestUpdate
+            ? (cleanGuestName ? (dto.guestSalutation && dto.guestSalutation.trim() ? dto.guestSalutation.trim() : null) : null)
+            : undefined;
+        if (hasGuestUpdate ||
             dto.bookingBy !== undefined ||
             dto.remarks !== undefined) {
             await this.prisma.booking.update({
                 where: { id: slip.bookingId },
                 data: {
-                    guestName: dto.guestName,
-                    guestSalutation: dto.guestSalutation,
+                    guestName: cleanGuestName,
+                    guestSalutation: cleanGuestSalutation,
                     bookingBy: dto.bookingBy,
                     remarks: dto.remarks,
                 },
@@ -446,8 +452,8 @@ let DutySlipsService = class DutySlipsService {
                 employeeId: dto.employeeId,
                 driverId: dto.driverId,
                 vehicleId: dto.vehicleId,
-                guestName: dto.guestName,
-                guestSalutation: dto.guestSalutation,
+                guestName: cleanGuestName,
+                guestSalutation: cleanGuestSalutation,
             },
             include: {
                 booking: { include: { customer: true } },
@@ -783,10 +789,16 @@ let DutySlipsService = class DutySlipsService {
                 lineBreak: false,
                 ellipsis: true,
             });
-            const guestDisplay = (slip.booking?.guestSalutation
-                ? slip.booking.guestSalutation + ' '
-                : '') +
-                (slip.booking?.guestName || slip.manualGuestName || '---');
+            const rawGuest = (slip.guestName ||
+                slip.booking?.guestName ||
+                slip.manualGuestName ||
+                '').trim();
+            const guestSal = (slip.guestSalutation ||
+                slip.booking?.guestSalutation ||
+                '').trim();
+            const guestDisplay = rawGuest
+                ? (guestSal ? `${guestSal} ${rawGuest}` : rawGuest)
+                : '---';
             doc.font(fontBold).text('Guest Name:', 307, sec2BoxY + 8);
             doc.font(fontRegular).text(guestDisplay, 375, sec2BoxY + 8, {
                 width: 160,

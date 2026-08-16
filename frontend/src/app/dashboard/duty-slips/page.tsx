@@ -44,6 +44,8 @@ interface DutySlip {
   pickupLocation?: string;
   dropLocation?: string;
   remarks?: string;
+  guestName?: string | null;
+  guestSalutation?: string | null;
   trip?: any;
 }
 interface CalcPreview {
@@ -637,7 +639,7 @@ export default function DutySlipsPage() {
         : isOutstation;
 
       const driverAllowanceVal = autoIncludeDA
-        ? (f.isManualDriverAllowance ? f.driverAllowance : (calculatedDriverAllowance || 250))
+        ? (f.isManualDriverAllowance && Number(f.driverAllowance) > 0 ? f.driverAllowance : (calculatedDriverAllowance || 250))
         : 0;
 
       const autoIncludeNight = f.isManualNightCharges
@@ -645,7 +647,7 @@ export default function DutySlipsPage() {
         : (nightHrs > 0);
 
       const nightChargesVal = autoIncludeNight
-        ? (f.isManualNightCharges ? f.nightChargesOnTime : (calculatedNightCharges || 200))
+        ? (f.isManualNightCharges && Number(f.nightChargesOnTime) > 0 ? f.nightChargesOnTime : (calculatedNightCharges || 200))
         : 0;
 
       const extraKmChargedVal = f.isManualExtraKmCharged
@@ -923,6 +925,9 @@ export default function DutySlipsPage() {
       ? customParticulars.reduce((sum, p) => sum + Number(p.amount || 0), 0)
       : 0;
 
+    const cleanGuestName = (df.guestName || '').trim();
+    const cleanGuestSalutation = cleanGuestName ? (df.guestSalutation || '').trim() : '';
+
     const payloadRemarks = JSON.stringify({
       isFlexible: isFlexibleDuty,
       items: isFlexibleDuty ? customParticulars : undefined,
@@ -934,6 +939,12 @@ export default function DutySlipsPage() {
       baseFare: Number(df.baseFare) || 0,
       extraKmRate: Number(df.extraKmRate) || 0,
       extraHourRate: Number(df.extraHourRate) || 0,
+      includeNightCharges: df.includeNightCharges,
+      nightChargesOnTime: Number(df.nightChargesOnTime) || 0,
+      isManualNightCharges: df.isManualNightCharges,
+      includeDriverAllowance: df.includeDriverAllowance,
+      driverAllowance: Number(df.driverAllowance) || 0,
+      isManualDriverAllowance: df.isManualDriverAllowance,
       packageKm: df.billingMode === 'C'
         ? Number(selectedRateCard?.fullKm || selectedRateCard?.minKm || selectedRateCard?.includedKm || 120)
         : df.billingMode === 'H' || df.billingMode === 'T'
@@ -978,8 +989,8 @@ export default function DutySlipsPage() {
             employeeId: df.employeeId || undefined,
             driverId: df.driverId !== 'MANUAL' ? df.driverId : undefined,
             vehicleId: df.vehicleId !== 'MANUAL' ? df.vehicleId : undefined,
-            guestName: df.guestName || undefined,
-            guestSalutation: df.guestSalutation || undefined,
+            guestName: cleanGuestName ? cleanGuestName : null,
+            guestSalutation: cleanGuestSalutation ? cleanGuestSalutation : null,
             bookingBy: df.bookingBy || undefined,
             remarks: payloadRemarks || undefined,
           }),
@@ -997,12 +1008,12 @@ export default function DutySlipsPage() {
             pickupLocation: df.pickupLocation || df.reportingAt || undefined,
             dropLocation: df.dropLocation || undefined,
             tripType: df.dutyType === 'O' || df.dutyType === 'T' ? 'OUTSTATION' : isFlexibleDuty ? 'HOURLY_RENTAL' : 'LOCAL',
-            guestName: df.guestName || undefined,
-            guestSalutation: df.guestSalutation || undefined,
+            guestName: cleanGuestName || undefined,
+            guestSalutation: cleanGuestSalutation || undefined,
             bookingBy: df.bookingBy || undefined,
             remarks: payloadRemarks || undefined,
             employeeId: df.employeeId || undefined,
-            manualCustomerName: df.customerType === 'new' ? df.guestName : undefined,
+            manualCustomerName: df.customerType === 'new' ? (cleanGuestName || undefined) : undefined,
             manualDriverName: df.driverId === 'MANUAL' ? df.manualDriverName : undefined,
             manualDriverPhone: df.driverId === 'MANUAL' ? df.manualDriverPhone : undefined,
             manualVehicleNumber: df.vehicleId === 'MANUAL' ? df.manualVehicleNumber : undefined,
@@ -1136,6 +1147,12 @@ export default function DutySlipsPage() {
     let savedBaseFare: number | null = null;
     let savedExtraKmRate: number | null = null;
     let savedExtraHourRate: number | null = null;
+    let savedIncludeNightCharges: boolean | null = null;
+    let savedNightChargesOnTime: number | null = null;
+    let savedIsManualNightCharges: boolean | null = null;
+    let savedIncludeDriverAllowance: boolean | null = null;
+    let savedDriverAllowance: number | null = null;
+    let savedIsManualDriverAllowance: boolean | null = null;
 
     try {
       if (remarksText.trim().startsWith('{')) {
@@ -1158,6 +1175,24 @@ export default function DutySlipsPage() {
         }
         if (typeof obj.extraHourRate === 'number') {
           savedExtraHourRate = obj.extraHourRate;
+        }
+        if (typeof obj.includeNightCharges === 'boolean') {
+          savedIncludeNightCharges = obj.includeNightCharges;
+        }
+        if (typeof obj.nightChargesOnTime === 'number') {
+          savedNightChargesOnTime = obj.nightChargesOnTime;
+        }
+        if (typeof obj.isManualNightCharges === 'boolean') {
+          savedIsManualNightCharges = obj.isManualNightCharges;
+        }
+        if (typeof obj.includeDriverAllowance === 'boolean') {
+          savedIncludeDriverAllowance = obj.includeDriverAllowance;
+        }
+        if (typeof obj.driverAllowance === 'number') {
+          savedDriverAllowance = obj.driverAllowance;
+        }
+        if (typeof obj.isManualDriverAllowance === 'boolean') {
+          savedIsManualDriverAllowance = obj.isManualDriverAllowance;
         }
         remarksText = obj.userNotes || '';
       }
@@ -1223,6 +1258,33 @@ export default function DutySlipsPage() {
 
     const hasClosedTrip = !!slip.trip;
 
+    const rawNightCharge = Number(slip.nightCharges || (slip.trip as any)?.nightChargesCharged || 0);
+    const resolvedIncludeNight = savedIncludeNightCharges !== null
+      ? savedIncludeNightCharges
+      : rawNightCharge > 0;
+    const resolvedNightCharge = savedNightChargesOnTime !== null
+      ? savedNightChargesOnTime
+      : (rawNightCharge > 0 ? rawNightCharge : (isOutstation ? Number(matchedRc?.outstationNightCharge || matchedRc?.nightCharge) || 200 : Number(matchedRc?.nightCharge) || 200));
+    const resolvedIsManualNight = savedIsManualNightCharges !== null
+      ? savedIsManualNightCharges
+      : (hasClosedTrip || rawNightCharge > 0 || savedIncludeNightCharges !== null);
+
+    const rawDA = Number(slip.driverAllowance || (slip.trip as any)?.driverAllowance || 0);
+    const resolvedIncludeDA = savedIncludeDriverAllowance !== null
+      ? savedIncludeDriverAllowance
+      : (rawDA > 0 || isOutstation);
+    const resolvedDriverAllowance = savedDriverAllowance !== null
+      ? savedDriverAllowance
+      : (rawDA > 0 ? rawDA : (Number(matchedRc?.driverAllowance) || 250));
+    const resolvedIsManualDA = savedIsManualDriverAllowance !== null
+      ? savedIsManualDriverAllowance
+      : (hasClosedTrip || rawDA > 0 || savedIncludeDriverAllowance !== null);
+
+    const editGuestName = (slip.guestName || slip.booking?.guestName || '').trim();
+    const editGuestSalutation = editGuestName
+      ? (slip.guestSalutation || slip.booking?.guestSalutation || 'Mr')
+      : 'Mr';
+
     setDf({
       customerType: slip.booking?.customer ? 'regular' : 'new',
       modeOfPayment: slip.booking?.modeOfPayment || 'Credit',
@@ -1234,8 +1296,8 @@ export default function DutySlipsPage() {
       address: customerObj?.billingAddress || slip.booking?.customer?.billingAddress || '',
       phone: customerObj?.phone || slip.booking?.customer?.phone || '',
       bookingBy: slip.booking?.bookingBy || '',
-      guestSalutation: slip.booking?.guestSalutation || 'Mr',
-      guestName: slip.booking?.guestName || '',
+      guestSalutation: editGuestSalutation,
+      guestName: editGuestName,
       reportingAt: slip.pickupLocation || '',
       fileCode: slip.booking?.fileCode || '',
       employeeId: slip.employeeId || '',
@@ -1270,14 +1332,14 @@ export default function DutySlipsPage() {
       mcdToll: Number(slip.mcd) || 0,
       stateTax: Number(slip.stateTax) || 0,
       driverAdvance: 0,
-      driverAllowance: Number(slip.driverAllowance || (slip.trip as any)?.driverAllowance) || 0,
+      driverAllowance: resolvedIncludeDA ? resolvedDriverAllowance : 0,
       driverRefund: 0,
       feedbackPoint: '',
       driverRemark: '',
       dutyType: isFlex ? 'FLEXIBLE' : (isOutstation ? 'O' : 'L'),
       tourCode: '',
       localBill: '',
-      nightChargesOnTime: Number(slip.nightCharges || (slip.trip as any)?.nightChargesCharged) || 0,
+      nightChargesOnTime: resolvedIncludeNight ? resolvedNightCharge : 0,
       billingMode: resolvedBillingMode,
       extraCharges: Number(slip.extraCharges) || 0,
       manualDriverName: '',
@@ -1299,15 +1361,15 @@ export default function DutySlipsPage() {
       extraHourRate: savedExtraHourRate !== null ? savedExtraHourRate : Number(matchedRc?.extraHourRate || 100),
       extraKmCharged: hasClosedTrip ? Number((slip.trip as any).extraKmCharged) : 0,
       extraHoursCharged: hasClosedTrip ? Number((slip.trip as any).extraHoursCharged) : 0,
-      includeDriverAllowance: Number(slip.driverAllowance || (slip.trip as any)?.driverAllowance) > 0,
-      includeNightCharges: Number(slip.nightCharges || (slip.trip as any)?.nightChargesCharged) > 0,
+      includeDriverAllowance: resolvedIncludeDA,
+      includeNightCharges: resolvedIncludeNight,
       isManualBaseFare: hasClosedTrip || savedBaseFare !== null,
       isManualExtraKmRate: savedExtraKmRate !== null,
       isManualExtraHourRate: savedExtraHourRate !== null,
       isManualExtraKmCharged: hasClosedTrip,
       isManualExtraHoursCharged: hasClosedTrip,
-      isManualDriverAllowance: hasClosedTrip,
-      isManualNightCharges: hasClosedTrip,
+      isManualDriverAllowance: resolvedIsManualDA,
+      isManualNightCharges: resolvedIsManualNight,
     });
 
     setIsDirectOpen(true);
@@ -1451,11 +1513,16 @@ export default function DutySlipsPage() {
                       {slip.employeeId && <div className="text-[10px] text-slate-400 font-mono">{slip.employeeId}</div>}
                     </td>
                     <td className="px-4 py-3.5 text-xs text-slate-700 font-medium">
-                      {slip.booking?.guestName ? (
-                        <div className="truncate max-w-[120px] font-semibold text-slate-800">
-                          {slip.booking.guestSalutation ? `${slip.booking.guestSalutation} ` : ''}{slip.booking.guestName}
-                        </div>
-                      ) : '—'}
+                      {(() => {
+                        const gName = (slip.guestName || slip.booking?.guestName || '').trim();
+                        const gSal = (slip.guestSalutation || slip.booking?.guestSalutation || '').trim();
+                        if (!gName) return <span className="text-slate-400">—</span>;
+                        return (
+                          <div className="truncate max-w-[120px] font-semibold text-slate-800">
+                            {gSal ? `${gSal} ` : ''}{gName}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3.5 text-slate-700 text-xs">{slip.driver?.name || '—'}</td>
                     <td className="px-4 py-3.5 text-xs font-mono text-slate-600">{slip.vehicle?.vehicleNumber || '—'}</td>
@@ -2553,12 +2620,14 @@ export default function DutySlipsPage() {
                               onChange={e => {
                                 const checked = e.target.checked;
                                 setDf(f => {
-                                  const fallbackDA = f.dutyType === 'O' || f.dutyType === 'T' ? 300 : 250;
+                                  const fallbackDA = f.dutyType === 'O' || f.dutyType === 'T'
+                                    ? (selectedRateCard ? (Number(selectedRateCard.driverAllowance) || 300) : 300)
+                                    : (selectedRateCard ? (Number(selectedRateCard.driverAllowance) || 250) : 250);
                                   return {
                                     ...f,
                                     includeDriverAllowance: checked,
                                     driverAllowance: checked ? (f.driverAllowance > 0 ? f.driverAllowance : fallbackDA) : 0,
-                                    isManualDriverAllowance: checked,
+                                    isManualDriverAllowance: true,
                                   };
                                 });
                               }}
@@ -2590,12 +2659,14 @@ export default function DutySlipsPage() {
                               onChange={e => {
                                 const checked = e.target.checked;
                                 setDf(f => {
-                                  const fallbackNight = 200;
+                                  const fallbackNight = f.dutyType === 'O' || f.dutyType === 'T'
+                                    ? (selectedRateCard ? (Number(selectedRateCard.outstationNightCharge || selectedRateCard.nightCharge) || 200) : 200)
+                                    : (selectedRateCard ? (Number(selectedRateCard.nightCharge) || 200) : 200);
                                   return {
                                     ...f,
                                     includeNightCharges: checked,
                                     nightChargesOnTime: checked ? (f.nightChargesOnTime > 0 ? f.nightChargesOnTime : fallbackNight) : 0,
-                                    isManualNightCharges: checked,
+                                    isManualNightCharges: true,
                                   };
                                 });
                               }}
