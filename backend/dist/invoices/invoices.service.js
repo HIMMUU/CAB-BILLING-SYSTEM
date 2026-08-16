@@ -1188,16 +1188,30 @@ let InvoicesService = class InvoicesService {
                     let isFlexibleDuty = false;
                     let userRemarksText = (ds.remarks || booking.remarks || '').trim();
                     let flexibleMiscCharges = 0;
+                    let parsedPackageKm = null;
+                    let parsedPackageHours = null;
+                    let parsedRateCardId = null;
                     try {
                         if (userRemarksText.startsWith('{')) {
                             const parsed = JSON.parse(userRemarksText);
                             if (parsed.isFlexible && Array.isArray(parsed.items)) {
                                 isFlexibleDuty = true;
                                 customParticulars = parsed.items;
+                            }
+                            if (parsed.userNotes !== undefined) {
                                 userRemarksText = (parsed.userNotes || '').trim();
-                                if (typeof parsed.miscCharges !== 'undefined') {
-                                    flexibleMiscCharges = Number(parsed.miscCharges || 0);
-                                }
+                            }
+                            if (typeof parsed.miscCharges !== 'undefined') {
+                                flexibleMiscCharges = Number(parsed.miscCharges || 0);
+                            }
+                            if (parsed.packageKm) {
+                                parsedPackageKm = Number(parsed.packageKm);
+                            }
+                            if (parsed.packageHours) {
+                                parsedPackageHours = Number(parsed.packageHours);
+                            }
+                            if (parsed.rateCardId) {
+                                parsedRateCardId = parsed.rateCardId;
                             }
                         }
                     }
@@ -1206,11 +1220,16 @@ let InvoicesService = class InvoicesService {
                     const reqType = booking.vehicleTypeRequired;
                     const allCustCards = booking.customer?.rateCards || [];
                     const allCandidateCards = [...allCustCards, ...(tenantRateCards || [])];
-                    let rc = allCandidateCards.find((r) => (r.vehicleCategory?.name?.toLowerCase() === vCatName?.toLowerCase() ||
-                        r.vehicleCategory?.name?.toLowerCase() === reqType?.toLowerCase()) &&
-                        (Number(r.fullDayRate) === Number(trip.baseFareCharged) ||
-                            Number(r.halfDayRate) === Number(trip.baseFareCharged)) &&
-                        r.customerId === booking.customerId);
+                    let rc = parsedRateCardId
+                        ? allCandidateCards.find((r) => r.id === parsedRateCardId)
+                        : null;
+                    if (!rc) {
+                        rc = allCandidateCards.find((r) => (r.vehicleCategory?.name?.toLowerCase() === vCatName?.toLowerCase() ||
+                            r.vehicleCategory?.name?.toLowerCase() === reqType?.toLowerCase()) &&
+                            (Number(r.fullDayRate) === Number(trip.baseFareCharged) ||
+                                Number(r.halfDayRate) === Number(trip.baseFareCharged)) &&
+                            r.customerId === booking.customerId);
+                    }
                     if (!rc) {
                         rc = allCustCards.find((r) => Number(r.fullDayRate) === Number(trip.baseFareCharged) ||
                             Number(r.halfDayRate) === Number(trip.baseFareCharged));
@@ -1291,6 +1310,10 @@ let InvoicesService = class InvoicesService {
                                 Number(rc?.halfDayRate) !== Number(rc?.fullDayRate))) {
                             baseKm = Number(rc?.minKm) || 40;
                             baseHr = Number(rc?.minHr) || 4;
+                        }
+                        else if (parsedPackageKm && parsedPackageHours) {
+                            baseKm = parsedPackageKm;
+                            baseHr = parsedPackageHours;
                         }
                         else {
                             const cardKm = Number(rc?.fullKm || rc?.minKm || rc?.includedKm);

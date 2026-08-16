@@ -1430,16 +1430,31 @@ export class InvoicesService {
           let userRemarksText = (ds.remarks || booking.remarks || '').trim();
 
           let flexibleMiscCharges = 0;
+          let parsedPackageKm: number | null = null;
+          let parsedPackageHours: number | null = null;
+          let parsedRateCardId: string | null = null;
+
           try {
             if (userRemarksText.startsWith('{')) {
               const parsed = JSON.parse(userRemarksText);
               if (parsed.isFlexible && Array.isArray(parsed.items)) {
                 isFlexibleDuty = true;
                 customParticulars = parsed.items;
+              }
+              if (parsed.userNotes !== undefined) {
                 userRemarksText = (parsed.userNotes || '').trim();
-                if (typeof parsed.miscCharges !== 'undefined') {
-                  flexibleMiscCharges = Number(parsed.miscCharges || 0);
-                }
+              }
+              if (typeof parsed.miscCharges !== 'undefined') {
+                flexibleMiscCharges = Number(parsed.miscCharges || 0);
+              }
+              if (parsed.packageKm) {
+                parsedPackageKm = Number(parsed.packageKm);
+              }
+              if (parsed.packageHours) {
+                parsedPackageHours = Number(parsed.packageHours);
+              }
+              if (parsed.rateCardId) {
+                parsedRateCardId = parsed.rateCardId;
               }
             }
           } catch (e) { }
@@ -1450,15 +1465,22 @@ export class InvoicesService {
           const allCustCards = booking.customer?.rateCards || [];
           const allCandidateCards = [...allCustCards, ...(tenantRateCards || [])];
 
+          // 0. Try exact saved rateCardId
+          let rc = parsedRateCardId
+            ? allCandidateCards.find((r: any) => r.id === parsedRateCardId)
+            : null;
+
           // 1. Try to match by vehicle category AND base fare charged
-          let rc = allCandidateCards.find(
-            (r: any) =>
-              (r.vehicleCategory?.name?.toLowerCase() === vCatName?.toLowerCase() ||
-               r.vehicleCategory?.name?.toLowerCase() === reqType?.toLowerCase()) &&
-              (Number(r.fullDayRate) === Number(trip.baseFareCharged) ||
-               Number(r.halfDayRate) === Number(trip.baseFareCharged)) &&
-              r.customerId === booking.customerId
-          );
+          if (!rc) {
+            rc = allCandidateCards.find(
+              (r: any) =>
+                (r.vehicleCategory?.name?.toLowerCase() === vCatName?.toLowerCase() ||
+                 r.vehicleCategory?.name?.toLowerCase() === reqType?.toLowerCase()) &&
+                (Number(r.fullDayRate) === Number(trip.baseFareCharged) ||
+                 Number(r.halfDayRate) === Number(trip.baseFareCharged)) &&
+                r.customerId === booking.customerId
+            );
+          }
 
           // 2. Try any customer card matching base fare charged
           if (!rc) {
@@ -1561,6 +1583,9 @@ export class InvoicesService {
             ) {
               baseKm = Number(rc?.minKm) || 40;
               baseHr = Number(rc?.minHr) || 4;
+            } else if (parsedPackageKm && parsedPackageHours) {
+              baseKm = parsedPackageKm;
+              baseHr = parsedPackageHours;
             } else {
               const cardKm = Number(rc?.fullKm || rc?.minKm || rc?.includedKm);
               const cardHr = Number(rc?.fullHr || rc?.minHr);

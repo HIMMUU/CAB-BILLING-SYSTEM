@@ -191,7 +191,7 @@ export default function DutySlipsPage() {
     serviceTax: 5, parking: 0, toll: 0, mcdToll: 0, stateTax: 0,
     driverAdvance: 0, driverAllowance: 0, driverRefund: 0, feedbackPoint: '', driverRemark: '',
     dutyType: 'L', tourCode: '', localBill: '', nightChargesOnTime: 0,
-    billingMode: 'F' as 'N' | 'H' | 'F' | 'C' | 'T',
+    billingMode: 'C' as 'N' | 'H' | 'F' | 'C' | 'T',
     extraCharges: 0,
     manualDriverName: '', manualDriverPhone: '',
     manualVehicleNumber: '', manualVehicleModel: '',
@@ -237,7 +237,7 @@ export default function DutySlipsPage() {
       serviceTax: 5, parking: 0, toll: 0, mcdToll: 0, stateTax: 0,
       driverAdvance: 0, driverAllowance: 0, driverRefund: 0, feedbackPoint: '', driverRemark: '',
       dutyType: 'L', tourCode: '', localBill: '', nightChargesOnTime: 0,
-      billingMode: 'F',
+      billingMode: 'C',
       extraCharges: 0,
       manualDriverName: '', manualDriverPhone: '',
       manualVehicleNumber: '', manualVehicleModel: '',
@@ -461,19 +461,29 @@ export default function DutySlipsPage() {
       }
 
       if (rc) {
-        setSelectedRateCard(rc);
+        setSelectedRateCard((prev: any) => {
+          if (editingSlip && prev && allCards.some((c: any) => c.id === prev.id)) {
+            return prev;
+          }
+          return rc;
+        });
         const hasCustom = (
           (Number(rc.fullKm || rc.minKm) !== 80 && Number(rc.fullKm || rc.minKm) !== 40) ||
-          (Number(rc.fullHr || rc.minHr) !== 8 && Number(rc.fullHr || rc.minHr) !== 4)
+          (Number(rc.fullHr || rc.minHr) !== 8 && Number(rc.fullHr || rc.minHr) !== 4) ||
+          !!rc.customerId
         );
         setDf(f => {
           const isOutstationDuty = f.dutyType === 'O' || f.dutyType === 'T';
           const isFlexDuty = f.dutyType === 'FLEXIBLE';
 
-          // Preserve billingMode if it's already explicitly chosen or if flexible/outstation
+          // Preserve billingMode if it's already explicitly chosen or if editing
           let newBillingMode = f.billingMode;
-          if (!isFlexDuty && !isOutstationDuty && (!f.billingMode || f.billingMode === 'N')) {
-            newBillingMode = hasCustom ? 'C' : 'F';
+          if (!isFlexDuty && !isOutstationDuty) {
+            if (!editingSlip) {
+              newBillingMode = hasCustom ? 'C' : 'F';
+            } else if (!f.billingMode || f.billingMode === 'N') {
+              newBillingMode = hasCustom ? 'C' : 'F';
+            }
           }
 
           return {
@@ -489,7 +499,7 @@ export default function DutySlipsPage() {
       }
     };
     matchRateCard();
-  }, [fullCustomer, df.carGroup, df.carName, df.dutyType, categories]);
+  }, [fullCustomer, df.carGroup, df.carName, df.dutyType, categories, editingSlip]);
 
   /* ── Reactive KM and Hour metrics calculator ── */
   useEffect(() => {
@@ -913,15 +923,28 @@ export default function DutySlipsPage() {
       ? customParticulars.reduce((sum, p) => sum + Number(p.amount || 0), 0)
       : 0;
 
-    let payloadRemarks = df.remarks || '';
-    if (isFlexibleDuty) {
-      payloadRemarks = JSON.stringify({
-        isFlexible: true,
-        items: customParticulars,
-        userNotes: df.remarks || '',
-        miscCharges: Number(df.extraCharges) || 0,
-      });
-    }
+    const payloadRemarks = JSON.stringify({
+      isFlexible: isFlexibleDuty,
+      items: isFlexibleDuty ? customParticulars : undefined,
+      userNotes: df.remarks || '',
+      miscCharges: Number(df.extraCharges) || 0,
+      billingMode: df.billingMode,
+      rateCardId: selectedRateCard?.id || undefined,
+      carGroup: df.carGroup,
+      baseFare: Number(df.baseFare) || 0,
+      extraKmRate: Number(df.extraKmRate) || 0,
+      extraHourRate: Number(df.extraHourRate) || 0,
+      packageKm: df.billingMode === 'C'
+        ? Number(selectedRateCard?.fullKm || selectedRateCard?.minKm || selectedRateCard?.includedKm || 120)
+        : df.billingMode === 'H' || df.billingMode === 'T'
+          ? Number(selectedRateCard?.minKm || 40)
+          : Number(selectedRateCard?.fullKm || 80),
+      packageHours: df.billingMode === 'C'
+        ? Number(selectedRateCard?.fullHr || selectedRateCard?.minHr || 12)
+        : df.billingMode === 'H' || df.billingMode === 'T'
+          ? Number(selectedRateCard?.minHr || 4)
+          : Number(selectedRateCard?.fullHr || 8),
+    });
 
     const calcExtraCharges = Number(df.extraCharges) || 0;
     const calcDriverAllowance = isFlexibleDuty ? 0 : (df.includeDriverAllowance ? (Number(df.driverAllowance) || 0) : 0);
@@ -1105,32 +1128,14 @@ export default function DutySlipsPage() {
 
     setAvailableRateCards(allCards);
 
-    const targetCategory = slip.vehicle?.vehicleType || slip.booking?.vehicleTypeRequired || slip.vehicle?.model;
-    let matchedRc = allCards.find(
-      (r: any) =>
-        targetCategory &&
-        r.vehicleCategory?.name?.toLowerCase() === targetCategory.toLowerCase() &&
-        r.customerId === slip.booking?.customerId
-    );
-    if (!matchedRc) {
-      matchedRc = allCards.find(
-        (r: any) =>
-          targetCategory &&
-          r.vehicleCategory?.name?.toLowerCase() === targetCategory.toLowerCase()
-      );
-    }
-    if (!matchedRc && allCards.length > 0) {
-      matchedRc = allCards[0];
-    }
-    setSelectedRateCard(matchedRc || null);
-
-    const customerTaxRate = customerObj
-      ? Number(customerObj.cgstRate || 0) + Number(customerObj.sgstRate || 0) + Number(customerObj.igstRate || 0)
-      : Number(slip.booking?.customer?.cgstRate || 0) + Number(slip.booking?.customer?.sgstRate || 0) + Number(slip.booking?.customer?.igstRate || 0);
-
     let parsedParticulars: Array<{ id: string; particular: string; rate: number; quantity: number; amount: number }> = [];
     let isFlex = slip.booking?.tripType === 'HOURLY_RENTAL';
     let remarksText = slip.remarks || slip.booking?.remarks || '';
+    let savedBillingMode: 'N' | 'H' | 'F' | 'C' | 'T' | null = null;
+    let savedRateCardId: string | null = null;
+    let savedBaseFare: number | null = null;
+    let savedExtraKmRate: number | null = null;
+    let savedExtraHourRate: number | null = null;
 
     try {
       if (remarksText.trim().startsWith('{')) {
@@ -1138,12 +1143,59 @@ export default function DutySlipsPage() {
         if (obj.isFlexible && Array.isArray(obj.items)) {
           isFlex = true;
           parsedParticulars = obj.items;
-          remarksText = obj.userNotes || '';
         }
+        if (obj.billingMode) {
+          savedBillingMode = obj.billingMode;
+        }
+        if (obj.rateCardId) {
+          savedRateCardId = obj.rateCardId;
+        }
+        if (typeof obj.baseFare === 'number') {
+          savedBaseFare = obj.baseFare;
+        }
+        if (typeof obj.extraKmRate === 'number') {
+          savedExtraKmRate = obj.extraKmRate;
+        }
+        if (typeof obj.extraHourRate === 'number') {
+          savedExtraHourRate = obj.extraHourRate;
+        }
+        remarksText = obj.userNotes || '';
       }
     } catch (e) { }
 
     setCustomParticulars(parsedParticulars);
+
+    let matchedRc: any = null;
+    if (savedRateCardId) {
+      matchedRc = allCards.find((r: any) => r.id === savedRateCardId);
+    }
+    if (!matchedRc) {
+      const targetCategory = slip.vehicle?.vehicleType || slip.booking?.vehicleTypeRequired || slip.vehicle?.model;
+      matchedRc = allCards.find(
+        (r: any) =>
+          targetCategory &&
+          r.vehicleCategory?.name?.toLowerCase() === targetCategory.toLowerCase() &&
+          r.customerId === slip.booking?.customerId
+      );
+      if (!matchedRc) {
+        matchedRc = allCards.find(
+          (r: any) =>
+            targetCategory &&
+            r.vehicleCategory?.name?.toLowerCase() === targetCategory.toLowerCase()
+        );
+      }
+      if (!matchedRc) {
+        matchedRc = allCards.find((r: any) => r.customerId === slip.booking?.customerId);
+      }
+      if (!matchedRc && allCards.length > 0) {
+        matchedRc = allCards[0];
+      }
+    }
+    setSelectedRateCard(matchedRc || null);
+
+    const customerTaxRate = customerObj
+      ? Number(customerObj.cgstRate || 0) + Number(customerObj.sgstRate || 0) + Number(customerObj.igstRate || 0)
+      : Number(slip.booking?.customer?.cgstRate || 0) + Number(slip.booking?.customer?.sgstRate || 0) + Number(slip.booking?.customer?.igstRate || 0);
 
     const actKm = slip.trip ? Number((slip.trip as any).totalKm || 0) : Math.max(0, (Number(slip.endKm) || 0) - (Number(slip.startKm) || 0));
     const actHrs = slip.trip ? Number((slip.trip as any).totalHours || 0) : 0;
@@ -1158,10 +1210,13 @@ export default function DutySlipsPage() {
       resolvedBillingMode = 'N';
     } else if (isPickupTransfer) {
       resolvedBillingMode = 'T';
+    } else if (savedBillingMode) {
+      resolvedBillingMode = savedBillingMode;
     } else {
       const hasCustom = !!(matchedRc && (
         (Number(matchedRc.fullKm || matchedRc.minKm) !== 80 && Number(matchedRc.fullKm || matchedRc.minKm) !== 40) ||
-        (Number(matchedRc.fullHr || matchedRc.minHr) !== 8 && Number(matchedRc.fullHr || matchedRc.minHr) !== 4)
+        (Number(matchedRc.fullHr || matchedRc.minHr) !== 8 && Number(matchedRc.fullHr || matchedRc.minHr) !== 4) ||
+        !!matchedRc.customerId
       ));
       resolvedBillingMode = hasCustom ? 'C' : 'F';
     }
@@ -1231,16 +1286,24 @@ export default function DutySlipsPage() {
       manualVehicleModel: '',
 
       // Override values
-      baseFare: hasClosedTrip ? Number((slip.trip as any).baseFareCharged) : (Number(matchedRc?.fullDayRate || matchedRc?.halfDayRate) || 0),
-      extraKmRate: Number(matchedRc?.extraKmRate || 12),
-      extraHourRate: Number(matchedRc?.extraHourRate || 100),
+      baseFare: hasClosedTrip
+        ? Number((slip.trip as any).baseFareCharged)
+        : (savedBaseFare !== null
+          ? savedBaseFare
+          : resolvedBillingMode === 'H' || resolvedBillingMode === 'T'
+            ? (Number(matchedRc?.halfDayRate) || 1000)
+            : resolvedBillingMode === 'C'
+              ? (Number(matchedRc?.fullDayRate || matchedRc?.halfDayRate) || 2000)
+              : (Number(matchedRc?.fullDayRate) || 1600)),
+      extraKmRate: savedExtraKmRate !== null ? savedExtraKmRate : Number(matchedRc?.extraKmRate || 12),
+      extraHourRate: savedExtraHourRate !== null ? savedExtraHourRate : Number(matchedRc?.extraHourRate || 100),
       extraKmCharged: hasClosedTrip ? Number((slip.trip as any).extraKmCharged) : 0,
       extraHoursCharged: hasClosedTrip ? Number((slip.trip as any).extraHoursCharged) : 0,
       includeDriverAllowance: Number(slip.driverAllowance || (slip.trip as any)?.driverAllowance) > 0,
       includeNightCharges: Number(slip.nightCharges || (slip.trip as any)?.nightChargesCharged) > 0,
-      isManualBaseFare: hasClosedTrip,
-      isManualExtraKmRate: false,
-      isManualExtraHourRate: false,
+      isManualBaseFare: hasClosedTrip || savedBaseFare !== null,
+      isManualExtraKmRate: savedExtraKmRate !== null,
+      isManualExtraHourRate: savedExtraHourRate !== null,
       isManualExtraKmCharged: hasClosedTrip,
       isManualExtraHoursCharged: hasClosedTrip,
       isManualDriverAllowance: hasClosedTrip,
@@ -2022,21 +2085,23 @@ export default function DutySlipsPage() {
                   <div className="grid grid-cols-1 gap-4">
                     <Field label="Service / Billing Option *">
                       {(() => {
-                        const halfDayFare = selectedRateCard ? (Number(selectedRateCard.halfDayRate) || 1000) : 1000;
-                        const fullDayFare = selectedRateCard ? (Number(selectedRateCard.fullDayRate) || 1600) : 1600;
-                        const halfDayKm = selectedRateCard ? (Number(selectedRateCard.minKm) || 40) : 40;
-                        const halfDayHr = selectedRateCard ? (Number(selectedRateCard.minHr) || 4) : 4;
-                        const fullDayKm = selectedRateCard ? (Number(selectedRateCard.fullKm) || 80) : 80;
-                        const fullDayHr = selectedRateCard ? (Number(selectedRateCard.fullHr) || 8) : 8;
-
                         const customKm = Number(selectedRateCard?.fullKm || selectedRateCard?.minKm || selectedRateCard?.includedKm || 120);
                         const customHr = Number(selectedRateCard?.fullHr || selectedRateCard?.minHr || 12);
                         const customFare = Number(selectedRateCard?.fullDayRate || selectedRateCard?.halfDayRate || 2000);
 
                         const hasCustomPackage = !!(selectedRateCard && (
                           (customKm !== 40 && customKm !== 80) ||
-                          (customHr !== 4 && customHr !== 8)
+                          (customHr !== 4 && customHr !== 8) ||
+                          !!selectedRateCard.customerId
                         ));
+
+                        const halfDayFare = selectedRateCard ? (Number(selectedRateCard.halfDayRate) || 1000) : 1000;
+                        const halfDayKm = selectedRateCard ? (Number(selectedRateCard.minKm) || 40) : 40;
+                        const halfDayHr = selectedRateCard ? (Number(selectedRateCard.minHr) || 4) : 4;
+
+                        const fullDayKm = 80;
+                        const fullDayHr = 8;
+                        const fullDayFare = selectedRateCard && !hasCustomPackage ? (Number(selectedRateCard.fullDayRate) || 1600) : 1600;
 
                         const outstationMinKm = selectedRateCard ? (Number(selectedRateCard.minKmPerDay) || 250) : 250;
                         const outstationRate = selectedRateCard ? (Number(selectedRateCard.outstationRatePerKm) || 15) : 15;
@@ -2143,7 +2208,7 @@ export default function DutySlipsPage() {
                               ? `${Number(selectedRateCard.minKm) || 40} km / ${Number(selectedRateCard.minHr) || 4} hr`
                               : df.billingMode === 'C'
                                 ? `${Number(selectedRateCard.fullKm || selectedRateCard.minKm || selectedRateCard.includedKm) || 120} km / ${Number(selectedRateCard.fullHr || selectedRateCard.minHr) || 12} hr`
-                                : `${Number(selectedRateCard.fullKm) || 80} km / ${Number(selectedRateCard.fullHr) || 8} hr`}
+                                : `80 km / 8 hr`}
                           </span>
                         </div>
                         <div className="bg-white p-2 rounded-lg border border-blue-100 shadow-2xs">

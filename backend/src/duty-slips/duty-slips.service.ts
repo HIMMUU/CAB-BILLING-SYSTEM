@@ -1067,11 +1067,17 @@ export class DutySlipsService {
         ellipsis: true,
       });
 
-      const driverRemarksVal = (
+      let driverRemarksVal = (
         (slip as any).remarks ||
         slip.booking?.remarks ||
         ''
       ).trim();
+      if (driverRemarksVal.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(driverRemarksVal);
+          driverRemarksVal = (parsed.userNotes || '').trim();
+        } catch (e) {}
+      }
       doc.font(fontBold).text('Driver Notes:', 307, sec4BoxY + 9);
       doc
         .font(fontRegular)
