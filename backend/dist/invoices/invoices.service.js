@@ -805,6 +805,10 @@ let InvoicesService = class InvoicesService {
         const tenant = await this.prisma.tenant.findUnique({
             where: { id: invoice.tenantId },
         });
+        const tenantRateCards = await this.prisma.rateCard.findMany({
+            where: { tenantId: invoice.tenantId, status: 'ACTIVE' },
+            include: { vehicleCategory: true },
+        });
         const companyName = tenant?.name || 'TRAVEL DREAM';
         const companyAddress = tenant?.companyAddress ||
             'E57/A,HARI NAGAR EXTN-PART-II\nBADARPUR,NEW DELHI-110044 NEW\nDELHI 110044';
@@ -1199,10 +1203,34 @@ let InvoicesService = class InvoicesService {
                     }
                     catch (e) { }
                     const vCatName = ds?.vehicle?.vehicleType || ds?.vehicle?.model;
-                    const rc = booking.customer?.rateCards?.find((r) => r.vehicleCategory?.name?.toLowerCase() ===
-                        vCatName?.toLowerCase() ||
-                        r.vehicleCategory?.name?.toLowerCase() ===
-                            booking.vehicleTypeRequired?.toLowerCase()) || booking.customer?.rateCards?.[0];
+                    const reqType = booking.vehicleTypeRequired;
+                    const allCustCards = booking.customer?.rateCards || [];
+                    const allCandidateCards = [...allCustCards, ...(tenantRateCards || [])];
+                    let rc = allCandidateCards.find((r) => (r.vehicleCategory?.name?.toLowerCase() === vCatName?.toLowerCase() ||
+                        r.vehicleCategory?.name?.toLowerCase() === reqType?.toLowerCase()) &&
+                        (Number(r.fullDayRate) === Number(trip.baseFareCharged) ||
+                            Number(r.halfDayRate) === Number(trip.baseFareCharged)) &&
+                        r.customerId === booking.customerId);
+                    if (!rc) {
+                        rc = allCustCards.find((r) => Number(r.fullDayRate) === Number(trip.baseFareCharged) ||
+                            Number(r.halfDayRate) === Number(trip.baseFareCharged));
+                    }
+                    if (!rc) {
+                        rc = (tenantRateCards || []).find((r) => (r.vehicleCategory?.name?.toLowerCase() === vCatName?.toLowerCase() ||
+                            r.vehicleCategory?.name?.toLowerCase() === reqType?.toLowerCase()) &&
+                            (Number(r.fullDayRate) === Number(trip.baseFareCharged) ||
+                                Number(r.halfDayRate) === Number(trip.baseFareCharged)));
+                    }
+                    if (!rc) {
+                        const custMatches = allCustCards.filter((r) => r.vehicleCategory?.name?.toLowerCase() === vCatName?.toLowerCase() ||
+                            r.vehicleCategory?.name?.toLowerCase() === reqType?.toLowerCase());
+                        rc = custMatches[custMatches.length - 1];
+                    }
+                    if (!rc) {
+                        const tenantMatches = (tenantRateCards || []).filter((r) => r.vehicleCategory?.name?.toLowerCase() === vCatName?.toLowerCase() ||
+                            r.vehicleCategory?.name?.toLowerCase() === reqType?.toLowerCase());
+                        rc = tenantMatches[tenantMatches.length - 1] || allCandidateCards[0];
+                    }
                     const totalDays = Math.max(1, Number(trip.totalDays) || 1);
                     let dutyTypeName = 'LOCAL DUTY';
                     if (booking.tripType === client_1.TripType.OUTSTATION) {
@@ -1259,14 +1287,16 @@ let InvoicesService = class InvoicesService {
                         else if (booking.tripType === client_1.TripType.AIRPORT_TRANSFER ||
                             (Number(trip.baseFareCharged) > 0 &&
                                 Number(rc?.halfDayRate) > 0 &&
-                                Number(trip.baseFareCharged) === Number(rc?.halfDayRate))) {
+                                Number(trip.baseFareCharged) === Number(rc?.halfDayRate) &&
+                                Number(rc?.halfDayRate) !== Number(rc?.fullDayRate))) {
                             baseKm = Number(rc?.minKm) || 40;
                             baseHr = Number(rc?.minHr) || 4;
                         }
                         else {
-                            baseKm =
-                                Number(rc?.fullKm || rc?.minKm || rc?.includedKm) || 120;
-                            baseHr = Number(rc?.fullHr || rc?.minHr) || 12;
+                            const cardKm = Number(rc?.fullKm || rc?.minKm || rc?.includedKm);
+                            const cardHr = Number(rc?.fullHr || rc?.minHr);
+                            baseKm = cardKm > 0 ? cardKm : 120;
+                            baseHr = cardHr > 0 ? cardHr : 12;
                         }
                         particularsRows.push({
                             label: booking.tripType === client_1.TripType.OUTSTATION
@@ -1277,9 +1307,12 @@ let InvoicesService = class InvoicesService {
                         });
                         if (Number(trip.extraKmCharged) > 0) {
                             const extraKmQty = Math.max(0, Number(trip.totalKm) - baseKm);
-                            const extraKmRate = extraKmQty > 0 ? Number(trip.extraKmCharged) / extraKmQty : 14;
+                            const extraKmRate = extraKmQty > 0
+                                ? Number(trip.extraKmCharged) / extraKmQty
+                                : Number(rc?.extraKmRate || 14);
+                            const displayQty = extraKmQty > 0 ? extraKmQty : (Number(trip.extraKmCharged) / Number(rc?.extraKmRate || 14));
                             particularsRows.push({
-                                label: `Extra Km ${extraKmQty.toFixed(2)} @`,
+                                label: `Extra Km ${displayQty.toFixed(2)} @`,
                                 rate: extraKmRate.toFixed(2),
                                 amount: Number(trip.extraKmCharged).toFixed(2),
                             });
@@ -1288,9 +1321,10 @@ let InvoicesService = class InvoicesService {
                             const extraHrsQty = Math.max(0, Number(trip.totalHours || 0) - baseHr);
                             const extraHrsRate = extraHrsQty > 0
                                 ? Number(trip.extraHoursCharged) / extraHrsQty
-                                : 100;
+                                : Number(rc?.extraHourRate || 150);
+                            const displayHrsQty = extraHrsQty > 0 ? extraHrsQty : (Number(trip.extraHoursCharged) / Number(rc?.extraHourRate || 150));
                             particularsRows.push({
-                                label: `Extra Hrs ${extraHrsQty.toFixed(2)} @`,
+                                label: `Extra Hrs ${displayHrsQty.toFixed(2)} @`,
                                 rate: extraHrsRate.toFixed(2),
                                 amount: Number(trip.extraHoursCharged).toFixed(2),
                             });

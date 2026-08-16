@@ -903,6 +903,11 @@ export class InvoicesService {
       where: { id: invoice.tenantId },
     });
 
+    const tenantRateCards = await this.prisma.rateCard.findMany({
+      where: { tenantId: invoice.tenantId, status: 'ACTIVE' },
+      include: { vehicleCategory: true },
+    });
+
     const companyName = tenant?.name || 'TRAVEL DREAM';
     const companyAddress =
       tenant?.companyAddress ||
@@ -1439,16 +1444,60 @@ export class InvoicesService {
             }
           } catch (e) { }
 
-          // Find customer rate card for dynamic package KM & Hours
+          // Find customer / tenant rate card matching vehicle category & package base fare charged
           const vCatName = ds?.vehicle?.vehicleType || ds?.vehicle?.model;
-          const rc =
-            booking.customer?.rateCards?.find(
+          const reqType = booking.vehicleTypeRequired;
+          const allCustCards = booking.customer?.rateCards || [];
+          const allCandidateCards = [...allCustCards, ...(tenantRateCards || [])];
+
+          // 1. Try to match by vehicle category AND base fare charged
+          let rc = allCandidateCards.find(
+            (r: any) =>
+              (r.vehicleCategory?.name?.toLowerCase() === vCatName?.toLowerCase() ||
+               r.vehicleCategory?.name?.toLowerCase() === reqType?.toLowerCase()) &&
+              (Number(r.fullDayRate) === Number(trip.baseFareCharged) ||
+               Number(r.halfDayRate) === Number(trip.baseFareCharged)) &&
+              r.customerId === booking.customerId
+          );
+
+          // 2. Try any customer card matching base fare charged
+          if (!rc) {
+            rc = allCustCards.find(
               (r: any) =>
-                r.vehicleCategory?.name?.toLowerCase() ===
-                  vCatName?.toLowerCase() ||
-                r.vehicleCategory?.name?.toLowerCase() ===
-                  booking.vehicleTypeRequired?.toLowerCase(),
-            ) || booking.customer?.rateCards?.[0];
+                Number(r.fullDayRate) === Number(trip.baseFareCharged) ||
+                Number(r.halfDayRate) === Number(trip.baseFareCharged)
+            );
+          }
+
+          // 3. Try tenant cards matching category and base fare charged
+          if (!rc) {
+            rc = (tenantRateCards || []).find(
+              (r: any) =>
+                (r.vehicleCategory?.name?.toLowerCase() === vCatName?.toLowerCase() ||
+                 r.vehicleCategory?.name?.toLowerCase() === reqType?.toLowerCase()) &&
+                (Number(r.fullDayRate) === Number(trip.baseFareCharged) ||
+                 Number(r.halfDayRate) === Number(trip.baseFareCharged))
+            );
+          }
+
+          // 4. Fallback: match by category or take latest customer card
+          if (!rc) {
+            const custMatches = allCustCards.filter(
+              (r: any) =>
+                r.vehicleCategory?.name?.toLowerCase() === vCatName?.toLowerCase() ||
+                r.vehicleCategory?.name?.toLowerCase() === reqType?.toLowerCase()
+            );
+            rc = custMatches[custMatches.length - 1];
+          }
+
+          if (!rc) {
+            const tenantMatches = (tenantRateCards || []).filter(
+              (r: any) =>
+                r.vehicleCategory?.name?.toLowerCase() === vCatName?.toLowerCase() ||
+                r.vehicleCategory?.name?.toLowerCase() === reqType?.toLowerCase()
+            );
+            rc = tenantMatches[tenantMatches.length - 1] || allCandidateCards[0];
+          }
 
           const totalDays = Math.max(1, Number(trip.totalDays) || 1);
 
@@ -1496,7 +1545,7 @@ export class InvoicesService {
           }
 
           if (!isFlexibleDuty) {
-            // Resolve accurate package limits based on rate card and trip charge
+            // Resolve accurate package limits based on matched rate card and trip charge
             let baseKm = 120;
             let baseHr = 12;
 
@@ -1507,14 +1556,16 @@ export class InvoicesService {
               booking.tripType === TripType.AIRPORT_TRANSFER ||
               (Number(trip.baseFareCharged) > 0 &&
                 Number(rc?.halfDayRate) > 0 &&
-                Number(trip.baseFareCharged) === Number(rc?.halfDayRate))
+                Number(trip.baseFareCharged) === Number(rc?.halfDayRate) &&
+                Number(rc?.halfDayRate) !== Number(rc?.fullDayRate))
             ) {
               baseKm = Number(rc?.minKm) || 40;
               baseHr = Number(rc?.minHr) || 4;
             } else {
-              baseKm =
-                Number(rc?.fullKm || rc?.minKm || rc?.includedKm) || 120;
-              baseHr = Number(rc?.fullHr || rc?.minHr) || 12;
+              const cardKm = Number(rc?.fullKm || rc?.minKm || rc?.includedKm);
+              const cardHr = Number(rc?.fullHr || rc?.minHr);
+              baseKm = cardKm > 0 ? cardKm : 120;
+              baseHr = cardHr > 0 ? cardHr : 12;
             }
 
             particularsRows.push({
@@ -1530,9 +1581,12 @@ export class InvoicesService {
             if (Number(trip.extraKmCharged) > 0) {
               const extraKmQty = Math.max(0, Number(trip.totalKm) - baseKm);
               const extraKmRate =
-                extraKmQty > 0 ? Number(trip.extraKmCharged) / extraKmQty : 14;
+                extraKmQty > 0
+                  ? Number(trip.extraKmCharged) / extraKmQty
+                  : Number(rc?.extraKmRate || 14);
+              const displayQty = extraKmQty > 0 ? extraKmQty : (Number(trip.extraKmCharged) / Number(rc?.extraKmRate || 14));
               particularsRows.push({
-                label: `Extra Km ${extraKmQty.toFixed(2)} @`,
+                label: `Extra Km ${displayQty.toFixed(2)} @`,
                 rate: extraKmRate.toFixed(2),
                 amount: Number(trip.extraKmCharged).toFixed(2),
               });
@@ -1547,9 +1601,10 @@ export class InvoicesService {
               const extraHrsRate =
                 extraHrsQty > 0
                   ? Number(trip.extraHoursCharged) / extraHrsQty
-                  : 100;
+                  : Number(rc?.extraHourRate || 150);
+              const displayHrsQty = extraHrsQty > 0 ? extraHrsQty : (Number(trip.extraHoursCharged) / Number(rc?.extraHourRate || 150));
               particularsRows.push({
-                label: `Extra Hrs ${extraHrsQty.toFixed(2)} @`,
+                label: `Extra Hrs ${displayHrsQty.toFixed(2)} @`,
                 rate: extraHrsRate.toFixed(2),
                 amount: Number(trip.extraHoursCharged).toFixed(2),
               });
