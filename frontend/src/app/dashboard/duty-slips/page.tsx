@@ -190,7 +190,7 @@ export default function DutySlipsPage() {
     serviceTax: 5, parking: 0, toll: 0, mcdToll: 0, stateTax: 0,
     driverAdvance: 0, driverAllowance: 0, driverRefund: 0, feedbackPoint: '', driverRemark: '',
     dutyType: 'L', tourCode: '', localBill: '', nightChargesOnTime: 0,
-    billingMode: 'N' as 'N' | 'H' | 'F',
+    billingMode: 'F' as 'N' | 'H' | 'F' | 'C' | 'T',
     extraCharges: 0,
     manualDriverName: '', manualDriverPhone: '',
     manualVehicleNumber: '', manualVehicleModel: '',
