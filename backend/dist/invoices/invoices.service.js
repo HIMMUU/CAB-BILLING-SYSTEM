@@ -773,7 +773,15 @@ let InvoicesService = class InvoicesService {
                             include: {
                                 booking: {
                                     include: {
-                                        customer: true,
+                                        customer: {
+                                            include: {
+                                                rateCards: {
+                                                    include: {
+                                                        vehicleCategory: true,
+                                                    },
+                                                },
+                                            },
+                                        },
                                     },
                                 },
                                 dutySlip: {
@@ -1037,27 +1045,27 @@ let InvoicesService = class InvoicesService {
                 doc.text('PAN NO.:', 55, gridY + 25);
                 doc.text('STATE CODE:', 55, gridY + 35);
                 doc.text('S.T.Ctgry:', 55, gridY + 45);
-                doc.fillColor('#334155').font(fontRegular);
+                doc.fillColor('#0E1218').font(fontRegular);
                 doc.text(companyGst, 105, gridY + 5);
                 doc.text(sacNo, 105, gridY + 15);
                 doc.text(companyPan, 105, gridY + 25);
                 doc.text(companyGst.substring(0, 2) || '07', 115, gridY + 35);
                 doc.text(serviceCategory, 105, gridY + 45);
-                doc.fillColor('#334155').font(fontRegular).fontSize(7.5);
+                doc.fillColor('#0E1218').font(fontRegular).fontSize(7.5);
                 doc.text(companyAddress, 180, gridY + 5, { width: 195 });
                 doc
                     .fillColor(primaryColor)
                     .font(fontBold)
                     .text('Email ID:', 180, gridY + 42);
                 doc
-                    .fillColor('#334155')
+                    .fillColor('#0E1218')
                     .font(fontRegular)
                     .text(companyEmail, 220, gridY + 42);
                 doc
                     .fillColor(primaryColor)
                     .font(fontBold)
                     .text('Contact No.:', 385, gridY + 5);
-                doc.fillColor('#334155').font(fontRegular);
+                doc.fillColor('#0E1218').font(fontRegular);
                 const contactLines = companyPhone.split('\n');
                 let contactY = gridY + 15;
                 for (const line of contactLines) {
@@ -1078,7 +1086,7 @@ let InvoicesService = class InvoicesService {
                 doc.text('State Code :', 55, billY + 57);
                 doc.fillColor(primaryColor).font(fontBold);
                 doc.text(parsedInvoice.customer.name, 115, billY + 5);
-                doc.fillColor('#334155').font(fontRegular);
+                doc.fillColor('#0E1218').font(fontRegular);
                 doc.text(parsedInvoice.customer.billingAddress, 115, billY + 15, {
                     width: 230,
                 });
@@ -1092,7 +1100,7 @@ let InvoicesService = class InvoicesService {
                 doc.fillColor(primaryColor).font(fontBold);
                 doc.text('Bill No. :', 355, billY + 5);
                 doc.text('Bill Date :', 355, billY + 18);
-                doc.fillColor('#334155').font(fontRegular);
+                doc.fillColor('#0E1218').font(fontRegular);
                 doc.text(parsedInvoice.invoiceNumber, 405, billY + 5);
                 doc.text(new Date(parsedInvoice.invoiceDate).toLocaleDateString('en-GB'), 405, billY + 18);
                 const tableHeaderY = 200;
@@ -1227,12 +1235,17 @@ let InvoicesService = class InvoicesService {
                     }
                     const totalDays = Math.max(1, Number(trip.totalDays) || 1);
                     if (!isFlexibleDuty) {
+                        const vCatName = ds?.vehicle?.vehicleType || ds?.vehicle?.model;
+                        const rc = booking.customer?.rateCards?.find((r) => r.vehicleCategory?.name?.toLowerCase() ===
+                            vCatName?.toLowerCase() ||
+                            r.vehicleCategory?.name?.toLowerCase() ===
+                                booking.vehicleTypeRequired?.toLowerCase());
                         const baseKm = booking.tripType === client_1.TripType.OUTSTATION
-                            ? totalDays * 250
-                            : booking.tripType === client_1.TripType.AIRPORT_TRANSFER
-                                ? 40
-                                : 80;
-                        const baseHr = booking.tripType === client_1.TripType.OUTSTATION ? 24 * totalDays : 8;
+                            ? totalDays * (Number(rc?.minKmPerDay) || 250)
+                            : Number(rc?.fullKm || rc?.minKm || rc?.includedKm) || 80;
+                        const baseHr = booking.tripType === client_1.TripType.OUTSTATION
+                            ? 24 * totalDays
+                            : Number(rc?.fullHr || rc?.minHr) || 8;
                         particularsRows.push({
                             label: booking.tripType === client_1.TripType.OUTSTATION
                                 ? `UPTO ${baseKm} Kms. & ${totalDays} Days Duty`
@@ -1365,7 +1378,7 @@ let InvoicesService = class InvoicesService {
                             .lineTo(490, currentY + rowHeight)
                             .stroke('#F1F5F9');
                     }
-                    doc.fillColor('#0F172A').font(fontBold).fontSize(7.5);
+                    doc.fillColor('#0E1218').font(fontBold).fontSize(7.5);
                     let dateY = currentY + 4;
                     for (const line of dateLines) {
                         if (line) {
@@ -1390,7 +1403,7 @@ let InvoicesService = class InvoicesService {
                                 .lineWidth(0.5)
                                 .stroke('#CBD5E1');
                         }
-                        doc.fillColor(subRow.label === 'DUTY SLIP TOTAL' ? primaryColor : '#334155');
+                        doc.fillColor(subRow.label === 'DUTY SLIP TOTAL' ? primaryColor : '#0E1218');
                         doc
                             .font(subRow.rate ||
                             subRow.amount ||
@@ -1456,9 +1469,9 @@ let InvoicesService = class InvoicesService {
                 .stroke('#CBD5E1');
             doc.fillColor(primaryColor).font(fontBold).fontSize(8.5);
             doc.text('TOTAL DUTY SLIP ENCLOSE', 55, footerY + 5);
-            doc.fillColor('#0F172A').text(`${totalSlipsEnclosed}`, 215, footerY + 5);
+            doc.fillColor('#0E1218').text(`${totalSlipsEnclosed}`, 215, footerY + 5);
             doc.fillColor(primaryColor).text('TOTAL AMOUNT', 355, footerY + 5);
-            doc.fillColor('#0F172A').text(amountColSum.toFixed(2), 480, footerY + 5, {
+            doc.fillColor('#0E1218').text(amountColSum.toFixed(2), 480, footerY + 5, {
                 width: 60,
                 align: 'right',
             });
@@ -1468,7 +1481,7 @@ let InvoicesService = class InvoicesService {
                     .fontSize(8)
                     .font(fontBold)
                     .text('BANK DETAILS:', 55, footerY + 15);
-                doc.fillColor('#334155').font(fontRegular).fontSize(7.5);
+                doc.fillColor('#0E1218').font(fontRegular).fontSize(7.5);
                 doc.text(`A/c Name: ${bankAccountHolder}`, 55, footerY + 25, {
                     width: 130,
                     ellipsis: true,
@@ -1527,7 +1540,7 @@ let InvoicesService = class InvoicesService {
                 }
                 if (rcmBreakupText) {
                     doc
-                        .fillColor('#0F172A')
+                        .fillColor('#0E1218')
                         .fontSize(7)
                         .font(fontBold)
                         .text(rcmBreakupText, 55, footerY + 68, { width: 290 });
@@ -1538,7 +1551,7 @@ let InvoicesService = class InvoicesService {
                 .fontSize(8.5)
                 .text('Parking/TollTax Detail', 355, footerY + 18);
             doc
-                .fillColor('#0F172A')
+                .fillColor('#0E1218')
                 .text(tollParkingTaxSum.toFixed(2), 480, footerY + 18, {
                 width: 60,
                 align: 'right',
@@ -1550,7 +1563,7 @@ let InvoicesService = class InvoicesService {
                         .fillColor(primaryColor)
                         .text(`CGST( @ ${Number(parsedInvoice.cgstRate)} % )`, 355, gstLineY);
                     doc
-                        .fillColor('#0F172A')
+                        .fillColor('#0E1218')
                         .text(Number(parsedInvoice.cgstAmount).toFixed(2), 480, gstLineY, {
                         width: 60,
                         align: 'right',
@@ -1560,7 +1573,7 @@ let InvoicesService = class InvoicesService {
                         .fillColor(primaryColor)
                         .text(`SGST( @ ${Number(parsedInvoice.sgstRate)} % )`, 355, gstLineY);
                     doc
-                        .fillColor('#0F172A')
+                        .fillColor('#0E1218')
                         .text(Number(parsedInvoice.sgstAmount).toFixed(2), 480, gstLineY, {
                         width: 60,
                         align: 'right',
@@ -1571,7 +1584,7 @@ let InvoicesService = class InvoicesService {
                         .fillColor(primaryColor)
                         .text(`IGST( @ ${Number(parsedInvoice.igstRate)} % )`, 355, gstLineY);
                     doc
-                        .fillColor('#0F172A')
+                        .fillColor('#0E1218')
                         .text(Number(parsedInvoice.igstAmount).toFixed(2), 480, gstLineY, {
                         width: 60,
                         align: 'right',
@@ -1646,7 +1659,7 @@ let InvoicesService = class InvoicesService {
                     });
                 }
             }
-            const termsY = totalBoxY + 35;
+            const termsY = totalBoxY + totalBoxHeight + 5;
             if (showTerms) {
                 const customTerms = tenant?.termsAndConditions ||
                     'E. & O.E. Subject to Delhi Jurisdiction.\n' +
@@ -1661,20 +1674,20 @@ let InvoicesService = class InvoicesService {
                     .fontSize(8.5)
                     .text('Terms & Condition', 55, termsY);
                 doc
-                    .fillColor('#475569')
+                    .fillColor('#0E1218')
                     .font(fontRegular)
-                    .fontSize(7)
+                    .fontSize(7.5)
                     .text(customTerms, 55, termsY + 12, { width: 330, lineGap: 1.5 });
             }
             doc
+                .fillColor(primaryColor)
                 .font(fontBold)
                 .fontSize(9)
-                .fillColor(primaryColor)
-                .text(companyName.toUpperCase(), 390, termsY + 5, {
+                .text(companyName.toUpperCase(), 395, termsY + 5, {
                 align: 'center',
                 width: 150,
             });
-            doc.fillColor('#000000');
+            doc.fillColor('#040ac1ff');
             if (signatureBuffer) {
                 try {
                     doc.image(signatureBuffer, 390, termsY + 20, {

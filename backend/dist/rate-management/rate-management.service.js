@@ -63,15 +63,18 @@ let RateManagementService = class RateManagementService {
                 throw new common_1.NotFoundException('Customer not found');
             }
         }
+        const baseRate = dto.fullDayRate ?? dto.halfDayRate ?? 0;
+        const baseKm = dto.fullKm ?? dto.minKm ?? dto.includedKm ?? 80.0;
+        const baseHr = dto.fullHr ?? dto.minHr ?? 8.0;
         const rateCard = await this.prisma.rateCard.create({
             data: {
                 tenantId,
                 customerId: dto.customerId || null,
                 clientType: dto.clientType,
                 vehicleCategoryId: dto.vehicleCategoryId,
-                halfDayRate: dto.halfDayRate ?? 0,
-                fullDayRate: dto.fullDayRate ?? 0,
-                includedKm: dto.includedKm ?? 0,
+                halfDayRate: dto.halfDayRate ?? baseRate,
+                fullDayRate: dto.fullDayRate ?? baseRate,
+                includedKm: dto.includedKm ?? baseKm,
                 extraKmRate: dto.extraKmRate ?? 0,
                 extraHourRate: dto.extraHourRate ?? 0,
                 minKmPerDay: dto.minKmPerDay ?? 0,
@@ -80,10 +83,10 @@ let RateManagementService = class RateManagementService {
                 nightCharge: dto.nightCharge ?? 0,
                 nightStartTime: dto.nightStartTime || '23:00',
                 nightEndTime: dto.nightEndTime || '05:00',
-                minHr: dto.minHr ?? 4.0,
-                minKm: dto.minKm ?? 40.0,
-                fullHr: dto.fullHr ?? 8.0,
-                fullKm: dto.fullKm ?? 80.0,
+                minHr: dto.minHr ?? baseHr,
+                minKm: dto.minKm ?? baseKm,
+                fullHr: dto.fullHr ?? baseHr,
+                fullKm: dto.fullKm ?? baseKm,
                 outstationNightCharge: dto.outstationNightCharge ?? 0,
                 effectiveFrom: dto.effectiveFrom
                     ? new Date(dto.effectiveFrom)

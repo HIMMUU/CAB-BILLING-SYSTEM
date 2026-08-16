@@ -868,7 +868,15 @@ export class InvoicesService {
               include: {
                 booking: {
                   include: {
-                    customer: true,
+                    customer: {
+                      include: {
+                        rateCards: {
+                          include: {
+                            vehicleCategory: true,
+                          },
+                        },
+                      },
+                    },
                   },
                 },
                 dutySlip: {
@@ -1468,15 +1476,25 @@ export class InvoicesService {
           const totalDays = Math.max(1, Number(trip.totalDays) || 1);
 
           if (!isFlexibleDuty) {
+            // Find customer rate card for dynamic package KM & Hours
+            const vCatName = ds?.vehicle?.vehicleType || ds?.vehicle?.model;
+            const rc = booking.customer?.rateCards?.find(
+              (r: any) =>
+                r.vehicleCategory?.name?.toLowerCase() ===
+                  vCatName?.toLowerCase() ||
+                r.vehicleCategory?.name?.toLowerCase() ===
+                  booking.vehicleTypeRequired?.toLowerCase(),
+            );
+
             // Base Fare Row
             const baseKm =
               booking.tripType === TripType.OUTSTATION
-                ? totalDays * 250
-                : booking.tripType === TripType.AIRPORT_TRANSFER
-                  ? 40
-                  : 80;
+                ? totalDays * (Number(rc?.minKmPerDay) || 250)
+                : Number(rc?.fullKm || rc?.minKm || rc?.includedKm) || 80;
             const baseHr =
-              booking.tripType === TripType.OUTSTATION ? 24 * totalDays : 8;
+              booking.tripType === TripType.OUTSTATION
+                ? 24 * totalDays
+                : Number(rc?.fullHr || rc?.minHr) || 8;
             particularsRows.push({
               label:
                 booking.tripType === TripType.OUTSTATION

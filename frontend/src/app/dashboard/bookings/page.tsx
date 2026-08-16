@@ -172,6 +172,20 @@ export default function BookingsPage() {
     driverId: '',
     vehicleId: '',
   });
+  const [custRateCards, setCustRateCards] = useState<any[]>([]);
+
+  const fetchCustomerRates = async (custId: string) => {
+    if (!custId) {
+      setCustRateCards([]);
+      return;
+    }
+    try {
+      const fullCust = await api.request(`/customers/${custId}`);
+      setCustRateCards(fullCust.rateCards || []);
+    } catch (e) {
+      setCustRateCards([]);
+    }
+  };
 
   const fetchCustomers = async () => {
     try {
@@ -262,8 +276,9 @@ export default function BookingsPage() {
 
   const handleOpenCreate = () => {
     setEditingId(null);
+    const initialCustId = customers[0]?.id || '';
     setFormData({
-      customerId: customers[0]?.id || '',
+      customerId: initialCustId,
       pickupLocation: '',
       dropLocation: '',
       pickupDate: '',
@@ -279,6 +294,9 @@ export default function BookingsPage() {
       driverId: '',
       vehicleId: '',
     });
+    if (initialCustId) {
+      fetchCustomerRates(initialCustId);
+    }
     setFormError(null);
     setIsFormOpen(true);
   };
@@ -303,6 +321,9 @@ export default function BookingsPage() {
       driverId: activeAssignment?.driverId || '',
       vehicleId: activeAssignment?.vehicleId || '',
     });
+    if (booking.customerId) {
+      fetchCustomerRates(booking.customerId);
+    }
     setFormError(null);
     setIsFormOpen(true);
   };
@@ -780,7 +801,11 @@ export default function BookingsPage() {
                   <select
                     required
                     value={formData.customerId}
-                    onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
+                    onChange={(e) => {
+                      const cId = e.target.value;
+                      setFormData({ ...formData, customerId: cId });
+                      fetchCustomerRates(cId);
+                    }}
                     className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
                   >
                     <option value="">-- Choose Customer --</option>
@@ -910,6 +935,39 @@ export default function BookingsPage() {
                     </select>
                   </div>
                 </div>
+
+                {(() => {
+                  const matchedRc = custRateCards.find((rc: any) =>
+                    rc.vehicleCategory?.name?.toLowerCase() === formData.vehicleTypeRequired?.toLowerCase()
+                  );
+                  if (!matchedRc) return null;
+                  const baseKm = Number(matchedRc.fullKm || matchedRc.minKm || matchedRc.includedKm || 120);
+                  const baseHr = Number(matchedRc.fullHr || matchedRc.minHr || 12);
+                  const baseFare = Number(matchedRc.fullDayRate || matchedRc.halfDayRate || 0);
+
+                  return (
+                    <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl flex items-center justify-between text-xs animate-fade-in">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                          ₹
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-800 block">
+                            Rate Card: {baseKm} KM / {baseHr} Hrs Package
+                          </span>
+                          <span className="text-slate-600">
+                            Base: <strong className="text-blue-700">₹{baseFare.toLocaleString('en-IN')}</strong> • Extra KM: ₹{matchedRc.extraKmRate}/km • Extra Hr: ₹{matchedRc.extraHourRate}/hr
+                          </span>
+                        </div>
+                      </div>
+                      {Number(matchedRc.outstationRatePerKm) > 0 && (
+                        <span className="text-[11px] text-slate-500 font-medium hidden sm:inline-block">
+                          Outstation: ₹{matchedRc.outstationRatePerKm}/km
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <div>
                   <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">

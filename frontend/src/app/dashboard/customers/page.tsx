@@ -385,7 +385,7 @@ export default function CustomersPage() {
           vehicleCategoryName: row.vehicleCategoryName,
           halfDayRate: Number(row.halfDayRate),
           fullDayRate: Number(row.fullDayRate),
-          includedKm: Number(row.minKm),
+          includedKm: Number(row.fullKm || row.minKm || 120),
           extraKmRate: Number(row.extraKmRate),
           extraHourRate: Number(row.extraHourRate),
           minKmPerDay: Number(row.minKmPerDay),

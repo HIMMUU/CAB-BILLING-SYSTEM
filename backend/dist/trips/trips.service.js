@@ -138,32 +138,14 @@ let TripsService = class TripsService {
                             200);
             }
             else {
-                const thresholdHr = Number(rateCard.minHr) || 4;
-                const thresholdKm = Number(rateCard.minKm) || 40;
-                let isHalfDay = false;
-                if (slip.booking.tripType === client_1.TripType.AIRPORT_TRANSFER) {
-                    isHalfDay = true;
-                }
-                else {
-                    if (calculatedHours <= thresholdHr && totalDistance <= thresholdKm) {
-                        isHalfDay = true;
-                    }
-                }
-                if (isHalfDay) {
-                    baseFare = Number(rateCard.halfDayRate) || 1000;
-                    baseKm = thresholdKm;
-                    const baseHr = thresholdHr;
-                    if (calculatedHours > baseHr) {
-                        extraHours = calculatedHours - baseHr;
-                    }
-                }
-                else {
-                    baseFare = Number(rateCard.fullDayRate) || 1800;
-                    baseKm = Number(rateCard.fullKm) || 80;
-                    const baseHr = Number(rateCard.fullHr) || 8;
-                    if (calculatedHours > baseHr) {
-                        extraHours = calculatedHours - baseHr;
-                    }
+                const packageHr = Number(rateCard.fullHr || rateCard.minHr) || 8;
+                const packageKm = Number(rateCard.fullKm || rateCard.minKm || rateCard.includedKm) || 80;
+                const packageFare = Number(rateCard.fullDayRate || rateCard.halfDayRate) || 1800;
+                baseFare = packageFare;
+                baseKm = packageKm;
+                const baseHr = packageHr;
+                if (calculatedHours > baseHr) {
+                    extraHours = calculatedHours - baseHr;
                 }
                 driverAllowanceAmount = Number(rateCard.driverAllowance) || 250;
                 nightChargesAmount = Number(rateCard.nightCharge) || 200;

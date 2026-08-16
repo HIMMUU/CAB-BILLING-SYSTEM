@@ -511,15 +511,15 @@ export default function DutySlipsPage() {
 
     if (df.dutyType === 'C') {
       // Flexible Duty (Custom Package & Rates)
-      calculatedBaseFare = selectedRateCard ? (Number(selectedRateCard.fullDayRate || selectedRateCard.baseFare) || 1500) : 1500;
+      calculatedBaseFare = selectedRateCard ? (Number(selectedRateCard.fullDayRate || selectedRateCard.halfDayRate || selectedRateCard.baseFare) || 1500) : 1500;
       calculatedExtraKmRate = selectedRateCard ? (Number(selectedRateCard.extraKmRate) || 12) : 12;
       calculatedExtraHourRate = selectedRateCard ? (Number(selectedRateCard.extraHourRate) || 100) : 100;
       calculatedDriverAllowance = selectedRateCard ? (Number(selectedRateCard.driverAllowance) || 250) : 250;
       calculatedNightCharges = nightHrs > 0
         ? (selectedRateCard ? (Number(selectedRateCard.nightCharge) || 200) : 200)
         : 0;
-      baseKm = selectedRateCard ? (Number(selectedRateCard.fullKm || selectedRateCard.minKm) || 80) : 80;
-      baseHours = selectedRateCard ? (Number(selectedRateCard.fullHr || selectedRateCard.minHr) || 8) : 8;
+      baseKm = selectedRateCard ? (Number(selectedRateCard.fullKm || selectedRateCard.minKm || selectedRateCard.includedKm) || 120) : 120;
+      baseHours = selectedRateCard ? (Number(selectedRateCard.fullHr || selectedRateCard.minHr) || 12) : 12;
       bilKm = Math.max(actKm, baseKm);
       bilHrs = Math.max(actHrs, baseHours);
     } else if (df.dutyType === 'O' || df.dutyType === 'T') {
@@ -537,36 +537,12 @@ export default function DutySlipsPage() {
       bilKm = Math.max(actKm, baseKm);
       bilHrs = actHrs;
     } else {
-      // Local
-      const thresholdHr = selectedRateCard ? (Number(selectedRateCard.minHr) || 4) : 4;
-      const thresholdKm = selectedRateCard ? (Number(selectedRateCard.minKm) || 40) : 40;
-      const fullHr = selectedRateCard ? (Number(selectedRateCard.fullHr) || 8) : 8;
-      const fullKm = selectedRateCard ? (Number(selectedRateCard.fullKm) || 80) : 80;
-
-      let isHalfDay = false;
-      if (df.billingMode === 'H') {
-        isHalfDay = true;
-      } else if (df.billingMode === 'F') {
-        isHalfDay = false;
-      } else if (df.pickupType === 'airport') {
-        isHalfDay = true;
-      } else if (actHrs <= thresholdHr && actKm <= thresholdKm) {
-        isHalfDay = true;
-      }
-
-      if (isHalfDay) {
-        calculatedBaseFare = selectedRateCard ? (Number(selectedRateCard.halfDayRate) || 1000) : 1000;
-        baseKm = thresholdKm;
-        baseHours = thresholdHr;
-        bilKm = Math.max(actKm, thresholdKm);
-        bilHrs = Math.max(actHrs, thresholdHr);
-      } else {
-        calculatedBaseFare = selectedRateCard ? (Number(selectedRateCard.fullDayRate) || 1800) : 1800;
-        baseKm = fullKm;
-        baseHours = fullHr;
-        bilKm = Math.max(actKm, baseKm);
-        bilHrs = Math.max(actHrs, baseHours);
-      }
+      // Local Package (Min KM & Min Hours)
+      baseKm = selectedRateCard ? (Number(selectedRateCard.fullKm || selectedRateCard.minKm || selectedRateCard.includedKm) || 120) : 120;
+      baseHours = selectedRateCard ? (Number(selectedRateCard.fullHr || selectedRateCard.minHr) || 12) : 12;
+      calculatedBaseFare = selectedRateCard ? (Number(selectedRateCard.fullDayRate || selectedRateCard.halfDayRate) || 2000) : 2000;
+      bilKm = Math.max(actKm, baseKm);
+      bilHrs = Math.max(actHrs, baseHours);
 
       calculatedExtraKmRate = selectedRateCard ? (Number(selectedRateCard.extraKmRate) || 12) : 12;
       calculatedExtraHourRate = selectedRateCard ? (Number(selectedRateCard.extraHourRate) || 100) : 100;
@@ -690,8 +666,8 @@ export default function DutySlipsPage() {
     }
 
     if (df.dutyType === 'C') {
-      includedKm = selectedRateCard ? (Number(selectedRateCard.fullKm || selectedRateCard.minKm) || 80) : 80;
-      includedHours = selectedRateCard ? (Number(selectedRateCard.fullHr || selectedRateCard.minHr) || 8) : 8;
+      includedKm = selectedRateCard ? (Number(selectedRateCard.fullKm || selectedRateCard.minKm || selectedRateCard.includedKm) || 120) : 120;
+      includedHours = selectedRateCard ? (Number(selectedRateCard.fullHr || selectedRateCard.minHr) || 12) : 12;
       packageType = df.remarks?.trim() ? `Flexible Duty (${df.remarks.trim()})` : 'Flexible Duty (Custom Rate / Particulars)';
     } else if (df.dutyType === 'O' || df.dutyType === 'T') {
       const minKm = selectedRateCard ? (Number(selectedRateCard.minKmPerDay) || 250) : 250;
@@ -699,31 +675,9 @@ export default function DutySlipsPage() {
       includedHours = calcDays * 24;
       packageType = `Outstation (${calcDays} Days)`;
     } else {
-      const thresholdHr = selectedRateCard ? (Number(selectedRateCard.minHr) || 4) : 4;
-      const thresholdKm = selectedRateCard ? (Number(selectedRateCard.minKm) || 40) : 40;
-      const fullHr = selectedRateCard ? (Number(selectedRateCard.fullHr) || 8) : 8;
-      const fullKm = selectedRateCard ? (Number(selectedRateCard.fullKm) || 80) : 80;
-
-      let isHalfDay = false;
-      if (df.billingMode === 'H') {
-        isHalfDay = true;
-      } else if (df.billingMode === 'F') {
-        isHalfDay = false;
-      } else if (df.pickupType === 'airport') {
-        isHalfDay = true;
-      } else if (df.actualHours <= thresholdHr && df.actualKm <= thresholdKm) {
-        isHalfDay = true;
-      }
-
-      if (isHalfDay) {
-        includedKm = thresholdKm;
-        includedHours = thresholdHr;
-        packageType = `Local (Half-Day: ${thresholdHr}h / ${thresholdKm}k)`;
-      } else {
-        includedKm = fullKm;
-        includedHours = fullHr;
-        packageType = `Local (Full-Day: ${fullHr}h / ${includedKm}k)`;
-      }
+      includedKm = selectedRateCard ? (Number(selectedRateCard.fullKm || selectedRateCard.minKm || selectedRateCard.includedKm) || 120) : 120;
+      includedHours = selectedRateCard ? (Number(selectedRateCard.fullHr || selectedRateCard.minHr) || 12) : 12;
+      packageType = `Local Package (${includedHours}h / ${includedKm}k)`;
     }
 
     return {
@@ -1879,45 +1833,58 @@ export default function DutySlipsPage() {
                 <div className="p-5 space-y-4">
                   <div className="grid grid-cols-1 gap-4">
                     <Field label="Service / Billing Option *">
-                      <select
-                        value={
-                          df.dutyType === 'FLEXIBLE'
-                            ? 'flexible_duty'
-                            : df.dutyType === 'O' || df.dutyType === 'T'
-                              ? 'outstation'
-                              : df.pickupType === 'airport' || df.pickupType === 'railway'
-                                ? 'transfer'
-                                : df.billingMode === 'H'
-                                  ? 'local_half_day'
-                                  : 'local_full_day'
-                        }
-                        onChange={e => {
-                          const val = e.target.value;
-                          setDf(f => {
-                            if (val === 'flexible_duty') {
-                              if (customParticulars.length === 0) {
-                                setCustomParticulars([{ id: 'item_' + Date.now(), particular: '', rate: 0, amount: 0 }]);
-                              }
-                              return { ...f, dutyType: 'FLEXIBLE', billingMode: 'N', pickupType: 'other' };
-                            } else if (val === 'outstation') {
-                              return { ...f, dutyType: 'O', billingMode: 'N', pickupType: 'other' };
-                            } else if (val === 'transfer') {
-                              return { ...f, dutyType: 'L', billingMode: 'N', pickupType: 'airport' };
-                            } else if (val === 'local_half_day') {
-                              return { ...f, dutyType: 'L', billingMode: 'H', pickupType: 'other' };
-                            } else {
-                              return { ...f, dutyType: 'L', billingMode: 'F', pickupType: 'other' };
+                      {(() => {
+                        const pkgKm = selectedRateCard ? (Number(selectedRateCard.fullKm || selectedRateCard.minKm || selectedRateCard.includedKm) || 120) : 120;
+                        const pkgHr = selectedRateCard ? (Number(selectedRateCard.fullHr || selectedRateCard.minHr) || 12) : 12;
+                        const pkgFare = selectedRateCard ? (Number(selectedRateCard.fullDayRate || selectedRateCard.halfDayRate) || 2000) : 2000;
+                        const outstationMinKm = selectedRateCard ? (Number(selectedRateCard.minKmPerDay) || 250) : 250;
+                        const outstationRate = selectedRateCard ? (Number(selectedRateCard.outstationRatePerKm) || 15) : 15;
+
+                        return (
+                          <select
+                            value={
+                              df.dutyType === 'FLEXIBLE'
+                                ? 'flexible_duty'
+                                : df.dutyType === 'O' || df.dutyType === 'T'
+                                  ? 'outstation'
+                                  : df.pickupType === 'airport' || df.pickupType === 'railway'
+                                    ? 'transfer'
+                                    : 'local_package'
                             }
-                          });
-                        }}
-                        className={sel}
-                      >
-                        <option value="local_half_day">Local Half Day (4 Hrs / 40 KM)</option>
-                        <option value="local_full_day">Local Full Day (8 Hrs / 80 KM)</option>
-                        <option value="transfer">Transfer (Airport / Railway)</option>
-                        <option value="outstation">Outstation</option>
-                        <option value="flexible_duty">Flexible Duty Slip (Manual Particulars)</option>
-                      </select>
+                            onChange={e => {
+                              const val = e.target.value;
+                              setDf(f => {
+                                if (val === 'flexible_duty') {
+                                  if (customParticulars.length === 0) {
+                                    setCustomParticulars([{ id: 'item_' + Date.now(), particular: '', rate: 0, amount: 0 }]);
+                                  }
+                                  return { ...f, dutyType: 'FLEXIBLE', billingMode: 'N', pickupType: 'other' };
+                                } else if (val === 'outstation') {
+                                  return { ...f, dutyType: 'O', billingMode: 'N', pickupType: 'other' };
+                                } else if (val === 'transfer') {
+                                  return { ...f, dutyType: 'L', billingMode: 'N', pickupType: 'airport' };
+                                } else {
+                                  return { ...f, dutyType: 'L', billingMode: 'F', pickupType: 'other' };
+                                }
+                              });
+                            }}
+                            className={sel}
+                          >
+                            <option value="local_package">
+                              Local Package ({pkgKm} KM / {pkgHr} Hrs){pkgFare > 0 ? ` - ₹${pkgFare.toLocaleString('en-IN')}` : ''}
+                            </option>
+                            <option value="transfer">
+                              Transfer (Airport / Railway){pkgFare > 0 ? ` - ₹${pkgFare.toLocaleString('en-IN')}` : ''}
+                            </option>
+                            <option value="outstation">
+                              Outstation ({outstationMinKm} KM/Day @ ₹{outstationRate}/km)
+                            </option>
+                            <option value="flexible_duty">
+                              Flexible Duty Slip (Manual Particulars)
+                            </option>
+                          </select>
+                        );
+                      })()}
                     </Field>
                   </div>
 

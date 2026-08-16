@@ -25,12 +25,17 @@ interface RateCard {
   halfDayRate: string | number;
   fullDayRate: string | number;
   includedKm: string | number;
+  minHr?: string | number;
+  minKm?: string | number;
+  fullHr?: string | number;
+  fullKm?: string | number;
   extraKmRate: string | number;
   extraHourRate: string | number;
   minKmPerDay: string | number;
   outstationRatePerKm: string | number;
   driverAllowance: string | number;
   nightCharge: string | number;
+  outstationNightCharge?: string | number;
   nightStartTime: string | null;
   nightEndTime: string | null;
   effectiveFrom: string;
@@ -105,14 +110,15 @@ export default function RateManagementPage() {
     customerId: '',
     clientType: 'Company',
     vehicleCategoryId: '',
-    halfDayRate: 0,
-    fullDayRate: 0,
-    includedKm: 80,
-    extraKmRate: 0,
-    extraHourRate: 0,
+    baseFare: 2000,
+    baseKm: 120,
+    baseHours: 12,
+    extraKmRate: 14,
+    extraHourRate: 150,
     minKmPerDay: 250,
-    outstationRatePerKm: 0,
+    outstationRatePerKm: 15,
     driverAllowance: 250,
+    outstationNightCharge: 200,
     nightCharge: 200,
     nightStartTime: '23:00',
     nightEndTime: '05:00',
@@ -267,14 +273,15 @@ export default function RateManagementPage() {
       customerId: '',
       clientType: 'Company',
       vehicleCategoryId: categories[0]?.id || '',
-      halfDayRate: 0,
-      fullDayRate: 0,
-      includedKm: 80,
-      extraKmRate: 0,
-      extraHourRate: 0,
+      baseFare: 2000,
+      baseKm: 120,
+      baseHours: 12,
+      extraKmRate: 14,
+      extraHourRate: 150,
       minKmPerDay: 250,
-      outstationRatePerKm: 0,
+      outstationRatePerKm: 15,
       driverAllowance: 250,
+      outstationNightCharge: 200,
       nightCharge: 200,
       nightStartTime: '23:00',
       nightEndTime: '05:00',
@@ -287,19 +294,24 @@ export default function RateManagementPage() {
 
   const handleOpenEditRate = (rate: RateCard) => {
     setEditingRateId(rate.id);
+    const resolvedBaseFare = Number(rate.fullDayRate || rate.halfDayRate || 0);
+    const resolvedBaseKm = Number(rate.fullKm || rate.minKm || rate.includedKm || 120);
+    const resolvedBaseHours = Number(rate.fullHr || rate.minHr || 12);
+
     setRateFormData({
       customerId: rate.customerId || '',
       clientType: rate.clientType,
       vehicleCategoryId: rate.vehicleCategoryId,
-      halfDayRate: Number(rate.halfDayRate),
-      fullDayRate: Number(rate.fullDayRate),
-      includedKm: Number(rate.includedKm),
-      extraKmRate: Number(rate.extraKmRate),
-      extraHourRate: Number(rate.extraHourRate),
-      minKmPerDay: Number(rate.minKmPerDay),
-      outstationRatePerKm: Number(rate.outstationRatePerKm),
-      driverAllowance: Number(rate.driverAllowance),
-      nightCharge: Number(rate.nightCharge),
+      baseFare: resolvedBaseFare,
+      baseKm: resolvedBaseKm,
+      baseHours: resolvedBaseHours,
+      extraKmRate: Number(rate.extraKmRate || 0),
+      extraHourRate: Number(rate.extraHourRate || 0),
+      minKmPerDay: Number(rate.minKmPerDay || 250),
+      outstationRatePerKm: Number(rate.outstationRatePerKm || 0),
+      driverAllowance: Number(rate.driverAllowance || 250),
+      outstationNightCharge: Number(rate.outstationNightCharge || 200),
+      nightCharge: Number(rate.nightCharge || 200),
       nightStartTime: rate.nightStartTime || '23:00',
       nightEndTime: rate.nightEndTime || '05:00',
       effectiveFrom: new Date(rate.effectiveFrom).toISOString().split('T')[0],
@@ -339,25 +351,35 @@ export default function RateManagementPage() {
       return;
     }
 
-    if (rateFormData.halfDayRate < 0 || rateFormData.fullDayRate < 0 || rateFormData.includedKm < 0) {
-      setRateFormError('Rates and Included KM must be non-negative values.');
+    if (rateFormData.baseFare < 0 || rateFormData.baseKm <= 0 || rateFormData.baseHours <= 0) {
+      setRateFormError('Base Rate, Base KM, and Base Hours must be positive values.');
       return;
     }
 
     setSubmittingRate(true);
     try {
       const payload = {
-        ...rateFormData,
         customerId: rateFormData.customerId || undefined,
-        halfDayRate: Number(rateFormData.halfDayRate),
-        fullDayRate: Number(rateFormData.fullDayRate),
-        includedKm: Number(rateFormData.includedKm),
+        clientType: rateFormData.clientType,
+        vehicleCategoryId: rateFormData.vehicleCategoryId,
+        halfDayRate: Number(rateFormData.baseFare),
+        fullDayRate: Number(rateFormData.baseFare),
+        includedKm: Number(rateFormData.baseKm),
+        minKm: Number(rateFormData.baseKm),
+        fullKm: Number(rateFormData.baseKm),
+        minHr: Number(rateFormData.baseHours),
+        fullHr: Number(rateFormData.baseHours),
         extraKmRate: Number(rateFormData.extraKmRate),
         extraHourRate: Number(rateFormData.extraHourRate),
         minKmPerDay: Number(rateFormData.minKmPerDay),
         outstationRatePerKm: Number(rateFormData.outstationRatePerKm),
         driverAllowance: Number(rateFormData.driverAllowance),
         nightCharge: Number(rateFormData.nightCharge),
+        outstationNightCharge: Number(rateFormData.outstationNightCharge),
+        nightStartTime: rateFormData.nightStartTime,
+        nightEndTime: rateFormData.nightEndTime,
+        effectiveFrom: rateFormData.effectiveFrom,
+        status: rateFormData.status,
       };
 
       if (editingRateId) {
@@ -670,102 +692,113 @@ export default function RateManagementPage() {
                 <table className="w-full text-left border-collapse min-w-[1200px]">
                   <thead>
                     <tr className="border-b border-[#E2E8F0] text-xs font-semibold text-[#64748B] uppercase bg-[#F8FAFC]">
-                      <th className="py-3 px-4" rowSpan={2}>Client Type</th>
-                      <th className="py-3 px-4" rowSpan={2}>Customer Name</th>
-                      <th className="py-3 px-4" rowSpan={2}>Category</th>
-                      <th className="py-2 px-4 text-center border-b border-[#E2E8F0]" colSpan={5}>Local Rates (₹)</th>
-                      <th className="py-2 px-4 text-center border-b border-[#E2E8F0]" colSpan={4}>Outstation Rates (₹)</th>
-                      <th className="py-3 px-4" rowSpan={2}>Effective From</th>
-                      <th className="py-3 px-4" rowSpan={2}>Status</th>
-                      <th className="py-3 px-4 text-right" rowSpan={2}>Actions</th>
-                    </tr>
-                    <tr className="border-b border-[#E2E8F0] text-[10px] font-bold text-[#64748B] uppercase bg-[#F8FAFC]">
-                      <th className="py-2 px-2 text-center">Half Day</th>
-                      <th className="py-2 px-2 text-center">Full Day</th>
-                      <th className="py-2 px-2 text-center">Incl. KM</th>
-                      <th className="py-2 px-2 text-center">Ext. KM</th>
-                      <th className="py-2 px-2 text-center">Ext. Hr</th>
-                      <th className="py-2 px-2 text-center">Min KM/Day</th>
-                      <th className="py-2 px-2 text-center">Rate/KM</th>
-                      <th className="py-2 px-2 text-center">Driver Allow</th>
-                      <th className="py-2 px-2 text-center">Night Allowance</th>
+                      <th className="py-3 px-4">Client Type</th>
+                      <th className="py-3 px-4">Customer Name</th>
+                      <th className="py-3 px-4">Category</th>
+                      <th className="py-3 px-4 text-center">Base Package (Rate / KM / Hrs)</th>
+                      <th className="py-3 px-3 text-center">Extra KM</th>
+                      <th className="py-3 px-3 text-center">Extra Hour</th>
+                      <th className="py-3 px-4 text-center">Outstation (Min KM / Rate / DA)</th>
+                      <th className="py-3 px-4 text-center">Night Allowance</th>
+                      <th className="py-3 px-4">Effective From</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E2E8F0]/80 text-sm">
-                    {rateCards.map((rc) => (
-                      <tr key={rc.id} className="hover:bg-[#F8FAFC] transition-colors">
-                        <td className="py-4 px-4">
-                          <span className={`inline-block px-2 py-0.5 text-[10px] font-bold rounded uppercase ${
-                            rc.clientType === 'Company'
-                              ? 'text-indigo-700 bg-indigo-50 border border-indigo-200'
-                              : rc.clientType === 'Travel Company'
-                              ? 'text-teal-700 bg-teal-50 border border-teal-200'
-                              : 'text-amber-700 bg-amber-50 border border-amber-200'
-                          }`}>
-                            {rc.clientType}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 font-medium text-[#0F172A]">
-                          {rc.customer?.name || (
-                            <span className="text-[#94A3B8] italic font-normal">Default (All Clients)</span>
-                          )}
-                        </td>
-                        <td className="py-4 px-4 font-semibold text-gray-700">{rc.vehicleCategory.name}</td>
-                        {/* Local Rates */}
-                        <td className="py-4 px-2 text-center font-mono text-[#0F172A]">₹{Number(rc.halfDayRate).toFixed(0)}</td>
-                        <td className="py-4 px-2 text-center font-mono text-[#0F172A]">₹{Number(rc.fullDayRate).toFixed(0)}</td>
-                        <td className="py-4 px-2 text-center font-mono text-[#64748B]">{Number(rc.includedKm).toFixed(0)} km</td>
-                        <td className="py-4 px-2 text-center font-mono text-[#0F172A]">₹{Number(rc.extraKmRate).toFixed(0)}</td>
-                        <td className="py-4 px-2 text-center font-mono text-[#0F172A]">₹{Number(rc.extraHourRate).toFixed(0)}</td>
-                        {/* Outstation Rates */}
-                        <td className="py-4 px-2 text-center font-mono text-[#64748B]">{Number(rc.minKmPerDay).toFixed(0)} km</td>
-                        <td className="py-4 px-2 text-center font-mono text-[#0F172A]">₹{Number(rc.outstationRatePerKm).toFixed(0)}</td>
-                        <td className="py-4 px-2 text-center font-mono text-[#0F172A]">₹{Number(rc.driverAllowance).toFixed(0)}</td>
-                        <td className="py-4 px-2 text-center font-mono text-[#0F172A]">
-                          ₹{Number(rc.nightCharge).toFixed(0)}
-                          {rc.nightStartTime && (
-                            <span className="block text-[10px] text-gray-400 font-sans mt-0.5">
-                              {rc.nightStartTime}-{rc.nightEndTime}
+                    {rateCards.map((rc) => {
+                      const baseFare = Number(rc.fullDayRate || rc.halfDayRate || 0);
+                      const baseKm = Number(rc.fullKm || rc.minKm || rc.includedKm || 120);
+                      const baseHr = Number(rc.fullHr || rc.minHr || 12);
+
+                      return (
+                        <tr key={rc.id} className="hover:bg-[#F8FAFC] transition-colors">
+                          <td className="py-4 px-4">
+                            <span className={`inline-block px-2 py-0.5 text-[10px] font-bold rounded uppercase ${
+                              rc.clientType === 'Company'
+                                ? 'text-indigo-700 bg-indigo-50 border border-indigo-200'
+                                : rc.clientType === 'Travel Company'
+                                ? 'text-teal-700 bg-teal-50 border border-teal-200'
+                                : 'text-amber-700 bg-amber-50 border border-amber-200'
+                            }`}>
+                              {rc.clientType}
                             </span>
-                          )}
-                        </td>
-                        {/* Effective & Status */}
-                        <td className="py-4 px-4 text-xs text-[#475569]">
-                          {new Date(rc.effectiveFrom).toLocaleDateString('en-GB')}
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className={`inline-block w-2.5 h-2.5 rounded-full ${rc.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-300'}`} title={rc.status} />
-                        </td>
-                        {/* Actions */}
-                        <td className="py-4 px-4 text-right space-x-1.5 shrink-0">
-                          {canEdit && (
-                            <>
-                              <button
-                                onClick={() => handleCloneRate(rc.id)}
-                                className="px-2.5 py-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition"
-                                title="Clone"
-                              >
-                                Clone
-                              </button>
-                              <button
-                                onClick={() => handleOpenEditRate(rc)}
-                                className="px-2.5 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-800 bg-white border border-[#E2E8F0] hover:bg-gray-50 rounded-lg transition"
-                                title="Edit"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteRate(rc.id)}
-                                className="px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition"
-                                title="Delete"
-                              >
-                                Delete
-                              </button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="py-4 px-4 font-medium text-[#0F172A]">
+                            {rc.customer?.name || (
+                              <span className="text-[#94A3B8] italic font-normal">Default (All Clients)</span>
+                            )}
+                          </td>
+                          <td className="py-4 px-4 font-semibold text-gray-700">{rc.vehicleCategory.name}</td>
+                          {/* Base Package */}
+                          <td className="py-4 px-4 text-center">
+                            <span className="font-bold font-mono text-[#0F172A] text-sm">₹{baseFare.toLocaleString('en-IN')}</span>
+                            <span className="block text-[11px] text-blue-600 font-semibold mt-0.5">
+                              {baseKm} km / {baseHr} hrs
+                            </span>
+                          </td>
+                          {/* Extra KM */}
+                          <td className="py-4 px-3 text-center font-mono text-[#0F172A]">
+                            ₹{Number(rc.extraKmRate).toFixed(0)}/km
+                          </td>
+                          {/* Extra Hour */}
+                          <td className="py-4 px-3 text-center font-mono text-[#0F172A]">
+                            ₹{Number(rc.extraHourRate).toFixed(0)}/hr
+                          </td>
+                          {/* Outstation Rates */}
+                          <td className="py-4 px-4 text-center text-xs">
+                            <span className="font-mono text-[#0F172A] font-semibold">{Number(rc.minKmPerDay).toFixed(0)} km @ ₹{Number(rc.outstationRatePerKm).toFixed(0)}/km</span>
+                            <span className="block text-[10px] text-[#64748B] mt-0.5">
+                              DA: ₹{Number(rc.driverAllowance).toFixed(0)}
+                            </span>
+                          </td>
+                          {/* Night Allowance */}
+                          <td className="py-4 px-4 text-center text-xs">
+                            <span className="font-mono text-[#0F172A] font-semibold">₹{Number(rc.nightCharge).toFixed(0)}</span>
+                            {rc.nightStartTime && (
+                              <span className="block text-[10px] text-gray-400 font-sans mt-0.5">
+                                {rc.nightStartTime}-{rc.nightEndTime}
+                              </span>
+                            )}
+                          </td>
+                          {/* Effective & Status */}
+                          <td className="py-4 px-4 text-xs text-[#475569]">
+                            {new Date(rc.effectiveFrom).toLocaleDateString('en-GB')}
+                          </td>
+                          <td className="py-4 px-4">
+                            <span className={`inline-block w-2.5 h-2.5 rounded-full ${rc.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-300'}`} title={rc.status} />
+                          </td>
+                          {/* Actions */}
+                          <td className="py-4 px-4 text-right space-x-1.5 shrink-0">
+                            {canEdit && (
+                              <>
+                                <button
+                                  onClick={() => handleCloneRate(rc.id)}
+                                  className="px-2.5 py-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition"
+                                  title="Clone"
+                                >
+                                  Clone
+                                </button>
+                                <button
+                                  onClick={() => handleOpenEditRate(rc)}
+                                  className="px-2.5 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-800 bg-white border border-[#E2E8F0] hover:bg-gray-50 rounded-lg transition"
+                                  title="Edit"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteRate(rc.id)}
+                                  className="px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition"
+                                  title="Delete"
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -898,7 +931,7 @@ export default function RateManagementPage() {
                   <h3 className="text-lg font-bold text-[#0F172A]">
                     {editingRateId ? 'Edit Pricing Rate Card' : 'Create Customer Rate Card'}
                   </h3>
-                  <p className="text-xs text-[#64748B] mt-0.5">Set package thresholds and surcharge rates by vehicle tier.</p>
+                  <p className="text-xs text-[#64748B] mt-0.5">Set base package distance/hours, over-limits, and allowances.</p>
                 </div>
                 <button
                   onClick={() => setIsRatesDrawerOpen(false)}
@@ -993,46 +1026,46 @@ export default function RateManagementPage() {
                   </div>
                 </div>
 
-                {/* Local Packages Rates */}
+                {/* Base Package & Limits */}
                 <div>
-                  <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-3 border-b pb-1">Local Packages & Limits</h4>
+                  <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-3 border-b pb-1">Base Package & Limits</h4>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
-                        Half Day Rate (₹)
+                        Base Package Rate (₹)
                       </label>
                       <input
                         type="number"
-                        value={rateFormData.halfDayRate}
-                        onChange={(e) => setRateFormData({ ...rateFormData, halfDayRate: Number(e.target.value) })}
-                        placeholder="0.00"
-                        className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
+                        value={rateFormData.baseFare}
+                        onChange={(e) => setRateFormData({ ...rateFormData, baseFare: Number(e.target.value) })}
+                        placeholder="2500"
+                        className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm font-semibold focus:outline-none focus:border-blue-600 transition"
                       />
                     </div>
 
                     <div>
                       <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
-                        Full Day Rate (₹)
+                        Base Distance (KM)
                       </label>
                       <input
                         type="number"
-                        value={rateFormData.fullDayRate}
-                        onChange={(e) => setRateFormData({ ...rateFormData, fullDayRate: Number(e.target.value) })}
-                        placeholder="0.00"
-                        className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
+                        value={rateFormData.baseKm}
+                        onChange={(e) => setRateFormData({ ...rateFormData, baseKm: Number(e.target.value) })}
+                        placeholder="120"
+                        className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm font-semibold focus:outline-none focus:border-blue-600 transition"
                       />
                     </div>
 
                     <div>
                       <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
-                        Included KM
+                        Base Duration (Hours)
                       </label>
                       <input
                         type="number"
-                        value={rateFormData.includedKm}
-                        onChange={(e) => setRateFormData({ ...rateFormData, includedKm: Number(e.target.value) })}
-                        placeholder="80"
-                        className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
+                        value={rateFormData.baseHours}
+                        onChange={(e) => setRateFormData({ ...rateFormData, baseHours: Number(e.target.value) })}
+                        placeholder="12"
+                        className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm font-semibold focus:outline-none focus:border-blue-600 transition"
                       />
                     </div>
                   </div>
@@ -1040,26 +1073,26 @@ export default function RateManagementPage() {
                   <div className="grid grid-cols-2 gap-4 mt-4">
                     <div>
                       <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
-                        Extra KM Rate (₹)
+                        Extra KM Rate (₹ / km)
                       </label>
                       <input
                         type="number"
                         value={rateFormData.extraKmRate}
                         onChange={(e) => setRateFormData({ ...rateFormData, extraKmRate: Number(e.target.value) })}
-                        placeholder="0.00"
+                        placeholder="14"
                         className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
                       />
                     </div>
 
                     <div>
                       <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
-                        Extra Hour Rate (₹)
+                        Extra Hour Rate (₹ / hr)
                       </label>
                       <input
                         type="number"
                         value={rateFormData.extraHourRate}
                         onChange={(e) => setRateFormData({ ...rateFormData, extraHourRate: Number(e.target.value) })}
-                        placeholder="0.00"
+                        placeholder="150"
                         className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
                       />
                     </div>
@@ -1069,10 +1102,10 @@ export default function RateManagementPage() {
                 {/* Outstation Rates */}
                 <div>
                   <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-3 border-b pb-1">Outstation Packages</h4>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
-                        Min KM Per Day
+                        Min KM Per Day (KM)
                       </label>
                       <input
                         type="number"
@@ -1091,20 +1124,35 @@ export default function RateManagementPage() {
                         type="number"
                         value={rateFormData.outstationRatePerKm}
                         onChange={(e) => setRateFormData({ ...rateFormData, outstationRatePerKm: Number(e.target.value) })}
-                        placeholder="0.00"
+                        placeholder="15.00"
+                        className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
+                        Driver Allowance (₹ / day)
+                      </label>
+                      <input
+                        type="number"
+                        value={rateFormData.driverAllowance}
+                        onChange={(e) => setRateFormData({ ...rateFormData, driverAllowance: Number(e.target.value) })}
+                        placeholder="250"
                         className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
                       />
                     </div>
 
                     <div>
                       <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
-                        Driver Allowance (₹)
+                        Outstation Night Allowance (₹)
                       </label>
                       <input
                         type="number"
-                        value={rateFormData.driverAllowance}
-                        onChange={(e) => setRateFormData({ ...rateFormData, driverAllowance: Number(e.target.value) })}
-                        placeholder="0.00"
+                        value={rateFormData.outstationNightCharge}
+                        onChange={(e) => setRateFormData({ ...rateFormData, outstationNightCharge: Number(e.target.value) })}
+                        placeholder="200"
                         className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
                       />
                     </div>
@@ -1113,7 +1161,7 @@ export default function RateManagementPage() {
 
                 {/* Night Charges */}
                 <div>
-                  <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-3 border-b pb-1">Night Allowance</h4>
+                  <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-3 border-b pb-1">Local Night Allowance</h4>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
