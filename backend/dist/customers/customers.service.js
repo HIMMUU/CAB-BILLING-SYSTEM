@@ -81,10 +81,10 @@ let CustomersService = class CustomersService {
                                 nightCharge: card.nightCharge ?? 0,
                                 nightStartTime: card.nightStartTime || '23:00',
                                 nightEndTime: card.nightEndTime || '05:00',
-                                minHr: card.minHr ?? 4,
-                                minKm: card.minKm ?? 40,
-                                fullHr: card.fullHr ?? 8,
-                                fullKm: card.fullKm ?? 80,
+                                minHr: card.minHr ?? 12,
+                                minKm: card.minKm ?? 120,
+                                fullHr: card.fullHr ?? 12,
+                                fullKm: card.fullKm ?? 120,
                                 outstationNightCharge: card.outstationNightCharge ?? 0,
                                 effectiveFrom: card.effectiveFrom
                                     ? new Date(card.effectiveFrom)
@@ -223,10 +223,10 @@ let CustomersService = class CustomersService {
                                 nightCharge: card.nightCharge ?? 0,
                                 nightStartTime: card.nightStartTime || '23:00',
                                 nightEndTime: card.nightEndTime || '05:00',
-                                minHr: card.minHr ?? 4,
-                                minKm: card.minKm ?? 40,
-                                fullHr: card.fullHr ?? 8,
-                                fullKm: card.fullKm ?? 80,
+                                minHr: card.minHr ?? 12,
+                                minKm: card.minKm ?? 120,
+                                fullHr: card.fullHr ?? 12,
+                                fullKm: card.fullKm ?? 120,
                                 outstationNightCharge: card.outstationNightCharge ?? 0,
                                 effectiveFrom: card.effectiveFrom
                                     ? new Date(card.effectiveFrom)

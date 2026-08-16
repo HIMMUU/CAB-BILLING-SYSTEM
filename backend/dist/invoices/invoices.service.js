@@ -1239,13 +1239,13 @@ let InvoicesService = class InvoicesService {
                         const rc = booking.customer?.rateCards?.find((r) => r.vehicleCategory?.name?.toLowerCase() ===
                             vCatName?.toLowerCase() ||
                             r.vehicleCategory?.name?.toLowerCase() ===
-                                booking.vehicleTypeRequired?.toLowerCase());
+                                booking.vehicleTypeRequired?.toLowerCase()) || booking.customer?.rateCards?.[0];
                         const baseKm = booking.tripType === client_1.TripType.OUTSTATION
                             ? totalDays * (Number(rc?.minKmPerDay) || 250)
-                            : Number(rc?.fullKm || rc?.minKm || rc?.includedKm) || 80;
+                            : Number(rc?.fullKm || rc?.minKm || rc?.includedKm) || 120;
                         const baseHr = booking.tripType === client_1.TripType.OUTSTATION
                             ? 24 * totalDays
-                            : Number(rc?.fullHr || rc?.minHr) || 8;
+                            : Number(rc?.fullHr || rc?.minHr) || 12;
                         particularsRows.push({
                             label: booking.tripType === client_1.TripType.OUTSTATION
                                 ? `UPTO ${baseKm} Kms. & ${totalDays} Days Duty`

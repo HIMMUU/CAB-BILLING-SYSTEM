@@ -236,7 +236,7 @@ export default function DutySlipsPage() {
       serviceTax: 5, parking: 0, toll: 0, mcdToll: 0, stateTax: 0,
       driverAdvance: 0, driverAllowance: 0, driverRefund: 0, feedbackPoint: '', driverRemark: '',
       dutyType: 'L', tourCode: '', localBill: '', nightChargesOnTime: 0,
-      billingMode: 'N',
+      billingMode: 'F',
       extraCharges: 0,
       manualDriverName: '', manualDriverPhone: '',
       manualVehicleNumber: '', manualVehicleModel: '',
@@ -403,19 +403,25 @@ export default function DutySlipsPage() {
   /* ── Match active rate card ── */
   useEffect(() => {
     const matchRateCard = async () => {
-      if (!df.customerId || !df.carGroup) {
+      if (!df.customerId) {
         setSelectedRateCard(null);
         return;
       }
       // 1. Customer specific card
-      if (fullCustomer && fullCustomer.rateCards) {
-        const rc = fullCustomer.rateCards.find(
-          (r: any) => r.vehicleCategory?.name?.toLowerCase() === df.carGroup.toLowerCase()
-        );
+      if (fullCustomer && fullCustomer.rateCards && fullCustomer.rateCards.length > 0) {
+        const rc = df.carGroup
+          ? fullCustomer.rateCards.find(
+              (r: any) =>
+                r.vehicleCategory?.name?.toLowerCase() === df.carGroup.toLowerCase() ||
+                r.vehicleCategory?.name?.toLowerCase() === df.carName?.toLowerCase()
+            ) || fullCustomer.rateCards[0]
+          : fullCustomer.rateCards[0];
+
         if (rc) {
           setSelectedRateCard(rc);
           setDf(f => ({
             ...f,
+            carGroup: f.carGroup || rc.vehicleCategory?.name || '',
             driverAllowance: Number(rc.driverAllowance) || 0,
             nightChargesOnTime: df.dutyType === 'O' || df.dutyType === 'T'
               ? Number(rc.outstationNightCharge || rc.nightCharge) || 0
@@ -426,11 +432,16 @@ export default function DutySlipsPage() {
       }
       // 2. Default tenant card
       try {
-        const cat = categories.find(c => c.name.toLowerCase() === df.carGroup.toLowerCase());
+        const targetCategory = df.carGroup || df.carName;
+        const cat = targetCategory
+          ? categories.find(c => c.name.toLowerCase() === targetCategory.toLowerCase())
+          : categories[0];
         if (cat) {
-          let mappedClientType = 'Individual';
+          let mappedClientType = 'Company';
           if (fullCustomer) {
-            if (fullCustomer.type === 'CORPORATE') {
+            if (fullCustomer.type === 'INDIVIDUAL') {
+              mappedClientType = 'Individual';
+            } else {
               const lowerName = (fullCustomer.companyName || '').toLowerCase();
               if (lowerName.includes('travel') || lowerName.includes('holiday') || lowerName.includes('resort') || lowerName.includes('tour')) {
                 mappedClientType = 'Travel Company';
@@ -442,11 +453,12 @@ export default function DutySlipsPage() {
           const res = await api.request(
             `/rate-management/rate-cards?customerId=ALL&vehicleCategoryId=${cat.id}&clientType=${mappedClientType}`
           );
-          const rc = res.data?.find((r: any) => !r.customerId && r.status === 'ACTIVE');
+          const rc = res.data?.find((r: any) => !r.customerId && r.status === 'ACTIVE') || res.data?.[0];
           if (rc) {
             setSelectedRateCard(rc);
             setDf(f => ({
               ...f,
+              carGroup: f.carGroup || cat.name,
               driverAllowance: Number(rc.driverAllowance) || 0,
               nightChargesOnTime: df.dutyType === 'O' || df.dutyType === 'T'
                 ? Number(rc.outstationNightCharge || rc.nightCharge) || 0
@@ -1847,9 +1859,7 @@ export default function DutySlipsPage() {
                                 ? 'flexible_duty'
                                 : df.dutyType === 'O' || df.dutyType === 'T'
                                   ? 'outstation'
-                                  : df.pickupType === 'airport' || df.pickupType === 'railway'
-                                    ? 'transfer'
-                                    : 'local_package'
+                                  : 'local_package'
                             }
                             onChange={e => {
                               const val = e.target.value;
@@ -1861,8 +1871,6 @@ export default function DutySlipsPage() {
                                   return { ...f, dutyType: 'FLEXIBLE', billingMode: 'N', pickupType: 'other' };
                                 } else if (val === 'outstation') {
                                   return { ...f, dutyType: 'O', billingMode: 'N', pickupType: 'other' };
-                                } else if (val === 'transfer') {
-                                  return { ...f, dutyType: 'L', billingMode: 'N', pickupType: 'airport' };
                                 } else {
                                   return { ...f, dutyType: 'L', billingMode: 'F', pickupType: 'other' };
                                 }
@@ -1872,9 +1880,6 @@ export default function DutySlipsPage() {
                           >
                             <option value="local_package">
                               Local Package ({pkgKm} KM / {pkgHr} Hrs){pkgFare > 0 ? ` - ₹${pkgFare.toLocaleString('en-IN')}` : ''}
-                            </option>
-                            <option value="transfer">
-                              Transfer (Airport / Railway){pkgFare > 0 ? ` - ₹${pkgFare.toLocaleString('en-IN')}` : ''}
                             </option>
                             <option value="outstation">
                               Outstation ({outstationMinKm} KM/Day @ ₹{outstationRate}/km)

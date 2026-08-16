@@ -99,8 +99,8 @@ let TripsService = class TripsService {
                     customerId: slip.booking.customerId,
                     vehicleCategoryId: category.id,
                     status: 'ACTIVE',
-                    effectiveFrom: { lte: new Date() },
                 },
+                orderBy: { effectiveFrom: 'desc' },
             });
             if (!rateCard) {
                 rateCard = await this.prisma.rateCard.findFirst({
@@ -109,24 +109,33 @@ let TripsService = class TripsService {
                         clientType: mappedClientType,
                         vehicleCategoryId: category.id,
                         status: 'ACTIVE',
-                        effectiveFrom: { lte: new Date() },
                     },
+                    orderBy: { effectiveFrom: 'desc' },
                 });
             }
         }
-        let baseFare = 1500;
-        let baseKm = 40;
-        let extraKmRate = 12;
-        let extraHourRate = 100;
+        if (!rateCard && slip.booking.customerId) {
+            rateCard = await this.prisma.rateCard.findFirst({
+                where: {
+                    customerId: slip.booking.customerId,
+                    status: 'ACTIVE',
+                },
+                orderBy: { effectiveFrom: 'desc' },
+            });
+        }
+        let baseFare = 2000;
+        let baseKm = 120;
+        let extraKmRate = 14;
+        let extraHourRate = 150;
         let driverAllowanceAmount = 250;
         let nightChargesAmount = 200;
         if (rateCard) {
-            extraKmRate = Number(rateCard.extraKmRate);
-            extraHourRate = Number(rateCard.extraHourRate);
-            baseKm = Number(rateCard.includedKm) || 40;
+            extraKmRate = Number(rateCard.extraKmRate) || 14;
+            extraHourRate = Number(rateCard.extraHourRate) || 150;
+            baseKm = Number(rateCard.fullKm || rateCard.minKm || rateCard.includedKm) || 120;
             if (slip.booking.tripType === client_1.TripType.OUTSTATION) {
                 const minKm = Number(rateCard.minKmPerDay) || 250;
-                const ratePerKm = Number(rateCard.outstationRatePerKm) || 12;
+                const ratePerKm = Number(rateCard.outstationRatePerKm) || 15;
                 baseKm = calculatedDays * minKm;
                 baseFare = baseKm * ratePerKm;
                 extraKmRate = ratePerKm;
@@ -138,9 +147,9 @@ let TripsService = class TripsService {
                             200);
             }
             else {
-                const packageHr = Number(rateCard.fullHr || rateCard.minHr) || 8;
-                const packageKm = Number(rateCard.fullKm || rateCard.minKm || rateCard.includedKm) || 80;
-                const packageFare = Number(rateCard.fullDayRate || rateCard.halfDayRate) || 1800;
+                const packageHr = Number(rateCard.fullHr || rateCard.minHr) || 12;
+                const packageKm = Number(rateCard.fullKm || rateCard.minKm || rateCard.includedKm) || 120;
+                const packageFare = Number(rateCard.fullDayRate || rateCard.halfDayRate) || 2000;
                 baseFare = packageFare;
                 baseKm = packageKm;
                 const baseHr = packageHr;

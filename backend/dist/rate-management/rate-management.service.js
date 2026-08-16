@@ -262,37 +262,6 @@ let RateManagementService = class RateManagementService {
     }
     async removeRateCard(id) {
         const rateCard = await this.findOneRateCard(id);
-        if (rateCard.customerId) {
-            const invoicesCount = await this.prisma.invoice.count({
-                where: { customerId: rateCard.customerId },
-            });
-            if (invoicesCount > 0) {
-                throw new common_1.BadRequestException('This rate card cannot be deleted because invoices have been issued for this customer.');
-            }
-        }
-        else {
-            const invoicesCount = await this.prisma.invoice.count({
-                where: {
-                    customer: {
-                        type: rateCard.clientType === 'Individual' ? 'INDIVIDUAL' : 'CORPORATE',
-                    },
-                    items: {
-                        some: {
-                            trip: {
-                                dutySlip: {
-                                    vehicle: {
-                                        vehicleType: rateCard.vehicleCategory.name,
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            });
-            if (invoicesCount > 0) {
-                throw new common_1.BadRequestException('This rate card cannot be deleted because invoices have been generated using this default vehicle category rate.');
-            }
-        }
         await this.prisma.rateCard.delete({
             where: { id },
         });

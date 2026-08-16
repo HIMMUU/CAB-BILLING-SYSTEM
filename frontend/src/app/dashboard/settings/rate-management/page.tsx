@@ -689,7 +689,7 @@ export default function RateManagementPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[1200px]">
+                <table className="w-full text-left border-collapse min-w-[1000px]">
                   <thead>
                     <tr className="border-b border-[#E2E8F0] text-xs font-semibold text-[#64748B] uppercase bg-[#F8FAFC]">
                       <th className="py-3 px-4">Client Type</th>
@@ -698,7 +698,6 @@ export default function RateManagementPage() {
                       <th className="py-3 px-4 text-center">Base Package (Rate / KM / Hrs)</th>
                       <th className="py-3 px-3 text-center">Extra KM</th>
                       <th className="py-3 px-3 text-center">Extra Hour</th>
-                      <th className="py-3 px-4 text-center">Outstation (Min KM / Rate / DA)</th>
                       <th className="py-3 px-4 text-center">Night Allowance</th>
                       <th className="py-3 px-4">Effective From</th>
                       <th className="py-3 px-4">Status</th>
@@ -744,13 +743,6 @@ export default function RateManagementPage() {
                           {/* Extra Hour */}
                           <td className="py-4 px-3 text-center font-mono text-[#0F172A]">
                             ₹{Number(rc.extraHourRate).toFixed(0)}/hr
-                          </td>
-                          {/* Outstation Rates */}
-                          <td className="py-4 px-4 text-center text-xs">
-                            <span className="font-mono text-[#0F172A] font-semibold">{Number(rc.minKmPerDay).toFixed(0)} km @ ₹{Number(rc.outstationRatePerKm).toFixed(0)}/km</span>
-                            <span className="block text-[10px] text-[#64748B] mt-0.5">
-                              DA: ₹{Number(rc.driverAllowance).toFixed(0)}
-                            </span>
                           </td>
                           {/* Night Allowance */}
                           <td className="py-4 px-4 text-center text-xs">
@@ -931,7 +923,7 @@ export default function RateManagementPage() {
                   <h3 className="text-lg font-bold text-[#0F172A]">
                     {editingRateId ? 'Edit Pricing Rate Card' : 'Create Customer Rate Card'}
                   </h3>
-                  <p className="text-xs text-[#64748B] mt-0.5">Set base package distance/hours, over-limits, and allowances.</p>
+                  <p className="text-xs text-[#64748B] mt-0.5">Set base package distance/hours, extra charges, and night allowance.</p>
                 </div>
                 <button
                   onClick={() => setIsRatesDrawerOpen(false)}
@@ -1099,69 +1091,9 @@ export default function RateManagementPage() {
                   </div>
                 </div>
 
-                {/* Outstation Rates */}
-                <div>
-                  <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-3 border-b pb-1">Outstation Packages</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
-                        Min KM Per Day (KM)
-                      </label>
-                      <input
-                        type="number"
-                        value={rateFormData.minKmPerDay}
-                        onChange={(e) => setRateFormData({ ...rateFormData, minKmPerDay: Number(e.target.value) })}
-                        placeholder="250"
-                        className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
-                        Rate Per KM (₹)
-                      </label>
-                      <input
-                        type="number"
-                        value={rateFormData.outstationRatePerKm}
-                        onChange={(e) => setRateFormData({ ...rateFormData, outstationRatePerKm: Number(e.target.value) })}
-                        placeholder="15.00"
-                        className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
-                        Driver Allowance (₹ / day)
-                      </label>
-                      <input
-                        type="number"
-                        value={rateFormData.driverAllowance}
-                        onChange={(e) => setRateFormData({ ...rateFormData, driverAllowance: Number(e.target.value) })}
-                        placeholder="250"
-                        className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
-                        Outstation Night Allowance (₹)
-                      </label>
-                      <input
-                        type="number"
-                        value={rateFormData.outstationNightCharge}
-                        onChange={(e) => setRateFormData({ ...rateFormData, outstationNightCharge: Number(e.target.value) })}
-                        placeholder="200"
-                        className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
-                      />
-                    </div>
-                  </div>
-                </div>
-
                 {/* Night Charges */}
                 <div>
-                  <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-3 border-b pb-1">Local Night Allowance</h4>
+                  <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-3 border-b pb-1">Night Allowance</h4>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
