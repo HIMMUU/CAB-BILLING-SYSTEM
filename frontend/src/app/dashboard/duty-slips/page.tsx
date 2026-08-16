@@ -466,15 +466,24 @@ export default function DutySlipsPage() {
           (Number(rc.fullKm || rc.minKm) !== 80 && Number(rc.fullKm || rc.minKm) !== 40) ||
           (Number(rc.fullHr || rc.minHr) !== 8 && Number(rc.fullHr || rc.minHr) !== 4)
         );
-        setDf(f => ({
-          ...f,
-          carGroup: f.carGroup || rc.vehicleCategory?.name || '',
-          billingMode: f.billingMode === 'N' || !f.billingMode ? (hasCustom ? 'C' : 'F') : f.billingMode,
-          driverAllowance: Number(rc.driverAllowance) || 0,
-          nightChargesOnTime: df.dutyType === 'O' || df.dutyType === 'T'
-            ? Number(rc.outstationNightCharge || rc.nightCharge) || 0
-            : Number(rc.nightCharge) || 0,
-        }));
+        setDf(f => {
+          const isOutstationDuty = f.dutyType === 'O' || f.dutyType === 'T';
+          const isFlexDuty = f.dutyType === 'FLEXIBLE';
+
+          // Preserve billingMode if it's already explicitly chosen or if flexible/outstation
+          let newBillingMode = f.billingMode;
+          if (!isFlexDuty && !isOutstationDuty && (!f.billingMode || f.billingMode === 'N')) {
+            newBillingMode = hasCustom ? 'C' : 'F';
+          }
+
+          return {
+            ...f,
+            carGroup: f.carGroup || rc.vehicleCategory?.name || '',
+            billingMode: newBillingMode,
+            driverAllowance: Number(f.driverAllowance) > 0 ? f.driverAllowance : (Number(rc.driverAllowance) || 0),
+            nightChargesOnTime: Number(f.nightChargesOnTime) > 0 ? f.nightChargesOnTime : (isOutstationDuty ? Number(rc.outstationNightCharge || rc.nightCharge) || 0 : Number(rc.nightCharge) || 0),
+          };
+        });
       } else {
         setSelectedRateCard(null);
       }
@@ -1063,12 +1072,57 @@ export default function DutySlipsPage() {
 
     // Fetch customer details to get custom rate cards and tax rates
     let customerObj = null;
+    let allCards: any[] = [];
     try {
-      customerObj = await api.request(`/customers/${slip.booking?.customerId}`);
-      setFullCustomer(customerObj);
+      if (slip.booking?.customerId) {
+        customerObj = await api.request(`/customers/${slip.booking.customerId}`);
+        setFullCustomer(customerObj);
+        if (customerObj?.rateCards && Array.isArray(customerObj.rateCards)) {
+          allCards = [...customerObj.rateCards];
+        }
+      }
+      let mappedClientType = 'Company';
+      if (customerObj) {
+        if (customerObj.type === 'INDIVIDUAL') {
+          mappedClientType = 'Individual';
+        } else {
+          const lowerName = (customerObj.companyName || '').toLowerCase();
+          if (lowerName.includes('travel') || lowerName.includes('holiday') || lowerName.includes('resort') || lowerName.includes('tour')) {
+            mappedClientType = 'Travel Company';
+          } else {
+            mappedClientType = 'Company';
+          }
+        }
+      }
+      const res = await api.request(`/rate-management/rate-cards?customerId=ALL&clientType=${mappedClientType}`);
+      if (res.data && Array.isArray(res.data)) {
+        const tenantCards = res.data.filter((r: any) => !r.customerId && r.status === 'ACTIVE');
+        allCards = [...allCards, ...tenantCards];
+      }
     } catch (err) {
       console.error(err);
     }
+
+    setAvailableRateCards(allCards);
+
+    const targetCategory = slip.vehicle?.vehicleType || slip.booking?.vehicleTypeRequired || slip.vehicle?.model;
+    let matchedRc = allCards.find(
+      (r: any) =>
+        targetCategory &&
+        r.vehicleCategory?.name?.toLowerCase() === targetCategory.toLowerCase() &&
+        r.customerId === slip.booking?.customerId
+    );
+    if (!matchedRc) {
+      matchedRc = allCards.find(
+        (r: any) =>
+          targetCategory &&
+          r.vehicleCategory?.name?.toLowerCase() === targetCategory.toLowerCase()
+      );
+    }
+    if (!matchedRc && allCards.length > 0) {
+      matchedRc = allCards[0];
+    }
+    setSelectedRateCard(matchedRc || null);
 
     const customerTaxRate = customerObj
       ? Number(customerObj.cgstRate || 0) + Number(customerObj.sgstRate || 0) + Number(customerObj.igstRate || 0)
@@ -1091,6 +1145,29 @@ export default function DutySlipsPage() {
 
     setCustomParticulars(parsedParticulars);
 
+    const actKm = slip.trip ? Number((slip.trip as any).totalKm || 0) : Math.max(0, (Number(slip.endKm) || 0) - (Number(slip.startKm) || 0));
+    const actHrs = slip.trip ? Number((slip.trip as any).totalHours || 0) : 0;
+
+    const isPickupTransfer = slip.booking?.pickupType === 'airport' || slip.booking?.pickupType === 'railway';
+    const isOutstation = slip.booking?.tripType === 'OUTSTATION';
+
+    let resolvedBillingMode: 'N' | 'H' | 'F' | 'C' | 'T' = 'F';
+    if (isFlex) {
+      resolvedBillingMode = 'N';
+    } else if (isOutstation) {
+      resolvedBillingMode = 'N';
+    } else if (isPickupTransfer) {
+      resolvedBillingMode = 'T';
+    } else {
+      const hasCustom = !!(matchedRc && (
+        (Number(matchedRc.fullKm || matchedRc.minKm) !== 80 && Number(matchedRc.fullKm || matchedRc.minKm) !== 40) ||
+        (Number(matchedRc.fullHr || matchedRc.minHr) !== 8 && Number(matchedRc.fullHr || matchedRc.minHr) !== 4)
+      ));
+      resolvedBillingMode = hasCustom ? 'C' : 'F';
+    }
+
+    const hasClosedTrip = !!slip.trip;
+
     setDf({
       customerType: slip.booking?.customer ? 'regular' : 'new',
       modeOfPayment: slip.booking?.modeOfPayment || 'Credit',
@@ -1111,7 +1188,7 @@ export default function DutySlipsPage() {
       reportingTime: resolvedRepTime,
       pickupType: (slip.booking?.pickupType || 'other') as any,
       vehicleId: slip.vehicleId || '',
-      carGroup: slip.vehicle?.vehicleType || '',
+      carGroup: slip.vehicle?.vehicleType || matchedRc?.vehicleCategory?.name || '',
       carName: slip.vehicle?.model || '',
       carFrom: '',
       driverId: slip.driverId || '',
@@ -1124,10 +1201,10 @@ export default function DutySlipsPage() {
       dutyEndDate: e.date || '',
       dutyEndTime: e.time || '',
       dutyEndMeter: Number(slip.endKm) || 0,
-      actualKm: 0,
-      billedKm: 0,
-      actualHours: 0,
-      billedHours: 0,
+      actualKm: actKm,
+      billedKm: actKm,
+      actualHours: actHrs,
+      billedHours: actHrs,
       dayHours: 0,
       nightHours: 0,
       clientAdvance: 0,
@@ -1138,15 +1215,15 @@ export default function DutySlipsPage() {
       mcdToll: Number(slip.mcd) || 0,
       stateTax: Number(slip.stateTax) || 0,
       driverAdvance: 0,
-      driverAllowance: Number(slip.driverAllowance) || 0,
+      driverAllowance: Number(slip.driverAllowance || (slip.trip as any)?.driverAllowance) || 0,
       driverRefund: 0,
       feedbackPoint: '',
       driverRemark: '',
-      dutyType: isFlex ? 'FLEXIBLE' : (slip.booking?.tripType === 'OUTSTATION' ? 'O' : 'L'),
+      dutyType: isFlex ? 'FLEXIBLE' : (isOutstation ? 'O' : 'L'),
       tourCode: '',
       localBill: '',
-      nightChargesOnTime: Number(slip.nightCharges) || 0,
-      billingMode: 'N',
+      nightChargesOnTime: Number(slip.nightCharges || (slip.trip as any)?.nightChargesCharged) || 0,
+      billingMode: resolvedBillingMode,
       extraCharges: Number(slip.extraCharges) || 0,
       manualDriverName: '',
       manualDriverPhone: '',
@@ -1154,20 +1231,20 @@ export default function DutySlipsPage() {
       manualVehicleModel: '',
 
       // Override values
-      baseFare: slip.trip ? Number((slip.trip as any).baseFareCharged) : 0,
-      extraKmRate: 0,
-      extraHourRate: 0,
-      extraKmCharged: slip.trip ? Number((slip.trip as any).extraKmCharged) : 0,
-      extraHoursCharged: slip.trip ? Number((slip.trip as any).extraHoursCharged) : 0,
-      includeDriverAllowance: Number(slip.driverAllowance) > 0,
-      includeNightCharges: Number(slip.nightCharges) > 0,
-      isManualBaseFare: !!slip.trip,
+      baseFare: hasClosedTrip ? Number((slip.trip as any).baseFareCharged) : (Number(matchedRc?.fullDayRate || matchedRc?.halfDayRate) || 0),
+      extraKmRate: Number(matchedRc?.extraKmRate || 12),
+      extraHourRate: Number(matchedRc?.extraHourRate || 100),
+      extraKmCharged: hasClosedTrip ? Number((slip.trip as any).extraKmCharged) : 0,
+      extraHoursCharged: hasClosedTrip ? Number((slip.trip as any).extraHoursCharged) : 0,
+      includeDriverAllowance: Number(slip.driverAllowance || (slip.trip as any)?.driverAllowance) > 0,
+      includeNightCharges: Number(slip.nightCharges || (slip.trip as any)?.nightChargesCharged) > 0,
+      isManualBaseFare: hasClosedTrip,
       isManualExtraKmRate: false,
       isManualExtraHourRate: false,
-      isManualExtraKmCharged: !!slip.trip,
-      isManualExtraHoursCharged: !!slip.trip,
-      isManualDriverAllowance: true,
-      isManualNightCharges: true,
+      isManualExtraKmCharged: hasClosedTrip,
+      isManualExtraHoursCharged: hasClosedTrip,
+      isManualDriverAllowance: hasClosedTrip,
+      isManualNightCharges: hasClosedTrip,
     });
 
     setIsDirectOpen(true);
@@ -1919,6 +1996,9 @@ export default function DutySlipsPage() {
                               nightChargesOnTime: df.dutyType === 'O' || df.dutyType === 'T'
                                 ? Number(card.outstationNightCharge || card.nightCharge) || 0
                                 : Number(card.nightCharge) || 0,
+                              isManualBaseFare: false,
+                              isManualExtraKmCharged: false,
+                              isManualExtraHoursCharged: false,
                             }));
                           }
                         }}
@@ -1984,21 +2064,27 @@ export default function DutySlipsPage() {
                             onChange={e => {
                               const val = e.target.value;
                               setDf(f => {
+                                const baseUpdates = {
+                                  ...f,
+                                  isManualBaseFare: false,
+                                  isManualExtraKmCharged: false,
+                                  isManualExtraHoursCharged: false,
+                                };
                                 if (val === 'flexible_duty') {
                                   if (customParticulars.length === 0) {
                                     setCustomParticulars([{ id: 'item_' + Date.now(), particular: '', rate: 0, amount: 0 }]);
                                   }
-                                  return { ...f, dutyType: 'FLEXIBLE', billingMode: 'N', pickupType: 'other' };
+                                  return { ...baseUpdates, dutyType: 'FLEXIBLE', billingMode: 'N', pickupType: 'other' };
                                 } else if (val === 'outstation') {
-                                  return { ...f, dutyType: 'O', billingMode: 'N', pickupType: 'other' };
+                                  return { ...baseUpdates, dutyType: 'O', billingMode: 'N', pickupType: 'other' };
                                 } else if (val === 'custom_package') {
-                                  return { ...f, dutyType: 'L', billingMode: 'C', pickupType: 'other' };
+                                  return { ...baseUpdates, dutyType: 'L', billingMode: 'C', pickupType: 'other' };
                                 } else if (val === 'local_half_day') {
-                                  return { ...f, dutyType: 'L', billingMode: 'H', pickupType: 'other' };
+                                  return { ...baseUpdates, dutyType: 'L', billingMode: 'H', pickupType: 'other' };
                                 } else if (val === 'transfer') {
-                                  return { ...f, dutyType: 'L', billingMode: 'T', pickupType: 'airport' };
+                                  return { ...baseUpdates, dutyType: 'L', billingMode: 'T', pickupType: 'airport' };
                                 } else {
-                                  return { ...f, dutyType: 'L', billingMode: 'F', pickupType: 'other' };
+                                  return { ...baseUpdates, dutyType: 'L', billingMode: 'F', pickupType: 'other' };
                                 }
                               });
                             }}

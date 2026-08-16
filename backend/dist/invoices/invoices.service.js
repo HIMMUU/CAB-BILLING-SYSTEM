@@ -1198,6 +1198,19 @@ let InvoicesService = class InvoicesService {
                         }
                     }
                     catch (e) { }
+                    const vCatName = ds?.vehicle?.vehicleType || ds?.vehicle?.model;
+                    const rc = booking.customer?.rateCards?.find((r) => r.vehicleCategory?.name?.toLowerCase() ===
+                        vCatName?.toLowerCase() ||
+                        r.vehicleCategory?.name?.toLowerCase() ===
+                            booking.vehicleTypeRequired?.toLowerCase()) || booking.customer?.rateCards?.[0];
+                    const totalDays = Math.max(1, Number(trip.totalDays) || 1);
+                    let dutyTypeName = 'LOCAL DUTY';
+                    if (booking.tripType === client_1.TripType.OUTSTATION) {
+                        dutyTypeName = 'OUTSTATION DUTY';
+                    }
+                    else if (booking.tripType === client_1.TripType.AIRPORT_TRANSFER) {
+                        dutyTypeName = 'TRANSFER (AIRPORT / RAILWAY)';
+                    }
                     if (isFlexibleDuty) {
                         if (booking.tripType === client_1.TripType.OUTSTATION && userRemarksText) {
                             particularsRows.push({
@@ -1215,37 +1228,46 @@ let InvoicesService = class InvoicesService {
                         }
                     }
                     else if (booking.tripType === client_1.TripType.OUTSTATION) {
-                        particularsRows.push({ label: `OUTSTATION : ${trip.totalKm} KM` });
+                        particularsRows.push({
+                            label: `OUTSTATION : ${trip.totalKm} KM & ${totalDays} DAY(S)`,
+                        });
                         if (userRemarksText) {
                             particularsRows.push({ label: userRemarksText.toUpperCase() });
                         }
                         else {
                             particularsRows.push({ label: defaultRoute });
                         }
+                        const minKmDay = Number(rc?.minKmPerDay) || 250;
                         particularsRows.push({
-                            label: `( As Per 250 Km per Day min.running limit )`,
+                            label: `( As Per ${minKmDay} Km per Day min. running limit )`,
                         });
                     }
                     else if (booking.tripType === client_1.TripType.HOURLY_RENTAL) {
                     }
                     else {
                         particularsRows.push({
-                            label: `${booking.tripType} : ${trip.totalKm} Kms & ${Number(trip.totalHours || 0).toFixed(2)} Hrs. Duty`,
+                            label: `${dutyTypeName} : ${trip.totalKm} Kms & ${Number(trip.totalHours || 0).toFixed(2)} Hrs. Duty`,
                         });
                     }
-                    const totalDays = Math.max(1, Number(trip.totalDays) || 1);
                     if (!isFlexibleDuty) {
-                        const vCatName = ds?.vehicle?.vehicleType || ds?.vehicle?.model;
-                        const rc = booking.customer?.rateCards?.find((r) => r.vehicleCategory?.name?.toLowerCase() ===
-                            vCatName?.toLowerCase() ||
-                            r.vehicleCategory?.name?.toLowerCase() ===
-                                booking.vehicleTypeRequired?.toLowerCase()) || booking.customer?.rateCards?.[0];
-                        const baseKm = booking.tripType === client_1.TripType.OUTSTATION
-                            ? totalDays * (Number(rc?.minKmPerDay) || 250)
-                            : Number(rc?.fullKm || rc?.minKm || rc?.includedKm) || 120;
-                        const baseHr = booking.tripType === client_1.TripType.OUTSTATION
-                            ? 24 * totalDays
-                            : Number(rc?.fullHr || rc?.minHr) || 12;
+                        let baseKm = 120;
+                        let baseHr = 12;
+                        if (booking.tripType === client_1.TripType.OUTSTATION) {
+                            baseKm = totalDays * (Number(rc?.minKmPerDay) || 250);
+                            baseHr = 24 * totalDays;
+                        }
+                        else if (booking.tripType === client_1.TripType.AIRPORT_TRANSFER ||
+                            (Number(trip.baseFareCharged) > 0 &&
+                                Number(rc?.halfDayRate) > 0 &&
+                                Number(trip.baseFareCharged) === Number(rc?.halfDayRate))) {
+                            baseKm = Number(rc?.minKm) || 40;
+                            baseHr = Number(rc?.minHr) || 4;
+                        }
+                        else {
+                            baseKm =
+                                Number(rc?.fullKm || rc?.minKm || rc?.includedKm) || 120;
+                            baseHr = Number(rc?.fullHr || rc?.minHr) || 12;
+                        }
                         particularsRows.push({
                             label: booking.tripType === client_1.TripType.OUTSTATION
                                 ? `UPTO ${baseKm} Kms. & ${totalDays} Days Duty`
