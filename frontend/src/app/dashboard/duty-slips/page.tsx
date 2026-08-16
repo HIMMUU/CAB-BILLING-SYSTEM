@@ -419,9 +419,14 @@ export default function DutySlipsPage() {
 
         if (rc) {
           setSelectedRateCard(rc);
+          const hasCustom = (
+            (Number(rc.fullKm || rc.minKm) !== 80 && Number(rc.fullKm || rc.minKm) !== 40) ||
+            (Number(rc.fullHr || rc.minHr) !== 8 && Number(rc.fullHr || rc.minHr) !== 4)
+          );
           setDf(f => ({
             ...f,
             carGroup: f.carGroup || rc.vehicleCategory?.name || '',
+            billingMode: f.billingMode === 'N' || !f.billingMode ? (hasCustom ? 'C' : 'F') : f.billingMode,
             driverAllowance: Number(rc.driverAllowance) || 0,
             nightChargesOnTime: df.dutyType === 'O' || df.dutyType === 'T'
               ? Number(rc.outstationNightCharge || rc.nightCharge) || 0
@@ -456,9 +461,14 @@ export default function DutySlipsPage() {
           const rc = res.data?.find((r: any) => !r.customerId && r.status === 'ACTIVE') || res.data?.[0];
           if (rc) {
             setSelectedRateCard(rc);
+            const hasCustom = (
+              (Number(rc.fullKm || rc.minKm) !== 80 && Number(rc.fullKm || rc.minKm) !== 40) ||
+              (Number(rc.fullHr || rc.minHr) !== 8 && Number(rc.fullHr || rc.minHr) !== 4)
+            );
             setDf(f => ({
               ...f,
               carGroup: f.carGroup || cat.name,
+              billingMode: f.billingMode === 'N' || !f.billingMode ? (hasCustom ? 'C' : 'F') : f.billingMode,
               driverAllowance: Number(rc.driverAllowance) || 0,
               nightChargesOnTime: df.dutyType === 'O' || df.dutyType === 'T'
                 ? Number(rc.outstationNightCharge || rc.nightCharge) || 0
@@ -521,19 +531,13 @@ export default function DutySlipsPage() {
     let baseKm = 80;
     let baseHours = 8;
 
-    if (df.dutyType === 'C') {
-      // Flexible Duty (Custom Package & Rates)
-      calculatedBaseFare = selectedRateCard ? (Number(selectedRateCard.fullDayRate || selectedRateCard.halfDayRate || selectedRateCard.baseFare) || 1500) : 1500;
-      calculatedExtraKmRate = selectedRateCard ? (Number(selectedRateCard.extraKmRate) || 12) : 12;
-      calculatedExtraHourRate = selectedRateCard ? (Number(selectedRateCard.extraHourRate) || 100) : 100;
-      calculatedDriverAllowance = selectedRateCard ? (Number(selectedRateCard.driverAllowance) || 250) : 250;
-      calculatedNightCharges = nightHrs > 0
-        ? (selectedRateCard ? (Number(selectedRateCard.nightCharge) || 200) : 200)
-        : 0;
-      baseKm = selectedRateCard ? (Number(selectedRateCard.fullKm || selectedRateCard.minKm || selectedRateCard.includedKm) || 120) : 120;
-      baseHours = selectedRateCard ? (Number(selectedRateCard.fullHr || selectedRateCard.minHr) || 12) : 12;
-      bilKm = Math.max(actKm, baseKm);
-      bilHrs = Math.max(actHrs, baseHours);
+    if (df.dutyType === 'FLEXIBLE') {
+      // Flexible Duty Slip (Custom Particulars)
+      calculatedBaseFare = 0;
+      baseKm = 0;
+      baseHours = 0;
+      bilKm = actKm;
+      bilHrs = actHrs;
     } else if (df.dutyType === 'O' || df.dutyType === 'T') {
       const minKm = selectedRateCard ? (Number(selectedRateCard.minKmPerDay) || 250) : 250;
       const ratePerKm = selectedRateCard ? (Number(selectedRateCard.outstationRatePerKm) || 12) : 12;
@@ -548,8 +552,8 @@ export default function DutySlipsPage() {
       baseHours = 24 * calcDays;
       bilKm = Math.max(actKm, baseKm);
       bilHrs = actHrs;
-    } else {
-      // Local Package (Min KM & Min Hours)
+    } else if (df.billingMode === 'C') {
+      // Custom Company Package (e.g. 120 KM / 12 Hrs)
       baseKm = selectedRateCard ? (Number(selectedRateCard.fullKm || selectedRateCard.minKm || selectedRateCard.includedKm) || 120) : 120;
       baseHours = selectedRateCard ? (Number(selectedRateCard.fullHr || selectedRateCard.minHr) || 12) : 12;
       calculatedBaseFare = selectedRateCard ? (Number(selectedRateCard.fullDayRate || selectedRateCard.halfDayRate) || 2000) : 2000;
@@ -558,7 +562,49 @@ export default function DutySlipsPage() {
 
       calculatedExtraKmRate = selectedRateCard ? (Number(selectedRateCard.extraKmRate) || 12) : 12;
       calculatedExtraHourRate = selectedRateCard ? (Number(selectedRateCard.extraHourRate) || 100) : 100;
-      calculatedDriverAllowance = 0; // DA ONLY IN OUTSTATION
+      calculatedDriverAllowance = 0;
+      calculatedNightCharges = nightHrs > 0
+        ? (selectedRateCard ? (Number(selectedRateCard.nightCharge) || 200) : 200)
+        : 0;
+    } else if (df.billingMode === 'H') {
+      // Local Half Day (4 Hrs / 40 KM)
+      baseKm = selectedRateCard ? (Number(selectedRateCard.minKm) || 40) : 40;
+      baseHours = selectedRateCard ? (Number(selectedRateCard.minHr) || 4) : 4;
+      calculatedBaseFare = selectedRateCard ? (Number(selectedRateCard.halfDayRate) || 1000) : 1000;
+      bilKm = Math.max(actKm, baseKm);
+      bilHrs = Math.max(actHrs, baseHours);
+
+      calculatedExtraKmRate = selectedRateCard ? (Number(selectedRateCard.extraKmRate) || 12) : 12;
+      calculatedExtraHourRate = selectedRateCard ? (Number(selectedRateCard.extraHourRate) || 100) : 100;
+      calculatedDriverAllowance = 0;
+      calculatedNightCharges = nightHrs > 0
+        ? (selectedRateCard ? (Number(selectedRateCard.nightCharge) || 200) : 200)
+        : 0;
+    } else if (df.billingMode === 'T' || df.pickupType === 'airport' || df.pickupType === 'railway') {
+      // Transfer (Airport / Railway)
+      baseKm = 40;
+      baseHours = 4;
+      calculatedBaseFare = selectedRateCard ? (Number(selectedRateCard.halfDayRate) || 1000) : 1000;
+      bilKm = Math.max(actKm, baseKm);
+      bilHrs = Math.max(actHrs, baseHours);
+
+      calculatedExtraKmRate = selectedRateCard ? (Number(selectedRateCard.extraKmRate) || 12) : 12;
+      calculatedExtraHourRate = selectedRateCard ? (Number(selectedRateCard.extraHourRate) || 100) : 100;
+      calculatedDriverAllowance = 0;
+      calculatedNightCharges = nightHrs > 0
+        ? (selectedRateCard ? (Number(selectedRateCard.nightCharge) || 200) : 200)
+        : 0;
+    } else {
+      // Local Full Day (8 Hrs / 80 KM)
+      baseKm = selectedRateCard ? (Number(selectedRateCard.fullKm) || 80) : 80;
+      baseHours = selectedRateCard ? (Number(selectedRateCard.fullHr) || 8) : 8;
+      calculatedBaseFare = selectedRateCard ? (Number(selectedRateCard.fullDayRate) || 1600) : 1600;
+      bilKm = Math.max(actKm, baseKm);
+      bilHrs = Math.max(actHrs, baseHours);
+
+      calculatedExtraKmRate = selectedRateCard ? (Number(selectedRateCard.extraKmRate) || 12) : 12;
+      calculatedExtraHourRate = selectedRateCard ? (Number(selectedRateCard.extraHourRate) || 100) : 100;
+      calculatedDriverAllowance = 0;
       calculatedNightCharges = nightHrs > 0
         ? (selectedRateCard ? (Number(selectedRateCard.nightCharge) || 200) : 200)
         : 0;
@@ -677,19 +723,31 @@ export default function DutySlipsPage() {
       calcDays = Math.max(1, Math.round(diffDaysMs / (1000 * 60 * 60 * 24)) + 1);
     }
 
-    if (df.dutyType === 'C') {
-      includedKm = selectedRateCard ? (Number(selectedRateCard.fullKm || selectedRateCard.minKm || selectedRateCard.includedKm) || 120) : 120;
-      includedHours = selectedRateCard ? (Number(selectedRateCard.fullHr || selectedRateCard.minHr) || 12) : 12;
+    if (df.dutyType === 'FLEXIBLE') {
+      includedKm = 0;
+      includedHours = 0;
       packageType = df.remarks?.trim() ? `Flexible Duty (${df.remarks.trim()})` : 'Flexible Duty (Custom Rate / Particulars)';
     } else if (df.dutyType === 'O' || df.dutyType === 'T') {
       const minKm = selectedRateCard ? (Number(selectedRateCard.minKmPerDay) || 250) : 250;
       includedKm = calcDays * minKm;
       includedHours = calcDays * 24;
       packageType = `Outstation (${calcDays} Days)`;
-    } else {
+    } else if (df.billingMode === 'C') {
       includedKm = selectedRateCard ? (Number(selectedRateCard.fullKm || selectedRateCard.minKm || selectedRateCard.includedKm) || 120) : 120;
       includedHours = selectedRateCard ? (Number(selectedRateCard.fullHr || selectedRateCard.minHr) || 12) : 12;
-      packageType = `Local Package (${includedHours}h / ${includedKm}k)`;
+      packageType = `Company Package (${includedHours}h / ${includedKm}k)`;
+    } else if (df.billingMode === 'H') {
+      includedKm = selectedRateCard ? (Number(selectedRateCard.minKm) || 40) : 40;
+      includedHours = selectedRateCard ? (Number(selectedRateCard.minHr) || 4) : 4;
+      packageType = `Local Half Day (${includedHours}h / ${includedKm}k)`;
+    } else if (df.billingMode === 'T' || df.pickupType === 'airport' || df.pickupType === 'railway') {
+      includedKm = 40;
+      includedHours = 4;
+      packageType = 'Transfer (Airport / Railway)';
+    } else {
+      includedKm = selectedRateCard ? (Number(selectedRateCard.fullKm) || 80) : 80;
+      includedHours = selectedRateCard ? (Number(selectedRateCard.fullHr) || 8) : 8;
+      packageType = `Local Full Day (${includedHours}h / ${includedKm}k)`;
     }
 
     return {
@@ -1846,21 +1904,45 @@ export default function DutySlipsPage() {
                   <div className="grid grid-cols-1 gap-4">
                     <Field label="Service / Billing Option *">
                       {(() => {
-                        const pkgKm = selectedRateCard ? (Number(selectedRateCard.fullKm || selectedRateCard.minKm || selectedRateCard.includedKm) || 120) : 120;
-                        const pkgHr = selectedRateCard ? (Number(selectedRateCard.fullHr || selectedRateCard.minHr) || 12) : 12;
-                        const pkgFare = selectedRateCard ? (Number(selectedRateCard.fullDayRate || selectedRateCard.halfDayRate) || 2000) : 2000;
+                        const halfDayFare = selectedRateCard ? (Number(selectedRateCard.halfDayRate) || 1000) : 1000;
+                        const fullDayFare = selectedRateCard ? (Number(selectedRateCard.fullDayRate) || 1600) : 1600;
+                        const halfDayKm = selectedRateCard ? (Number(selectedRateCard.minKm) || 40) : 40;
+                        const halfDayHr = selectedRateCard ? (Number(selectedRateCard.minHr) || 4) : 4;
+                        const fullDayKm = selectedRateCard ? (Number(selectedRateCard.fullKm) || 80) : 80;
+                        const fullDayHr = selectedRateCard ? (Number(selectedRateCard.fullHr) || 8) : 8;
+
+                        const customKm = Number(selectedRateCard?.fullKm || selectedRateCard?.minKm || selectedRateCard?.includedKm || 120);
+                        const customHr = Number(selectedRateCard?.fullHr || selectedRateCard?.minHr || 12);
+                        const customFare = Number(selectedRateCard?.fullDayRate || selectedRateCard?.halfDayRate || 2000);
+
+                        const hasCustomPackage = !!(selectedRateCard && (
+                          (customKm !== 40 && customKm !== 80) ||
+                          (customHr !== 4 && customHr !== 8)
+                        ));
+
                         const outstationMinKm = selectedRateCard ? (Number(selectedRateCard.minKmPerDay) || 250) : 250;
                         const outstationRate = selectedRateCard ? (Number(selectedRateCard.outstationRatePerKm) || 15) : 15;
 
+                        const currentOptionVal =
+                          df.dutyType === 'FLEXIBLE'
+                            ? 'flexible_duty'
+                            : df.dutyType === 'O' || df.dutyType === 'T'
+                              ? 'outstation'
+                              : df.billingMode === 'C'
+                                ? 'custom_package'
+                                : df.billingMode === 'H'
+                                  ? 'local_half_day'
+                                  : df.billingMode === 'T' || df.pickupType === 'airport' || df.pickupType === 'railway'
+                                    ? 'transfer'
+                                    : df.billingMode === 'F'
+                                      ? 'local_full_day'
+                                      : hasCustomPackage
+                                        ? 'custom_package'
+                                        : 'local_full_day';
+
                         return (
                           <select
-                            value={
-                              df.dutyType === 'FLEXIBLE'
-                                ? 'flexible_duty'
-                                : df.dutyType === 'O' || df.dutyType === 'T'
-                                  ? 'outstation'
-                                  : 'local_package'
-                            }
+                            value={currentOptionVal}
                             onChange={e => {
                               const val = e.target.value;
                               setDf(f => {
@@ -1871,6 +1953,12 @@ export default function DutySlipsPage() {
                                   return { ...f, dutyType: 'FLEXIBLE', billingMode: 'N', pickupType: 'other' };
                                 } else if (val === 'outstation') {
                                   return { ...f, dutyType: 'O', billingMode: 'N', pickupType: 'other' };
+                                } else if (val === 'custom_package') {
+                                  return { ...f, dutyType: 'L', billingMode: 'C', pickupType: 'other' };
+                                } else if (val === 'local_half_day') {
+                                  return { ...f, dutyType: 'L', billingMode: 'H', pickupType: 'other' };
+                                } else if (val === 'transfer') {
+                                  return { ...f, dutyType: 'L', billingMode: 'T', pickupType: 'airport' };
                                 } else {
                                   return { ...f, dutyType: 'L', billingMode: 'F', pickupType: 'other' };
                                 }
@@ -1878,8 +1966,19 @@ export default function DutySlipsPage() {
                             }}
                             className={sel}
                           >
-                            <option value="local_package">
-                              Local Package ({pkgKm} KM / {pkgHr} Hrs){pkgFare > 0 ? ` - ₹${pkgFare.toLocaleString('en-IN')}` : ''}
+                            {hasCustomPackage && (
+                              <option value="custom_package">
+                                Company Package ({customKm} KM / {customHr} Hrs) - ₹{customFare.toLocaleString('en-IN')}
+                              </option>
+                            )}
+                            <option value="local_full_day">
+                              Local Full Day ({fullDayKm} KM / {fullDayHr} Hrs) - ₹{fullDayFare.toLocaleString('en-IN')}
+                            </option>
+                            <option value="local_half_day">
+                              Local Half Day ({halfDayKm} KM / {halfDayHr} Hrs) - ₹{halfDayFare.toLocaleString('en-IN')}
+                            </option>
+                            <option value="transfer">
+                              Transfer (Airport / Railway) - ₹{halfDayFare.toLocaleString('en-IN')}
                             </option>
                             <option value="outstation">
                               Outstation ({outstationMinKm} KM/Day @ ₹{outstationRate}/km)
