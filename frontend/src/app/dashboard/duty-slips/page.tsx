@@ -194,6 +194,7 @@ export default function DutySlipsPage() {
     driverAdvance: 0, driverAllowance: 0, driverRefund: 0, feedbackPoint: '', driverRemark: '',
     dutyType: 'L', tourCode: '', localBill: '', nightChargesOnTime: 0,
     nightUnits: 1, nightRate: 200,
+    driverAllowanceDays: 1, driverAllowanceRate: 300,
     billingMode: 'C' as 'N' | 'H' | 'F' | 'C' | 'T',
     extraCharges: 0,
     manualDriverName: '', manualDriverPhone: '',
@@ -241,6 +242,7 @@ export default function DutySlipsPage() {
       driverAdvance: 0, driverAllowance: 0, driverRefund: 0, feedbackPoint: '', driverRemark: '',
       dutyType: 'L', tourCode: '', localBill: '', nightChargesOnTime: 0,
       nightUnits: 1, nightRate: 200,
+      driverAllowanceDays: 1, driverAllowanceRate: 300,
       billingMode: 'C',
       extraCharges: 0,
       manualDriverName: '', manualDriverPhone: '',
@@ -1335,6 +1337,8 @@ export default function DutySlipsPage() {
       stateTax: Number(slip.stateTax) || 0,
       driverAdvance: 0,
       driverAllowance: resolvedIncludeDA ? resolvedDriverAllowance : 0,
+      driverAllowanceDays: 1,
+      driverAllowanceRate: resolvedIncludeDA && resolvedDriverAllowance > 0 ? resolvedDriverAllowance : (Number(matchedRc?.driverAllowance) || 300),
       driverRefund: 0,
       feedbackPoint: '',
       driverRemark: '',
@@ -2612,42 +2616,81 @@ export default function DutySlipsPage() {
                         </div>
 
                         {/* Driver Allowance Row */}
-                        <div className="flex items-center justify-between pt-3">
-                          <label className="flex items-center gap-2 cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={df.includeDriverAllowance}
-                              onChange={e => {
-                                const checked = e.target.checked;
-                                setDf(f => {
-                                  const fallbackDA = f.dutyType === 'O' || f.dutyType === 'T'
-                                    ? (selectedRateCard ? (Number(selectedRateCard.driverAllowance) || 300) : 300)
-                                    : (selectedRateCard ? (Number(selectedRateCard.driverAllowance) || 250) : 250);
-                                  return {
-                                    ...f,
-                                    includeDriverAllowance: checked,
-                                    driverAllowance: checked ? (f.driverAllowance > 0 ? f.driverAllowance : fallbackDA) : 0,
-                                    isManualDriverAllowance: true,
-                                  };
-                                });
-                              }}
-                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
-                            />
-                            <span className="text-slate-700 font-medium">Driver Allowance (₹)</span>
-                          </label>
-                          <input
-                            type="number"
-                            disabled={!df.includeDriverAllowance}
-                            min={0}
-                            value={df.includeDriverAllowance ? (df.driverAllowance || '') : ''}
-                            onChange={e => setDf(f => ({
-                              ...f,
-                              driverAllowance: parseFloat(e.target.value) || 0,
-                              isManualDriverAllowance: true,
-                            }))}
-                            placeholder={df.includeDriverAllowance ? '0' : '0 (Off)'}
-                            className="w-28 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 font-mono font-semibold text-right text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white disabled:opacity-40 disabled:bg-slate-100 disabled:text-slate-400"
-                          />
+                        <div className="pt-3 border-t border-slate-100">
+                          <div className="flex items-center justify-between">
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={df.includeDriverAllowance}
+                                onChange={e => {
+                                  const checked = e.target.checked;
+                                  setDf(f => {
+                                    const fallbackRate = f.dutyType === 'O' || f.dutyType === 'T'
+                                      ? (selectedRateCard ? (Number(selectedRateCard.driverAllowance) || 300) : 300)
+                                      : (selectedRateCard ? (Number(selectedRateCard.driverAllowance) || 250) : 250);
+                                    const days = f.driverAllowanceDays > 0 ? f.driverAllowanceDays : 1;
+                                    const rate = f.driverAllowanceRate > 0 ? f.driverAllowanceRate : fallbackRate;
+                                    return {
+                                      ...f,
+                                      includeDriverAllowance: checked,
+                                      driverAllowanceDays: days,
+                                      driverAllowanceRate: rate,
+                                      driverAllowance: checked ? days * rate : 0,
+                                      isManualDriverAllowance: true,
+                                    };
+                                  });
+                                }}
+                                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                              />
+                              <span className="text-slate-700 font-medium">Driver Allowance</span>
+                            </label>
+                            <div className="text-xs font-semibold text-slate-700">
+                              Total: <span className="font-mono text-blue-700 font-bold">₹{df.includeDriverAllowance ? (df.driverAllowance || 0).toLocaleString('en-IN') : '0'}</span>
+                            </div>
+                          </div>
+
+                          {df.includeDriverAllowance && (
+                            <div className="grid grid-cols-2 gap-3 bg-blue-50/50 p-2.5 rounded-lg border border-blue-100 mt-2">
+                              <div>
+                                <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Days / Count</label>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={df.driverAllowanceDays || 1}
+                                  onChange={e => {
+                                    const days = Math.max(1, parseInt(e.target.value) || 1);
+                                    setDf(f => ({
+                                      ...f,
+                                      driverAllowanceDays: days,
+                                      driverAllowance: days * (f.driverAllowanceRate || 0),
+                                      isManualDriverAllowance: true,
+                                    }));
+                                  }}
+                                  className="w-full bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-xs font-mono font-semibold text-slate-800 focus:outline-none focus:border-blue-500"
+                                  placeholder="1"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Rate (₹ / Day)</label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={df.driverAllowanceRate || 0}
+                                  onChange={e => {
+                                    const rate = Math.max(0, parseFloat(e.target.value) || 0);
+                                    setDf(f => ({
+                                      ...f,
+                                      driverAllowanceRate: rate,
+                                      driverAllowance: (f.driverAllowanceDays || 1) * rate,
+                                      isManualDriverAllowance: true,
+                                    }));
+                                  }}
+                                  className="w-full bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-xs font-mono font-semibold text-slate-800 focus:outline-none focus:border-blue-500"
+                                  placeholder="300"
+                                />
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* Night Allowance Row */}
