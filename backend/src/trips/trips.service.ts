@@ -223,11 +223,11 @@ export class TripsService {
     const stateTax = Number(slip.stateTax);
     const mcd = Number(slip.mcd);
     const driverAllowance =
-      slip.driverAllowance !== null && Number(slip.driverAllowance) > 0
+      slip.driverAllowance !== null && slip.driverAllowance !== undefined
         ? Number(slip.driverAllowance)
         : driverAllowanceAmount;
     const nightCharges =
-      slip.nightCharges !== null && Number(slip.nightCharges) > 0
+      slip.nightCharges !== null && slip.nightCharges !== undefined
         ? Number(slip.nightCharges)
         : nightChargesAmount;
     const extraCharges = Number(slip.extraCharges);

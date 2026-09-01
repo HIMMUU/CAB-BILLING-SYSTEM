@@ -1362,7 +1362,7 @@ export class InvoicesService {
           const booking = trip.booking;
 
           const startDateRaw =
-            ds?.startDateTime || trip?.startDateTime || ds?.reportingTime || booking?.pickupDate;
+            ds?.reportingTime || ds?.startDateTime || trip?.startDateTime || booking?.pickupDate;
           const endDateRaw = ds?.endDateTime || trip?.endDateTime;
 
           const formatDateStr = (dt: any) => {
