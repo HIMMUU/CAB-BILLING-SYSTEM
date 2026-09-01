@@ -560,7 +560,7 @@ export default function DutySlipsPage() {
       bilHrs = actHrs;
     } else if (df.dutyType === 'O' || df.dutyType === 'T') {
       const minKm = selectedRateCard ? (Number(selectedRateCard.minKmPerDay) || 250) : 250;
-      const ratePerKm = selectedRateCard ? (Number(selectedRateCard.outstationRatePerKm) || 12) : 12;
+      const ratePerKm = selectedRateCard ? (Number(selectedRateCard.outstationRatePerKm) || 15) : 15;
       baseKm = calcDays * minKm;
       calculatedBaseFare = baseKm * ratePerKm;
       calculatedExtraKmRate = ratePerKm;

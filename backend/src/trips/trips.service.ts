@@ -69,10 +69,16 @@ export class TripsService {
         (diffMs / (1000 * 60 * 60)).toFixed(2),
       );
 
-      const startD = new Date(startDateTime);
-      startD.setHours(0, 0, 0, 0);
-      const endD = new Date(endDateTime);
-      endD.setHours(0, 0, 0, 0);
+      const getIstDateString = (dt: Date | string) => {
+        const d = new Date(dt);
+        return isNaN(d.getTime())
+          ? ''
+          : d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      };
+      const startStr = getIstDateString(startDateTime);
+      const endStr = getIstDateString(endDateTime);
+      const startD = new Date(startStr);
+      const endD = new Date(endStr);
       const diffDaysMs = endD.getTime() - startD.getTime();
       calculatedDays = Math.max(
         1,
