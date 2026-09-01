@@ -1342,6 +1342,8 @@ export default function DutySlipsPage() {
       tourCode: '',
       localBill: '',
       nightChargesOnTime: resolvedIncludeNight ? resolvedNightCharge : 0,
+      nightUnits: 1,
+      nightRate: resolvedNightCharge || 200,
       billingMode: resolvedBillingMode,
       extraCharges: Number(slip.extraCharges) || 0,
       manualDriverName: '',
