@@ -46,10 +46,16 @@ let TripsService = class TripsService {
         if (startDateTime && endDateTime) {
             const diffMs = new Date(endDateTime).getTime() - new Date(startDateTime).getTime();
             calculatedHours = Number((diffMs / (1000 * 60 * 60)).toFixed(2));
-            const startD = new Date(startDateTime);
-            startD.setHours(0, 0, 0, 0);
-            const endD = new Date(endDateTime);
-            endD.setHours(0, 0, 0, 0);
+            const getIstDateString = (dt) => {
+                const d = new Date(dt);
+                return isNaN(d.getTime())
+                    ? ''
+                    : d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+            };
+            const startStr = getIstDateString(startDateTime);
+            const endStr = getIstDateString(endDateTime);
+            const startD = new Date(startStr);
+            const endD = new Date(endStr);
             const diffDaysMs = endD.getTime() - startD.getTime();
             calculatedDays = Math.max(1, Math.round(diffDaysMs / (1000 * 60 * 60 * 24)) + 1);
         }
@@ -170,10 +176,10 @@ let TripsService = class TripsService {
         const parking = Number(slip.parking);
         const stateTax = Number(slip.stateTax);
         const mcd = Number(slip.mcd);
-        const driverAllowance = slip.driverAllowance !== null && Number(slip.driverAllowance) > 0
+        const driverAllowance = slip.driverAllowance !== null && slip.driverAllowance !== undefined
             ? Number(slip.driverAllowance)
             : driverAllowanceAmount;
-        const nightCharges = slip.nightCharges !== null && Number(slip.nightCharges) > 0
+        const nightCharges = slip.nightCharges !== null && slip.nightCharges !== undefined
             ? Number(slip.nightCharges)
             : nightChargesAmount;
         const extraCharges = Number(slip.extraCharges);

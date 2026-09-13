@@ -308,6 +308,8 @@ export class ReportsService {
     customerId?: string;
     state?: string;
     city?: string;
+    gstNo?: string;
+    gstNumber?: string;
     guestName?: string;
     employeeId?: string;
     billDateFrom?: string;
@@ -363,6 +365,14 @@ export class ReportsService {
       where.customer = {
         ...where.customer,
         billingAddress: { contains: query.city, mode: 'insensitive' },
+      };
+    }
+
+    const gstSearch = query.gstNo || query.gstNumber;
+    if (gstSearch) {
+      where.customer = {
+        ...where.customer,
+        gstNumber: { contains: gstSearch, mode: 'insensitive' },
       };
     }
 
@@ -442,6 +452,7 @@ export class ReportsService {
         billDate: new Date(inv.invoiceDate).toLocaleDateString('en-GB'),
         billNo: inv.invoiceNumber,
         clientName: inv.customer.name,
+        gstNo: inv.customer?.gstNumber || '-',
         guestName: guestNames,
         basicAmt,
         ptTaxes,
@@ -458,6 +469,8 @@ export class ReportsService {
     customerId?: string;
     state?: string;
     city?: string;
+    gstNo?: string;
+    gstNumber?: string;
     guestName?: string;
     employeeId?: string;
     billDateFrom?: string;
@@ -636,7 +649,7 @@ export class ReportsService {
           { label: 'Bill Date', x: 55, w: 65, align: 'left' },
           { label: 'Bill No', x: 120, w: 65, align: 'left' },
           { label: 'Client Name', x: 185, w: 160, align: 'left' },
-          { label: 'Guest Name', x: 345, w: 110, align: 'left' },
+          { label: 'GST No.', x: 345, w: 110, align: 'left' },
           { label: 'Basic Amt', x: 455, w: 65, align: 'right' },
           { label: 'P/T/Taxes', x: 520, w: 65, align: 'right' },
           { label: 'IGST', x: 585, w: 55, align: 'right' },
@@ -687,10 +700,10 @@ export class ReportsService {
         const clientNameHeight = doc.heightOfString(row.clientName, {
           width: 160 - 6,
         });
-        const guestNameHeight = doc.heightOfString(row.guestName, {
+        const gstNoHeight = doc.heightOfString(row.gstNo || '-', {
           width: 110 - 6,
         });
-        const rowHeight = Math.max(18, clientNameHeight, guestNameHeight) + 6;
+        const rowHeight = Math.max(18, clientNameHeight, gstNoHeight) + 6;
 
         // Check page overflow
         if (currentY + rowHeight > 520) {
@@ -720,8 +733,8 @@ export class ReportsService {
         // Draw Client Name
         doc.text(row.clientName, 185 + 3, currentY + 4, { width: 160 - 6 });
 
-        // Draw Guest Name
-        doc.text(row.guestName, 345 + 3, currentY + 4, { width: 110 - 6 });
+        // Draw GST No.
+        doc.text(row.gstNo || '-', 345 + 3, currentY + 4, { width: 110 - 6 });
 
         // Draw Basic Amt
         doc.text(

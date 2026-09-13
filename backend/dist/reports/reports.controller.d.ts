@@ -62,12 +62,13 @@ export declare class ReportsController {
             overdue61Plus: number;
         }[];
     }>;
-    getBillRegister(gstOption?: string, customerId?: string, state?: string, city?: string, guestName?: string, employeeId?: string, billDateFrom?: string, billDateTo?: string, dutyDateFrom?: string, dutyDateTo?: string, monthOf?: string, billCoverNo?: string): Promise<{
+    getBillRegister(gstOption?: string, customerId?: string, state?: string, city?: string, gstNo?: string, gstNumber?: string, guestName?: string, employeeId?: string, billDateFrom?: string, billDateTo?: string, dutyDateFrom?: string, dutyDateTo?: string, monthOf?: string, billCoverNo?: string): Promise<{
         sn: number;
         id: string;
         billDate: string;
         billNo: string;
         clientName: string;
+        gstNo: string;
         guestName: string;
         basicAmt: number;
         ptTaxes: number;
@@ -76,7 +77,7 @@ export declare class ReportsController {
         sgst: number;
         total: number;
     }[]>;
-    getBillRegisterPdf(gstOption: string, customerId: string, state: string, city: string, guestName: string, employeeId: string, billDateFrom: string, billDateTo: string, dutyDateFrom: string, dutyDateTo: string, monthOf: string, billCoverNo: string, res: express.Response): Promise<void>;
+    getBillRegisterPdf(gstOption: string, customerId: string, state: string, city: string, gstNo: string, gstNumber: string, guestName: string, employeeId: string, billDateFrom: string, billDateTo: string, dutyDateFrom: string, dutyDateTo: string, monthOf: string, billCoverNo: string, res: express.Response): Promise<void>;
     getDutySlipRegister(customerId?: string, driverId?: string, vehicleId?: string, status?: string, startDate?: string, endDate?: string, guestName?: string, employeeId?: string, dutySlipFrom?: string, dutySlipTo?: string, vehicleOwnership?: string, billingStatus?: string, dutyType?: string, state?: string, city?: string): Promise<{
         sn: number;
         id: string;

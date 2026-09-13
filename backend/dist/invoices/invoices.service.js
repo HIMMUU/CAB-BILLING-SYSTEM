@@ -1139,7 +1139,7 @@ let InvoicesService = class InvoicesService {
                         continue;
                     const ds = trip.dutySlip;
                     const booking = trip.booking;
-                    const startDateRaw = ds?.startDateTime || trip?.startDateTime || ds?.reportingTime || booking?.pickupDate;
+                    const startDateRaw = ds?.reportingTime || ds?.startDateTime || trip?.startDateTime || booking?.pickupDate;
                     const endDateRaw = ds?.endDateTime || trip?.endDateTime;
                     const formatDateStr = (dt) => {
                         if (!dt)
@@ -1147,10 +1147,7 @@ let InvoicesService = class InvoicesService {
                         const d = new Date(dt);
                         if (isNaN(d.getTime()))
                             return '';
-                        const day = String(d.getDate()).padStart(2, '0');
-                        const month = String(d.getMonth() + 1).padStart(2, '0');
-                        const year = d.getFullYear();
-                        return `${day}/${month}/${year}`;
+                        return d.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata' });
                     };
                     const startDateStr = formatDateStr(startDateRaw);
                     const endDateStr = formatDateStr(endDateRaw);

@@ -11,7 +11,8 @@ interface BillRegisterRow {
   billDate: string;
   billNo: string;
   clientName: string;
-  guestName: string;
+  gstNo: string;
+  guestName?: string;
   basicAmt: number;
   ptTaxes: number;
   igst: number;
@@ -31,6 +32,7 @@ export default function BillRegisterPage() {
   const [customerId, setCustomerId] = useState('');
   const [state, setState] = useState('');
   const [city, setCity] = useState('');
+  const [gstNo, setGstNo] = useState('');
   const [guestName, setGuestName] = useState('');
   const [fileCode, setFileCode] = useState('');
   const [employeeId, setEmployeeId] = useState('');
@@ -43,6 +45,7 @@ export default function BillRegisterPage() {
 
   // Dropdown data options
   const [customers, setCustomers] = useState<any[]>([]);
+  const [gstOptions, setGstOptions] = useState<string[]>([]);
   const [guestOptions, setGuestOptions] = useState<string[]>([]);
   const [employeeOptions, setEmployeeOptions] = useState<string[]>([]);
 
@@ -64,7 +67,11 @@ export default function BillRegisterPage() {
     try {
       // Fetch customers
       const custRes = await api.request('/customers?limit=500');
-      setCustomers(custRes.data || []);
+      const custList = custRes.data || [];
+      setCustomers(custList);
+
+      const uniqueGsts = Array.from(new Set(custList.map((c: any) => c.gstNumber).filter(Boolean))) as string[];
+      setGstOptions(uniqueGsts.sort());
 
       // Fetch bookings to compile unique guest names and employee IDs
       const bookingsRes = await api.request('/bookings?limit=500');
@@ -92,6 +99,7 @@ export default function BillRegisterPage() {
     if (customerId) params.append('customerId', customerId);
     if (state) params.append('state', state);
     if (city) params.append('city', city);
+    if (gstNo) params.append('gstNo', gstNo);
     if (guestName) params.append('guestName', guestName);
     if (employeeId) params.append('employeeId', employeeId);
     if (billDateFrom) params.append('billDateFrom', billDateFrom);
@@ -175,6 +183,7 @@ export default function BillRegisterPage() {
     setCustomerId('');
     setState('');
     setCity('');
+    setGstNo('');
     setGuestName('');
     setFileCode('');
     setEmployeeId('');
@@ -312,21 +321,22 @@ export default function BillRegisterPage() {
             />
           </div>
 
-          {/* Guest Name */}
+          {/* GST No. */}
           <div className="space-y-1.5">
-            <label className="block font-bold text-[#64748B] uppercase tracking-wide">Guest Name</label>
-            <select
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
-              className="w-full bg-white border border-[#E2E8F0] px-3 py-2 rounded-lg text-[#0F172A] font-medium focus:outline-none focus:border-blue-500 transition"
-            >
-              <option value="">-Select Guest-</option>
-              {guestOptions.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
+            <label className="block font-bold text-[#64748B] uppercase tracking-wide">GST No.</label>
+            <input
+              type="text"
+              placeholder="-Type / Select GST No.-"
+              value={gstNo}
+              onChange={(e) => setGstNo(e.target.value.toUpperCase())}
+              list="gst-options"
+              className="w-full bg-white border border-[#E2E8F0] px-3 py-2 rounded-lg text-[#0F172A] font-medium focus:outline-none focus:border-blue-500 transition uppercase"
+            />
+            <datalist id="gst-options">
+              {gstOptions.map((g) => (
+                <option key={g} value={g} />
               ))}
-            </select>
+            </datalist>
           </div>
 
           {/* File Code */}
@@ -482,7 +492,7 @@ export default function BillRegisterPage() {
                   <th className="py-2.5 px-4">Bill Date</th>
                   <th className="py-2.5 px-4">Bill No</th>
                   <th className="py-2.5 px-4">Client Name</th>
-                  <th className="py-2.5 px-4">Guest Name</th>
+                  <th className="py-2.5 px-4">GST No.</th>
                   <th className="py-2.5 px-4 text-right">Basic Amt</th>
                   <th className="py-2.5 px-4 text-right">P/T/Taxes</th>
                   <th className="py-2.5 px-4 text-right">IGST</th>
@@ -498,7 +508,7 @@ export default function BillRegisterPage() {
                     <td className="py-3 px-4">{row.billDate}</td>
                     <td className="py-3 px-4 font-mono font-bold text-blue-600">{row.billNo}</td>
                     <td className="py-3 px-4 max-w-[150px] truncate" title={row.clientName}>{row.clientName}</td>
-                    <td className="py-3 px-4 max-w-[120px] truncate" title={row.guestName}>{row.guestName}</td>
+                    <td className="py-3 px-4 max-w-[130px] font-mono text-slate-700 truncate" title={row.gstNo || '-'}>{row.gstNo || '-'}</td>
                     <td className="py-3 px-4 text-right">INR {row.basicAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="py-3 px-4 text-right">INR {row.ptTaxes.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="py-3 px-4 text-right text-slate-500">{row.igst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>

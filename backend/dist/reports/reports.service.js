@@ -306,6 +306,13 @@ let ReportsService = class ReportsService {
                 billingAddress: { contains: query.city, mode: 'insensitive' },
             };
         }
+        const gstSearch = query.gstNo || query.gstNumber;
+        if (gstSearch) {
+            where.customer = {
+                ...where.customer,
+                gstNumber: { contains: gstSearch, mode: 'insensitive' },
+            };
+        }
         if (query.guestName ||
             query.employeeId ||
             query.dutyDateFrom ||
@@ -368,6 +375,7 @@ let ReportsService = class ReportsService {
                 billDate: new Date(inv.invoiceDate).toLocaleDateString('en-GB'),
                 billNo: inv.invoiceNumber,
                 clientName: inv.customer.name,
+                gstNo: inv.customer?.gstNumber || '-',
                 guestName: guestNames,
                 basicAmt,
                 ptTaxes,
@@ -524,7 +532,7 @@ let ReportsService = class ReportsService {
                     { label: 'Bill Date', x: 55, w: 65, align: 'left' },
                     { label: 'Bill No', x: 120, w: 65, align: 'left' },
                     { label: 'Client Name', x: 185, w: 160, align: 'left' },
-                    { label: 'Guest Name', x: 345, w: 110, align: 'left' },
+                    { label: 'GST No.', x: 345, w: 110, align: 'left' },
                     { label: 'Basic Amt', x: 455, w: 65, align: 'right' },
                     { label: 'P/T/Taxes', x: 520, w: 65, align: 'right' },
                     { label: 'IGST', x: 585, w: 55, align: 'right' },
@@ -566,10 +574,10 @@ let ReportsService = class ReportsService {
                 const clientNameHeight = doc.heightOfString(row.clientName, {
                     width: 160 - 6,
                 });
-                const guestNameHeight = doc.heightOfString(row.guestName, {
+                const gstNoHeight = doc.heightOfString(row.gstNo || '-', {
                     width: 110 - 6,
                 });
-                const rowHeight = Math.max(18, clientNameHeight, guestNameHeight) + 6;
+                const rowHeight = Math.max(18, clientNameHeight, gstNoHeight) + 6;
                 if (currentY + rowHeight > 520) {
                     doc.addPage();
                     pageNum++;
@@ -586,7 +594,7 @@ let ReportsService = class ReportsService {
                 doc.text(row.billDate, 55 + 3, currentY + 4, { width: 65 - 6 });
                 doc.text(row.billNo, 120 + 3, currentY + 4, { width: 65 - 6 });
                 doc.text(row.clientName, 185 + 3, currentY + 4, { width: 160 - 6 });
-                doc.text(row.guestName, 345 + 3, currentY + 4, { width: 110 - 6 });
+                doc.text(row.gstNo || '-', 345 + 3, currentY + 4, { width: 110 - 6 });
                 doc.text(row.basicAmt.toLocaleString('en-IN', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,

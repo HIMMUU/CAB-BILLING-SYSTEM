@@ -70,12 +70,14 @@ let ReportsController = class ReportsController {
     getOutstandingReport() {
         return this.reportsService.getOutstandingReport();
     }
-    getBillRegister(gstOption, customerId, state, city, guestName, employeeId, billDateFrom, billDateTo, dutyDateFrom, dutyDateTo, monthOf, billCoverNo) {
+    getBillRegister(gstOption, customerId, state, city, gstNo, gstNumber, guestName, employeeId, billDateFrom, billDateTo, dutyDateFrom, dutyDateTo, monthOf, billCoverNo) {
         return this.reportsService.getBillRegisterData({
             gstOption,
             customerId,
             state,
             city,
+            gstNo,
+            gstNumber,
             guestName,
             employeeId,
             billDateFrom,
@@ -86,12 +88,14 @@ let ReportsController = class ReportsController {
             billCoverNo,
         });
     }
-    async getBillRegisterPdf(gstOption, customerId, state, city, guestName, employeeId, billDateFrom, billDateTo, dutyDateFrom, dutyDateTo, monthOf, billCoverNo, res) {
+    async getBillRegisterPdf(gstOption, customerId, state, city, gstNo, gstNumber, guestName, employeeId, billDateFrom, billDateTo, dutyDateFrom, dutyDateTo, monthOf, billCoverNo, res) {
         const pdfBuffer = await this.reportsService.generateBillRegisterPdf({
             gstOption,
             customerId,
             state,
             city,
+            gstNo,
+            gstNumber,
             guestName,
             employeeId,
             billDateFrom,
@@ -204,16 +208,18 @@ __decorate([
     __param(1, (0, common_1.Query)('customerId')),
     __param(2, (0, common_1.Query)('state')),
     __param(3, (0, common_1.Query)('city')),
-    __param(4, (0, common_1.Query)('guestName')),
-    __param(5, (0, common_1.Query)('employeeId')),
-    __param(6, (0, common_1.Query)('billDateFrom')),
-    __param(7, (0, common_1.Query)('billDateTo')),
-    __param(8, (0, common_1.Query)('dutyDateFrom')),
-    __param(9, (0, common_1.Query)('dutyDateTo')),
-    __param(10, (0, common_1.Query)('monthOf')),
-    __param(11, (0, common_1.Query)('billCoverNo')),
+    __param(4, (0, common_1.Query)('gstNo')),
+    __param(5, (0, common_1.Query)('gstNumber')),
+    __param(6, (0, common_1.Query)('guestName')),
+    __param(7, (0, common_1.Query)('employeeId')),
+    __param(8, (0, common_1.Query)('billDateFrom')),
+    __param(9, (0, common_1.Query)('billDateTo')),
+    __param(10, (0, common_1.Query)('dutyDateFrom')),
+    __param(11, (0, common_1.Query)('dutyDateTo')),
+    __param(12, (0, common_1.Query)('monthOf')),
+    __param(13, (0, common_1.Query)('billCoverNo')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], ReportsController.prototype, "getBillRegister", null);
 __decorate([
@@ -223,17 +229,19 @@ __decorate([
     __param(1, (0, common_1.Query)('customerId')),
     __param(2, (0, common_1.Query)('state')),
     __param(3, (0, common_1.Query)('city')),
-    __param(4, (0, common_1.Query)('guestName')),
-    __param(5, (0, common_1.Query)('employeeId')),
-    __param(6, (0, common_1.Query)('billDateFrom')),
-    __param(7, (0, common_1.Query)('billDateTo')),
-    __param(8, (0, common_1.Query)('dutyDateFrom')),
-    __param(9, (0, common_1.Query)('dutyDateTo')),
-    __param(10, (0, common_1.Query)('monthOf')),
-    __param(11, (0, common_1.Query)('billCoverNo')),
-    __param(12, (0, common_1.Res)()),
+    __param(4, (0, common_1.Query)('gstNo')),
+    __param(5, (0, common_1.Query)('gstNumber')),
+    __param(6, (0, common_1.Query)('guestName')),
+    __param(7, (0, common_1.Query)('employeeId')),
+    __param(8, (0, common_1.Query)('billDateFrom')),
+    __param(9, (0, common_1.Query)('billDateTo')),
+    __param(10, (0, common_1.Query)('dutyDateFrom')),
+    __param(11, (0, common_1.Query)('dutyDateTo')),
+    __param(12, (0, common_1.Query)('monthOf')),
+    __param(13, (0, common_1.Query)('billCoverNo')),
+    __param(14, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, Object]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String, String, String, String, String, String, String, Object]),
     __metadata("design:returntype", Promise)
 ], ReportsController.prototype, "getBillRegisterPdf", null);
 __decorate([

@@ -66,6 +66,8 @@ export declare class ReportsService {
         customerId?: string;
         state?: string;
         city?: string;
+        gstNo?: string;
+        gstNumber?: string;
         guestName?: string;
         employeeId?: string;
         billDateFrom?: string;
@@ -80,6 +82,7 @@ export declare class ReportsService {
         billDate: string;
         billNo: string;
         clientName: string;
+        gstNo: string;
         guestName: string;
         basicAmt: number;
         ptTaxes: number;
@@ -93,6 +96,8 @@ export declare class ReportsService {
         customerId?: string;
         state?: string;
         city?: string;
+        gstNo?: string;
+        gstNumber?: string;
         guestName?: string;
         employeeId?: string;
         billDateFrom?: string;
