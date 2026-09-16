@@ -86,13 +86,23 @@ let InvoicesController = class InvoicesController {
         return this.invoicesService.remove(id);
     }
     async getPdf(id, res) {
-        const pdfBuffer = await this.invoicesService.generatePdf(id);
-        res.set({
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="invoice-${id}.pdf"`,
-            'Content-Length': pdfBuffer.length,
-        });
-        res.end(pdfBuffer);
+        try {
+            const pdfBuffer = await this.invoicesService.generatePdf(id);
+            res.set({
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': `attachment; filename="invoice-${id}.pdf"`,
+                'Content-Length': pdfBuffer.length,
+            });
+            res.end(pdfBuffer);
+        }
+        catch (err) {
+            const status = err.status || 500;
+            res.status(status).json({
+                statusCode: status,
+                message: err.message || 'Failed to generate invoice PDF',
+                error: err.name || 'Internal Server Error',
+            });
+        }
     }
 };
 exports.InvoicesController = InvoicesController;

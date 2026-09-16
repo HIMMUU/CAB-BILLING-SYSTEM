@@ -41,4 +41,9 @@ export class CreateInvoiceDto {
 
   @IsOptional()
   isRcm?: boolean;
+
+  @IsNumber({}, { message: 'Discount must be a number' })
+  @Min(0, { message: 'Discount cannot be negative' })
+  @IsOptional()
+  discount?: number;
 }

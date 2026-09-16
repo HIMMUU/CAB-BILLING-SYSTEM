@@ -56,4 +56,10 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], UpdateInvoiceDto.prototype, "igstRate", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)({}, { message: 'Discount must be a number' }),
+    (0, class_validator_1.Min)(0, { message: 'Discount cannot be negative' }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], UpdateInvoiceDto.prototype, "discount", void 0);
 //# sourceMappingURL=update-invoice.dto.js.map

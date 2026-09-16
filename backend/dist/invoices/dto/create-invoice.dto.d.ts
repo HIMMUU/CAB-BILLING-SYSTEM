@@ -10,4 +10,5 @@ export declare class CreateInvoiceDto {
     gstType: GstType;
     gstRate?: number;
     isRcm?: boolean;
+    discount?: number;
 }

@@ -69,6 +69,8 @@ export declare class PaymentsService {
                 dueDate: Date;
                 baseFare: import("@prisma/client/runtime/library").Decimal;
                 extraKmCharges: import("@prisma/client/runtime/library").Decimal;
+                extraHourCharges: import("@prisma/client/runtime/library").Decimal;
+                discount: import("@prisma/client/runtime/library").Decimal;
                 miscCharges: import("@prisma/client/runtime/library").Decimal;
                 subtotal: import("@prisma/client/runtime/library").Decimal;
                 cgstAmount: import("@prisma/client/runtime/library").Decimal;
@@ -143,6 +145,8 @@ export declare class PaymentsService {
             dueDate: Date;
             baseFare: import("@prisma/client/runtime/library").Decimal;
             extraKmCharges: import("@prisma/client/runtime/library").Decimal;
+            extraHourCharges: import("@prisma/client/runtime/library").Decimal;
+            discount: import("@prisma/client/runtime/library").Decimal;
             miscCharges: import("@prisma/client/runtime/library").Decimal;
             subtotal: import("@prisma/client/runtime/library").Decimal;
             cgstAmount: import("@prisma/client/runtime/library").Decimal;

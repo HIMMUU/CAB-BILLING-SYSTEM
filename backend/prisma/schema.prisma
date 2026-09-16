@@ -492,6 +492,8 @@ model Invoice {
   status         InvoiceStatus @default(DRAFT)
   baseFare       Decimal       @default(0.00) @map("base_fare") @db.Decimal(12, 2)
   extraKmCharges Decimal       @default(0.00) @map("extra_km_charges") @db.Decimal(12, 2)
+  extraHourCharges Decimal     @default(0.00) @map("extra_hour_charges") @db.Decimal(12, 2)
+  discount       Decimal       @default(0.00) @map("discount") @db.Decimal(12, 2)
   toll           Decimal       @default(0.00) @db.Decimal(12, 2)
   parking        Decimal       @default(0.00) @db.Decimal(12, 2)
   nightCharges   Decimal       @default(0.00) @map("night_charges") @db.Decimal(12, 2)

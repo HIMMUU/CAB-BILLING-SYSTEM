@@ -74,6 +74,7 @@ export class InvoicesService {
     // 3. Aggregate charges from all Trip records
     let baseFare = 0;
     let extraKm = 0;
+    let extraHourCharges = 0;
     let toll = 0;
     let parking = 0;
     let stateTax = 0;
@@ -82,22 +83,29 @@ export class InvoicesService {
     let miscCharges = 0;
 
     for (const trip of trips) {
-      baseFare += Number(trip.baseFareCharged);
-      extraKm += Number(trip.extraKmCharged);
-      toll += Number(trip.toll);
-      parking += Number(trip.parking);
+      baseFare += Number(trip.baseFareCharged || 0);
+      extraKm += Number(trip.extraKmCharged || 0);
+      extraHourCharges += Number(trip.extraHoursCharged || 0);
+      toll += Number(trip.toll || 0);
+      parking += Number(trip.parking || 0);
       stateTax += Number(trip.stateTaxCharged || 0);
       mcd += Number(trip.mcdCharged || 0);
-      nightCharges += Number(trip.nightChargesCharged);
+      nightCharges += Number(trip.nightChargesCharged || 0);
       miscCharges +=
-        Number(trip.extraHoursCharged || 0) +
         Number(trip.driverAllowance || 0) +
         Number(trip.miscChargesCharged || trip.extraCharges || 0);
     }
 
+    // Base fare definition per user: base cab hire charge + extra km + extra hour
+    const totalBaseFare = baseFare + extraKm + extraHourCharges;
+    const rawDiscount = Number(dto.discount || 0);
+    // Discount is applied on base fare and capped at totalBaseFare
+    const discount = Math.max(0, Math.min(rawDiscount, totalBaseFare));
+
     const subtotal =
       baseFare +
       extraKm +
+      extraHourCharges +
       toll +
       parking +
       stateTax +
@@ -124,9 +132,13 @@ export class InvoicesService {
     const custStateCode = getGstStateCode(customerGst);
     const isSameState = compStateCode === custStateCode;
 
+    // Toll, parking and all will be extra:
+    // GST taxable amount = (subtotal - discount) - (toll + parking + mcd + stateTax)
+    // which equals (base fare - discount) + other taxable charges (night/driver allowances)
+    const nonTaxableExtras = toll + parking + mcd + stateTax;
     const gstTaxableAmount = Math.max(
       0,
-      subtotal - (toll + parking + mcd + stateTax),
+      subtotal - discount - nonTaxableExtras,
     );
 
     let cgstRate = 0;
@@ -162,7 +174,9 @@ export class InvoicesService {
 
     const totalTax = cgstAmount + sgstAmount + igstAmount;
     const isRcm = dto.isRcm !== undefined ? !!dto.isRcm : !!customer.isRcm;
-    const totalAmount = isRcm ? subtotal : subtotal + totalTax;
+    // Total calculation: (base fare - discount) + gst + toll parking + allowances
+    // Equivalent to: (subtotal - discount) + totalTax
+    const totalAmount = isRcm ? subtotal - discount : subtotal - discount + totalTax;
     const dueAmount = totalAmount;
 
     // 5. Generate unique invoice number with tenant prefix & starting serial number
@@ -189,69 +203,86 @@ export class InvoicesService {
       }
     }
 
-    // 6. DB write in a transaction
-    return this.prisma.$transaction(async (tx) => {
-      const invoice = await tx.invoice.create({
-        data: {
-          tenantId: trips[0].tenantId,
-          invoiceNumber,
-          customerId,
-          invoiceDate: dto.invoiceDate ? new Date(dto.invoiceDate) : new Date(),
-          dueDate: dto.dueDate
-            ? new Date(dto.dueDate)
-            : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // Default 15 days due
-          status: InvoiceStatus.UNPAID,
-          baseFare,
-          extraKmCharges: extraKm,
-          toll,
-          parking,
-          stateTax,
-          mcd,
-          nightCharges,
-          miscCharges,
-          subtotal,
-          cgstRate,
-          cgstAmount,
-          sgstRate,
-          sgstAmount,
-          igstRate,
-          igstAmount,
-          totalTax,
-          totalAmount,
-          paidAmount: 0.0,
-          dueAmount,
-          isRcm,
-        } as any,
-      });
+    // 6. DB write in a transaction with collision retry
+    let attempts = 0;
+    while (attempts < 5) {
+      attempts++;
+      try {
+        return await this.prisma.$transaction(async (tx) => {
+          const invoice = await tx.invoice.create({
+            data: {
+              tenantId: trips[0].tenantId,
+              invoiceNumber,
+              customerId,
+              invoiceDate: dto.invoiceDate ? new Date(dto.invoiceDate) : new Date(),
+              dueDate: dto.dueDate
+                ? new Date(dto.dueDate)
+                : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // Default 15 days due
+              status: InvoiceStatus.UNPAID,
+              baseFare,
+              extraKmCharges: extraKm,
+              extraHourCharges,
+              discount,
+              toll,
+              parking,
+              stateTax,
+              mcd,
+              nightCharges,
+              miscCharges,
+              subtotal,
+              cgstRate,
+              cgstAmount,
+              sgstRate,
+              sgstAmount,
+              igstRate,
+              igstAmount,
+              totalTax,
+              totalAmount,
+              paidAmount: 0.0,
+              dueAmount,
+              isRcm,
+            } as any,
+          });
 
-      // Create an InvoiceItem for each trip
-      for (const trip of trips) {
-        const tripSubtotal =
-          Number(trip.baseFareCharged) +
-          Number(trip.extraKmCharged) +
-          Number(trip.toll) +
-          Number(trip.parking) +
-          Number(trip.stateTaxCharged || 0) +
-          Number(trip.mcdCharged || 0) +
-          Number(trip.nightChargesCharged || 0) +
-          Number(trip.extraHoursCharged || 0) +
-          Number(trip.driverAllowance || 0) +
-          Number(trip.miscChargesCharged || trip.extraCharges || 0);
+          // Create an InvoiceItem for each trip
+          for (const trip of trips) {
+            const tripSubtotal =
+              Number(trip.baseFareCharged) +
+              Number(trip.extraKmCharged) +
+              Number(trip.toll) +
+              Number(trip.parking) +
+              Number(trip.stateTaxCharged || 0) +
+              Number(trip.mcdCharged || 0) +
+              Number(trip.nightChargesCharged || 0) +
+              Number(trip.extraHoursCharged || 0) +
+              Number(trip.driverAllowance || 0) +
+              Number(trip.miscChargesCharged || trip.extraCharges || 0);
 
-        const description = `Duty Slip: ${trip.dutySlip.dutySlipNumber}, Route: ${trip.booking.pickupLocation} to ${trip.booking.dropLocation}`;
-        await tx.invoiceItem.create({
-          data: {
-            tenantId: trips[0].tenantId,
-            invoiceId: invoice.id,
-            tripId: trip.id,
-            description,
-            amount: tripSubtotal,
-          } as any,
+            const description = `Duty Slip: ${trip.dutySlip.dutySlipNumber}, Route: ${trip.booking.pickupLocation} to ${trip.booking.dropLocation}`;
+            await tx.invoiceItem.create({
+              data: {
+                tenantId: trips[0].tenantId,
+                invoiceId: invoice.id,
+                tripId: trip.id,
+                description,
+                amount: tripSubtotal,
+              } as any,
+            });
+          }
+
+          return invoice;
         });
+      } catch (err: any) {
+        if (err.code === 'P2002' && attempts < 5) {
+          currentInvVal++;
+          invoiceNumber = prefix
+            ? `${prefix}${currentInvVal}`
+            : String(currentInvVal);
+          continue;
+        }
+        throw err;
       }
-
-      return invoice;
-    });
+    }
   }
 
   async findUninvoicedTrips() {
@@ -323,6 +354,7 @@ export class InvoicesService {
 
     let baseFare = 0;
     let extraKmCharges = 0;
+    let extraHourCharges = 0;
     let toll = 0;
     let parking = 0;
     let nightCharges = 0;
@@ -336,20 +368,28 @@ export class InvoicesService {
 
       baseFare += Number(trip.baseFareCharged || 0);
       extraKmCharges += Number(trip.extraKmCharged || 0);
+      extraHourCharges += Number(trip.extraHoursCharged || 0);
       toll += Number(trip.toll || 0);
       parking += Number(trip.parking || 0);
       stateTax += Number(trip.stateTaxCharged || 0);
       mcd += Number(trip.mcdCharged || 0);
       nightCharges += Number(trip.nightChargesCharged || 0);
       miscCharges +=
-        Number(trip.extraHoursCharged || 0) +
         Number(trip.driverAllowance || 0) +
         Number(trip.miscChargesCharged || trip.extraCharges || 0);
     }
 
+    // Base fare definition per user: base cab hire charge + extra km + extra hour
+    const totalBaseFare = baseFare + extraKmCharges + extraHourCharges;
+    const discount = Math.min(
+      Math.max(0, Number(invoice.discount || 0)),
+      totalBaseFare,
+    );
+
     const subtotal =
       baseFare +
       extraKmCharges +
+      extraHourCharges +
       toll +
       parking +
       stateTax +
@@ -357,9 +397,10 @@ export class InvoicesService {
       nightCharges +
       miscCharges;
 
+    const nonTaxableExtras = toll + parking + mcd + stateTax;
     const gstTaxableAmount = Math.max(
       0,
-      subtotal - (toll + parking + mcd + stateTax),
+      subtotal - discount - nonTaxableExtras,
     );
 
     const cgstRate = Number(invoice.cgstRate || 0);
@@ -371,7 +412,9 @@ export class InvoicesService {
     const igstAmount = (gstTaxableAmount * igstRate) / 100;
     const totalTax = cgstAmount + sgstAmount + igstAmount;
     const isRcm = !!invoice.isRcm;
-    const totalAmount = isRcm ? subtotal : subtotal + totalTax;
+    const totalAmount = isRcm
+      ? subtotal - discount
+      : subtotal - discount + totalTax;
     const dueAmount = Math.max(
       0,
       totalAmount - Number(invoice.paidAmount || 0),
@@ -381,6 +424,8 @@ export class InvoicesService {
       ...invoice,
       baseFare,
       extraKmCharges,
+      extraHourCharges,
+      discount,
       toll,
       parking,
       stateTax,
@@ -529,14 +574,29 @@ export class InvoicesService {
       if (dto.sgstRate !== undefined) data.sgstRate = dto.sgstRate;
       if (dto.igstRate !== undefined) data.igstRate = dto.igstRate;
 
+      const baseFare = Number(invoice.baseFare || 0);
+      const extraKm = Number(invoice.extraKmCharges || 0);
+      const extraHourCharges = Number((invoice as any).extraHourCharges || 0);
+      const totalBaseFare = baseFare + extraKm + extraHourCharges;
+
+      let discount =
+        dto.discount !== undefined
+          ? Math.max(0, Number(dto.discount))
+          : Number((invoice as any).discount || 0);
+      if (totalBaseFare > 0) {
+        discount = Math.min(discount, totalBaseFare);
+      }
+      data.discount = discount;
+
       const subtotal = Number(invoice.subtotal);
       const toll = Number(invoice.toll || 0);
       const parking = Number(invoice.parking || 0);
       const mcd = Number(invoice.mcd || 0);
       const stateTax = Number(invoice.stateTax || 0);
+      const nonTaxableExtras = toll + parking + mcd + stateTax;
       const gstTaxableAmount = Math.max(
         0,
-        subtotal - (toll + parking + mcd + stateTax),
+        subtotal - discount - nonTaxableExtras,
       );
 
       const cgstRate =
@@ -563,7 +623,9 @@ export class InvoicesService {
       data.totalTax = totalTax;
 
       const isRcm = dto.isRcm !== undefined ? dto.isRcm : !!invoice.isRcm;
-      const totalAmount = isRcm ? subtotal : subtotal + totalTax;
+      const totalAmount = isRcm
+        ? subtotal - discount
+        : subtotal - discount + totalTax;
       data.totalAmount = totalAmount;
 
       const currentPaid = Number(invoice.paidAmount);
@@ -767,6 +829,7 @@ export class InvoicesService {
 
     let baseFare = 0;
     let extraKmCharges = 0;
+    let extraHourCharges = 0;
     let toll = 0;
     let parking = 0;
     let stateTax = 0;
@@ -779,20 +842,27 @@ export class InvoicesService {
       if (!trip) continue;
       baseFare += Number(trip.baseFareCharged || 0);
       extraKmCharges += Number(trip.extraKmCharged || 0);
+      extraHourCharges += Number(trip.extraHoursCharged || 0);
       toll += Number(trip.toll || 0);
       parking += Number(trip.parking || 0);
       stateTax += Number(trip.stateTaxCharged || 0);
       mcd += Number(trip.mcdCharged || 0);
       nightCharges += Number(trip.nightChargesCharged || 0);
       miscCharges +=
-        Number(trip.extraHoursCharged || 0) +
         Number(trip.driverAllowance || 0) +
         Number(trip.miscChargesCharged || trip.extraCharges || 0);
     }
 
+    const totalBaseFare = baseFare + extraKmCharges + extraHourCharges;
+    const discount = Math.min(
+      Math.max(0, Number((invoice as any).discount || 0)),
+      totalBaseFare,
+    );
+
     const subtotal =
       baseFare +
       extraKmCharges +
+      extraHourCharges +
       toll +
       parking +
       stateTax +
@@ -800,9 +870,10 @@ export class InvoicesService {
       nightCharges +
       miscCharges;
 
+    const nonTaxableExtras = toll + parking + mcd + stateTax;
     const gstTaxableAmount = Math.max(
       0,
-      subtotal - (toll + parking + mcd + stateTax),
+      subtotal - discount - nonTaxableExtras,
     );
     const cgstRate = Number(invoice.cgstRate || 0);
     const sgstRate = Number(invoice.sgstRate || 0);
@@ -814,7 +885,9 @@ export class InvoicesService {
     const totalTax = cgstAmount + sgstAmount + igstAmount;
 
     const isRcm = !!invoice.isRcm;
-    const totalAmount = isRcm ? subtotal : subtotal + totalTax;
+    const totalAmount = isRcm
+      ? subtotal - discount
+      : subtotal - discount + totalTax;
     const paidAmount = Number(invoice.paidAmount || 0);
     const dueAmount = Math.max(0, totalAmount - paidAmount);
 
@@ -837,6 +910,8 @@ export class InvoicesService {
       data: {
         baseFare,
         extraKmCharges,
+        extraHourCharges,
+        discount,
         toll,
         parking,
         stateTax,
@@ -851,7 +926,7 @@ export class InvoicesService {
         totalAmount,
         dueAmount,
         status,
-      },
+      } as any,
     });
 
     return this.findOne(invoiceId);
@@ -1870,7 +1945,9 @@ export class InvoicesService {
       }
 
       // Summary lines
-      const summaryBoxHeight = 82;
+      const discountVal = Number((parsedInvoice as any).discount || 0);
+      const hasDiscount = discountVal > 0;
+      const summaryBoxHeight = hasDiscount ? 94 : 82;
       doc.rect(50, footerY, 495, summaryBoxHeight).stroke('#CBD5E1');
       doc
         .moveTo(350, footerY)
@@ -1881,11 +1958,22 @@ export class InvoicesService {
       doc.text('TOTAL DUTY SLIP ENCLOSE', 55, footerY + 5);
       doc.fillColor('#0E1218').text(`${totalSlipsEnclosed}`, 215, footerY + 5);
 
-      doc.fillColor(primaryColor).text('TOTAL AMOUNT', 355, footerY + 5);
-      doc.fillColor('#0E1218').text(amountColSum.toFixed(2), 480, footerY + 5, {
+      let summaryRightY = footerY + 5;
+      doc.fillColor(primaryColor).text('TOTAL AMOUNT', 355, summaryRightY);
+      doc.fillColor('#0E1218').text(amountColSum.toFixed(2), 480, summaryRightY, {
         width: 60,
         align: 'right',
       });
+      summaryRightY += 12;
+
+      if (hasDiscount) {
+        doc.fillColor('#DC2626').text('LESS: DISCOUNT', 355, summaryRightY);
+        doc.fillColor('#DC2626').text(`- ${discountVal.toFixed(2)}`, 480, summaryRightY, {
+          width: 60,
+          align: 'right',
+        });
+        summaryRightY += 12;
+      }
 
       // Render Bank Details inside the summary box on the left
       if (showBank) {
@@ -1974,17 +2062,18 @@ export class InvoicesService {
       doc
         .fillColor(primaryColor)
         .fontSize(8.5)
-        .text('Parking/TollTax Detail', 355, footerY + 18);
+        .text('Parking/TollTax Detail', 355, summaryRightY);
       doc
         .fillColor('#0E1218')
-        .text(tollParkingTaxSum.toFixed(2), 480, footerY + 18, {
+        .text(tollParkingTaxSum.toFixed(2), 480, summaryRightY, {
           width: 60,
           align: 'right',
         });
+      summaryRightY += 12;
 
       // GST rows (only rendered inside summary box for non-RCM invoices)
       if (!isRcm) {
-        let gstLineY = footerY + 31;
+        let gstLineY = summaryRightY;
         if (Number(parsedInvoice.cgstAmount) > 0) {
           doc
             .fillColor(primaryColor)

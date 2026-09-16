@@ -1,10 +1,12 @@
 import { PrismaService } from '../prisma/prisma.service';
+import { TenantContextService } from '../common/context/tenant-context.service';
 import { CreateDutySlipDto } from './dto/create-duty-slip.dto';
 import { UpdateDutySlipDto } from './dto/update-duty-slip.dto';
 import { DutySlipStatus } from '@prisma/client';
 export declare class DutySlipsService {
     private readonly prisma;
-    constructor(prisma: PrismaService);
+    private readonly tenantContext?;
+    constructor(prisma: PrismaService, tenantContext?: TenantContextService | undefined);
     create(dto: CreateDutySlipDto): Promise<({
         driver: {
             id: string;

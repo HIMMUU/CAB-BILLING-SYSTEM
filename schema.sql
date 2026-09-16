@@ -231,6 +231,8 @@ CREATE TABLE invoices (
     status invoice_status DEFAULT 'DRAFT' NOT NULL,
     base_fare DECIMAL(12, 2) DEFAULT 0.00 NOT NULL,
     extra_km_charges DECIMAL(12, 2) DEFAULT 0.00 NOT NULL,
+    extra_hour_charges DECIMAL(12, 2) DEFAULT 0.00 NOT NULL,
+    discount DECIMAL(12, 2) DEFAULT 0.00 NOT NULL,
     toll DECIMAL(12, 2) DEFAULT 0.00 NOT NULL,
     parking DECIMAL(12, 2) DEFAULT 0.00 NOT NULL,
     night_charges DECIMAL(12, 2) DEFAULT 0.00 NOT NULL,

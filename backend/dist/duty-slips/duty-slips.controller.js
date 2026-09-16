@@ -74,13 +74,23 @@ let DutySlipsController = class DutySlipsController {
         return this.dutySlipsService.remove(id);
     }
     async getPdf(id, res) {
-        const pdfBuffer = await this.dutySlipsService.generatePdf(id);
-        res.set({
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="duty-slip-${id}.pdf"`,
-            'Content-Length': pdfBuffer.length,
-        });
-        res.end(pdfBuffer);
+        try {
+            const pdfBuffer = await this.dutySlipsService.generatePdf(id);
+            res.set({
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': `attachment; filename="duty-slip-${id}.pdf"`,
+                'Content-Length': pdfBuffer.length,
+            });
+            res.end(pdfBuffer);
+        }
+        catch (err) {
+            const status = err.status || 500;
+            res.status(status).json({
+                statusCode: status,
+                message: err.message || 'Failed to generate duty slip PDF',
+                error: err.name || 'Internal Server Error',
+            });
+        }
     }
 };
 exports.DutySlipsController = DutySlipsController;

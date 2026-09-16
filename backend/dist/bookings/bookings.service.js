@@ -44,23 +44,64 @@ let BookingsService = class BookingsService {
         let targetDriverId = dto.driverId;
         let targetVehicleId = dto.vehicleId;
         if (!targetDriverId && (dto.manualDriverName || dto.manualDriverMobile)) {
-            const mobile = dto.manualDriverMobile || '9999999999';
-            let existingDriver = await this.prisma.driver.findFirst({
-                where: { tenantId: customer.tenantId, mobile },
-            });
-            if (!existingDriver) {
-                existingDriver = await this.prisma.driver.create({
-                    data: {
-                        tenantId: customer.tenantId,
-                        name: dto.manualDriverName || 'Manual Driver',
-                        mobile,
-                        licenseNumber: 'MANUAL-' + Date.now().toString().slice(-6),
-                        licenseExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
-                        address: 'Vendor / Ad-hoc Cab Driver',
-                        emergencyContact: mobile,
-                        status: client_1.DriverStatus.AVAILABLE,
-                    },
+            const cleanMobile = dto.manualDriverMobile?.trim();
+            let existingDriver = null;
+            if (cleanMobile) {
+                existingDriver = await this.prisma.driver.findFirst({
+                    where: { tenantId: customer.tenantId, mobile: cleanMobile },
                 });
+            }
+            if (!existingDriver && dto.manualDriverName?.trim()) {
+                existingDriver = await this.prisma.driver.findFirst({
+                    where: { tenantId: customer.tenantId, name: dto.manualDriverName.trim() },
+                });
+            }
+            if (!existingDriver) {
+                const mobile = cleanMobile ||
+                    ('MANUAL-' + Date.now().toString().slice(-8) + Math.floor(100 + Math.random() * 900)).slice(0, 20);
+                const licNum = ('MANUAL-' + Date.now().toString().slice(-8) + Math.floor(100 + Math.random() * 900)).slice(0, 50);
+                try {
+                    existingDriver = await this.prisma.driver.create({
+                        data: {
+                            tenantId: customer.tenantId,
+                            name: dto.manualDriverName || 'Manual Driver',
+                            mobile,
+                            licenseNumber: licNum,
+                            licenseExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+                            address: 'Vendor / Ad-hoc Cab Driver',
+                            emergencyContact: mobile,
+                            status: client_1.DriverStatus.AVAILABLE,
+                        },
+                    });
+                }
+                catch (err) {
+                    if (err.code === 'P2002') {
+                        if (cleanMobile) {
+                            existingDriver = await this.prisma.driver.findFirst({
+                                where: { tenantId: customer.tenantId, mobile: cleanMobile },
+                            });
+                        }
+                        if (!existingDriver) {
+                            const fallbackPhone = ('MANUAL-' + Date.now().toString().slice(-8) + Math.floor(1000 + Math.random() * 9000)).slice(0, 20);
+                            const fallbackLic = ('MANUAL-' + Date.now().toString().slice(-8) + Math.floor(1000 + Math.random() * 9000)).slice(0, 50);
+                            existingDriver = await this.prisma.driver.create({
+                                data: {
+                                    tenantId: customer.tenantId,
+                                    name: dto.manualDriverName || 'Manual Driver',
+                                    mobile: fallbackPhone,
+                                    licenseNumber: fallbackLic,
+                                    licenseExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+                                    address: 'Vendor / Ad-hoc Cab Driver',
+                                    emergencyContact: fallbackPhone,
+                                    status: client_1.DriverStatus.AVAILABLE,
+                                },
+                            });
+                        }
+                    }
+                    else {
+                        throw err;
+                    }
+                }
             }
             targetDriverId = existingDriver.id;
         }
@@ -321,23 +362,64 @@ let BookingsService = class BookingsService {
         let targetDriverId = dto.driverId;
         let targetVehicleId = dto.vehicleId;
         if (!targetDriverId && (dto.manualDriverName || dto.manualDriverMobile)) {
-            const mobile = dto.manualDriverMobile || '9999999999';
-            let existingDriver = await this.prisma.driver.findFirst({
-                where: { tenantId: booking.tenantId, mobile },
-            });
-            if (!existingDriver) {
-                existingDriver = await this.prisma.driver.create({
-                    data: {
-                        tenantId: booking.tenantId,
-                        name: dto.manualDriverName || 'Manual Driver',
-                        mobile,
-                        licenseNumber: 'MANUAL-' + Date.now().toString().slice(-6),
-                        licenseExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
-                        address: 'Vendor / Ad-hoc Cab Driver',
-                        emergencyContact: mobile,
-                        status: client_1.DriverStatus.AVAILABLE,
-                    },
+            const cleanMobile = dto.manualDriverMobile?.trim();
+            let existingDriver = null;
+            if (cleanMobile) {
+                existingDriver = await this.prisma.driver.findFirst({
+                    where: { tenantId: booking.tenantId, mobile: cleanMobile },
                 });
+            }
+            if (!existingDriver && dto.manualDriverName?.trim()) {
+                existingDriver = await this.prisma.driver.findFirst({
+                    where: { tenantId: booking.tenantId, name: dto.manualDriverName.trim() },
+                });
+            }
+            if (!existingDriver) {
+                const mobile = cleanMobile ||
+                    ('MANUAL-' + Date.now().toString().slice(-8) + Math.floor(100 + Math.random() * 900)).slice(0, 20);
+                const licNum = ('MANUAL-' + Date.now().toString().slice(-8) + Math.floor(100 + Math.random() * 900)).slice(0, 50);
+                try {
+                    existingDriver = await this.prisma.driver.create({
+                        data: {
+                            tenantId: booking.tenantId,
+                            name: dto.manualDriverName || 'Manual Driver',
+                            mobile,
+                            licenseNumber: licNum,
+                            licenseExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+                            address: 'Vendor / Ad-hoc Cab Driver',
+                            emergencyContact: mobile,
+                            status: client_1.DriverStatus.AVAILABLE,
+                        },
+                    });
+                }
+                catch (err) {
+                    if (err.code === 'P2002') {
+                        if (cleanMobile) {
+                            existingDriver = await this.prisma.driver.findFirst({
+                                where: { tenantId: booking.tenantId, mobile: cleanMobile },
+                            });
+                        }
+                        if (!existingDriver) {
+                            const fallbackPhone = ('MANUAL-' + Date.now().toString().slice(-8) + Math.floor(1000 + Math.random() * 9000)).slice(0, 20);
+                            const fallbackLic = ('MANUAL-' + Date.now().toString().slice(-8) + Math.floor(1000 + Math.random() * 9000)).slice(0, 50);
+                            existingDriver = await this.prisma.driver.create({
+                                data: {
+                                    tenantId: booking.tenantId,
+                                    name: dto.manualDriverName || 'Manual Driver',
+                                    mobile: fallbackPhone,
+                                    licenseNumber: fallbackLic,
+                                    licenseExpiry: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+                                    address: 'Vendor / Ad-hoc Cab Driver',
+                                    emergencyContact: fallbackPhone,
+                                    status: client_1.DriverStatus.AVAILABLE,
+                                },
+                            });
+                        }
+                    }
+                    else {
+                        throw err;
+                    }
+                }
             }
             targetDriverId = existingDriver.id;
         }

@@ -118,7 +118,15 @@ class ApiClient {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Request failed with status ${response.status}`);
+        let errorMessage = `Request failed with status ${response.status}`;
+        if (Array.isArray(errorData.message)) {
+          errorMessage = errorData.message.join(', ');
+        } else if (typeof errorData.message === 'string') {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+        throw new Error(errorMessage);
       }
 
       // Check if no content response

@@ -433,7 +433,8 @@ export class ReportsService {
       const mcd = Number(inv.mcd || 0);
       const stateTax = Number(inv.stateTax || 0);
 
-      const basicAmt = subtotal - toll - parking - mcd - stateTax;
+      const discount = Number((inv as any).discount || 0);
+      const basicAmt = Math.max(0, subtotal - discount - toll - parking - mcd - stateTax);
       const ptTaxes = toll + parking + mcd + stateTax;
 
       // Extract unique guest names

@@ -41,6 +41,9 @@ var __importStar = (this && this.__importStar) || (function () {
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -49,11 +52,13 @@ exports.DutySlipsService = void 0;
 const common_1 = require("@nestjs/common");
 const path = __importStar(require("path"));
 const prisma_service_1 = require("../prisma/prisma.service");
+const tenant_context_service_1 = require("../common/context/tenant-context.service");
 const client_1 = require("@prisma/client");
 const pdfkit_1 = __importDefault(require("pdfkit"));
 let DutySlipsService = class DutySlipsService {
-    constructor(prisma) {
+    constructor(prisma, tenantContext) {
         this.prisma = prisma;
+        this.tenantContext = tenantContext;
     }
     async create(dto) {
         const bookingId = dto.bookingId;
@@ -64,53 +69,127 @@ let DutySlipsService = class DutySlipsService {
                     where: { id: dto.customerId },
                 })
                 : null;
+            const tenantId = customer?.tenantId ||
+                this.tenantContext?.getTenantId() ||
+                (await this.prisma.tenant.findFirst())?.id;
+            if (!tenantId)
+                throw new common_1.NotFoundException('Tenant not found');
             if (!customer) {
-                const defaultTenant = await this.prisma.tenant.findFirst();
-                if (!defaultTenant)
-                    throw new common_1.NotFoundException('Tenant not found');
-                const cName = dto.manualCustomerName || 'Direct Customer';
+                const cName = dto.manualCustomerName?.trim() || 'Direct Customer';
                 let existing = await this.prisma.customer.findFirst({
-                    where: { tenantId: defaultTenant.id, name: cName },
+                    where: { tenantId, name: cName },
                 });
                 if (!existing) {
-                    existing = await this.prisma.customer.create({
-                        data: {
-                            tenantId: defaultTenant.id,
-                            name: cName,
-                            phone: '0000000000',
-                            billingAddress: 'Direct Walk-in',
-                        },
-                    });
+                    const defaultCustPhone = '0000-' +
+                        Date.now().toString().slice(-6) +
+                        Math.floor(100 + Math.random() * 900);
+                    try {
+                        existing = await this.prisma.customer.create({
+                            data: {
+                                tenantId,
+                                name: cName,
+                                phone: defaultCustPhone,
+                                billingAddress: 'Direct Walk-in',
+                            },
+                        });
+                    }
+                    catch (err) {
+                        if (err.code === 'P2002') {
+                            existing = await this.prisma.customer.findFirst({
+                                where: { tenantId, name: cName },
+                            });
+                            if (!existing) {
+                                existing = await this.prisma.customer.findFirst({
+                                    where: { tenantId },
+                                });
+                            }
+                        }
+                        else {
+                            throw err;
+                        }
+                    }
                 }
                 customer = existing;
+            }
+            if (!customer) {
+                throw new common_1.BadRequestException('Unable to resolve or create customer');
             }
             let driver = dto.driverId && dto.driverId !== 'MANUAL'
                 ? await this.prisma.driver.findUnique({ where: { id: dto.driverId } })
                 : null;
             if (!driver) {
-                const dName = dto.manualDriverName || 'External Driver';
-                const dPhone = dto.manualDriverPhone && dto.manualDriverPhone.trim()
-                    ? dto.manualDriverPhone.trim()
-                    : 'EXT-' + Math.floor(1000000000 + Math.random() * 9000000000);
-                let existing = await this.prisma.driver.findFirst({
-                    where: { tenantId: customer.tenantId, name: dName },
-                });
+                const dName = dto.manualDriverName?.trim() || 'External Driver';
+                const cleanPhone = dto.manualDriverPhone?.trim();
+                let existing = null;
+                if (cleanPhone) {
+                    existing = await this.prisma.driver.findFirst({
+                        where: { tenantId, mobile: cleanPhone },
+                    });
+                }
+                if (!existing && dName && dName !== 'External Driver') {
+                    existing = await this.prisma.driver.findFirst({
+                        where: { tenantId, name: dName },
+                    });
+                }
                 if (!existing) {
                     const defaultExpiry = new Date();
                     defaultExpiry.setFullYear(defaultExpiry.getFullYear() + 5);
-                    existing = await this.prisma.driver.create({
-                        data: {
-                            tenantId: customer.tenantId,
-                            name: dName,
-                            mobile: dPhone,
-                            licenseNumber: 'EXT-' + Math.floor(100000 + Math.random() * 900000),
-                            licenseExpiry: defaultExpiry,
-                            address: 'External / Ad-hoc Driver',
-                            emergencyContact: '0000000000',
-                        },
-                    });
+                    const dPhone = cleanPhone ||
+                        ('EXT-' +
+                            Date.now().toString().slice(-8) +
+                            Math.floor(100 + Math.random() * 900)).slice(0, 20);
+                    const licNum = ('EXT-' +
+                        Date.now().toString().slice(-8) +
+                        Math.floor(100 + Math.random() * 900)).slice(0, 50);
+                    try {
+                        existing = await this.prisma.driver.create({
+                            data: {
+                                tenantId,
+                                name: dName,
+                                mobile: dPhone,
+                                licenseNumber: licNum,
+                                licenseExpiry: defaultExpiry,
+                                address: 'External / Ad-hoc Driver',
+                                emergencyContact: '0000000000',
+                            },
+                        });
+                    }
+                    catch (err) {
+                        if (err.code === 'P2002') {
+                            if (cleanPhone) {
+                                existing = await this.prisma.driver.findFirst({
+                                    where: { tenantId, mobile: cleanPhone },
+                                });
+                            }
+                            if (!existing) {
+                                const retryPhone = ('EXT-' +
+                                    Date.now().toString().slice(-8) +
+                                    Math.floor(1000 + Math.random() * 9000)).slice(0, 20);
+                                const retryLic = ('EXT-' +
+                                    Date.now().toString().slice(-8) +
+                                    Math.floor(1000 + Math.random() * 9000)).slice(0, 50);
+                                existing = await this.prisma.driver.create({
+                                    data: {
+                                        tenantId,
+                                        name: dName,
+                                        mobile: retryPhone,
+                                        licenseNumber: retryLic,
+                                        licenseExpiry: defaultExpiry,
+                                        address: 'External / Ad-hoc Driver',
+                                        emergencyContact: '0000000000',
+                                    },
+                                });
+                            }
+                        }
+                        else {
+                            throw err;
+                        }
+                    }
                 }
                 driver = existing;
+            }
+            if (!driver) {
+                throw new common_1.BadRequestException('Unable to resolve or create driver');
             }
             let vehicle = dto.vehicleId && dto.vehicleId !== 'MANUAL'
                 ? await this.prisma.vehicle.findUnique({
@@ -118,38 +197,73 @@ let DutySlipsService = class DutySlipsService {
                 })
                 : null;
             if (!vehicle) {
-                const vNum = dto.manualVehicleNumber ||
-                    'EXT-CAB-' + Math.floor(100 + Math.random() * 900);
-                const vModel = dto.manualVehicleModel || 'Standard Cab';
+                const vNum = dto.manualVehicleNumber?.trim().toUpperCase() ||
+                    ('EXT-CAB-' +
+                        Date.now().toString().slice(-6) +
+                        Math.floor(100 + Math.random() * 900)).slice(0, 50);
+                const vModel = dto.manualVehicleModel?.trim() || 'Standard Cab';
                 let existing = await this.prisma.vehicle.findFirst({
-                    where: { tenantId: customer.tenantId, vehicleNumber: vNum },
+                    where: { tenantId, vehicleNumber: vNum },
                 });
                 if (!existing) {
                     const defaultExpiry = new Date();
                     defaultExpiry.setFullYear(defaultExpiry.getFullYear() + 5);
-                    existing = await this.prisma.vehicle.create({
-                        data: {
-                            tenantId: customer.tenantId,
-                            vehicleNumber: vNum,
-                            model: vModel,
-                            vehicleType: 'Sedan',
-                            seatingCapacity: 4,
-                            registrationDate: new Date(),
-                            insuranceExpiry: defaultExpiry,
-                            fitnessExpiry: defaultExpiry,
-                            permitExpiry: defaultExpiry,
-                        },
-                    });
+                    try {
+                        existing = await this.prisma.vehicle.create({
+                            data: {
+                                tenantId,
+                                vehicleNumber: vNum,
+                                model: vModel,
+                                vehicleType: 'Sedan',
+                                seatingCapacity: 4,
+                                registrationDate: new Date(),
+                                insuranceExpiry: defaultExpiry,
+                                fitnessExpiry: defaultExpiry,
+                                permitExpiry: defaultExpiry,
+                            },
+                        });
+                    }
+                    catch (err) {
+                        if (err.code === 'P2002') {
+                            existing = await this.prisma.vehicle.findFirst({
+                                where: { tenantId, vehicleNumber: vNum },
+                            });
+                            if (!existing) {
+                                const fallbackVNum = ('EXT-' +
+                                    Date.now().toString().slice(-6) +
+                                    Math.floor(100 + Math.random() * 900)).slice(0, 50);
+                                existing = await this.prisma.vehicle.create({
+                                    data: {
+                                        tenantId,
+                                        vehicleNumber: fallbackVNum,
+                                        model: vModel,
+                                        vehicleType: 'Sedan',
+                                        seatingCapacity: 4,
+                                        registrationDate: new Date(),
+                                        insuranceExpiry: defaultExpiry,
+                                        fitnessExpiry: defaultExpiry,
+                                        permitExpiry: defaultExpiry,
+                                    },
+                                });
+                            }
+                        }
+                        else {
+                            throw err;
+                        }
+                    }
                 }
                 vehicle = existing;
             }
+            if (!vehicle) {
+                throw new common_1.BadRequestException('Unable to resolve or create vehicle');
+            }
             const tenant = await this.prisma.tenant.findUnique({
-                where: { id: customer.tenantId },
+                where: { id: tenantId },
             });
             const bkPrefix = tenant?.bookingPrefix !== undefined ? tenant.bookingPrefix : 'BK-2026-';
             const bkStart = tenant?.bookingStartingNumber || 1001;
             const countBookings = await this.prisma.booking.count({
-                where: { tenantId: customer.tenantId },
+                where: { tenantId },
             });
             let bookingNumber = '';
             let isUnique = false;
@@ -157,7 +271,7 @@ let DutySlipsService = class DutySlipsService {
             while (!isUnique) {
                 bookingNumber = `${bkPrefix}${currentBkVal}`;
                 const existing = await this.prisma.booking.findFirst({
-                    where: { tenantId: customer.tenantId, bookingNumber },
+                    where: { tenantId, bookingNumber },
                 });
                 if (!existing) {
                     isUnique = true;
@@ -171,7 +285,7 @@ let DutySlipsService = class DutySlipsService {
             const result = await this.prisma.$transaction(async (tx) => {
                 const newBooking = await tx.booking.create({
                     data: {
-                        tenantId: customer.tenantId,
+                        tenantId,
                         bookingNumber,
                         customerId: customer.id,
                         pickupLocation: dto.pickupLocation || 'Direct Duty Slip Pickup',
@@ -190,7 +304,7 @@ let DutySlipsService = class DutySlipsService {
                 });
                 const newAssignment = await tx.assignment.create({
                     data: {
-                        tenantId: customer.tenantId,
+                        tenantId,
                         bookingId: newBooking.id,
                         driverId: driver.id,
                         vehicleId: vehicle.id,
@@ -210,7 +324,7 @@ let DutySlipsService = class DutySlipsService {
                     : 'DS-2026-';
                 const dsStart = tenant?.dutySlipStartingNumber || 1001;
                 const countSlips = await tx.dutySlip.count({
-                    where: { tenantId: customer.tenantId },
+                    where: { tenantId },
                 });
                 let dutySlipNumber = '';
                 let isUniqueSlip = false;
@@ -218,7 +332,7 @@ let DutySlipsService = class DutySlipsService {
                 while (!isUniqueSlip) {
                     dutySlipNumber = `${dsPrefix}${currentDsVal}`;
                     const existing = await tx.dutySlip.findFirst({
-                        where: { tenantId: customer.tenantId, dutySlipNumber },
+                        where: { tenantId, dutySlipNumber },
                     });
                     if (!existing) {
                         isUniqueSlip = true;
@@ -229,7 +343,7 @@ let DutySlipsService = class DutySlipsService {
                 }
                 const newSlip = await tx.dutySlip.create({
                     data: {
-                        tenantId: customer.tenantId,
+                        tenantId,
                         dutySlipNumber,
                         bookingId: newBooking.id,
                         driverId: driver.id,
@@ -277,14 +391,23 @@ let DutySlipsService = class DutySlipsService {
         if (!assignment) {
             throw new common_1.BadRequestException('No active resource assignment found for this booking.');
         }
-        const countSlips = await this.prisma.dutySlip.count();
+        const tenant = await this.prisma.tenant.findUnique({
+            where: { id: booking.tenantId },
+        });
+        const dsPrefix = tenant?.dutySlipPrefix !== undefined
+            ? tenant.dutySlipPrefix
+            : 'DS-2026-';
+        const dsStart = tenant?.dutySlipStartingNumber || 1001;
+        const countSlips = await this.prisma.dutySlip.count({
+            where: { tenantId: booking.tenantId },
+        });
         let dutySlipNumber = '';
         let isUnique = false;
-        let currentDsVal = countSlips + 1;
+        let currentDsVal = countSlips + dsStart;
         while (!isUnique) {
-            dutySlipNumber = String(currentDsVal);
+            dutySlipNumber = `${dsPrefix}${currentDsVal}`;
             const existing = await this.prisma.dutySlip.findFirst({
-                where: { dutySlipNumber },
+                where: { tenantId: booking.tenantId, dutySlipNumber },
             });
             if (!existing) {
                 isUnique = true;
@@ -295,6 +418,7 @@ let DutySlipsService = class DutySlipsService {
         }
         return this.prisma.dutySlip.create({
             data: {
+                tenantId: booking.tenantId,
                 dutySlipNumber,
                 bookingId,
                 driverId: assignment.driverId,
@@ -1138,6 +1262,8 @@ let DutySlipsService = class DutySlipsService {
 exports.DutySlipsService = DutySlipsService;
 exports.DutySlipsService = DutySlipsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __param(1, (0, common_1.Optional)()),
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        tenant_context_service_1.TenantContextService])
 ], DutySlipsService);
 //# sourceMappingURL=duty-slips.service.js.map

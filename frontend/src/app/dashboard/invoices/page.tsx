@@ -45,6 +45,8 @@ interface Invoice {
   status: 'DRAFT' | 'SENT' | 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'VOID' | 'CANCELLED';
   baseFare: string;
   extraKmCharges: string;
+  extraHourCharges?: string;
+  discount?: string;
   toll: string;
   parking: string;
   nightCharges: string;
@@ -141,6 +143,7 @@ export default function InvoicesPage() {
   const [genCustomerCategory, setGenCustomerCategory] = useState<string>('');
   const [partySearchTerm, setPartySearchTerm] = useState<string>('');
   const [genIsRcm, setGenIsRcm] = useState<boolean>(false);
+  const [genDiscount, setGenDiscount] = useState<string>('0');
   const [companyGst, setCompanyGst] = useState<string>('');
 
   // PDF Preview State
@@ -258,21 +261,31 @@ export default function InvoicesPage() {
   const previewCalculation = () => {
     if (selectedTrips.length === 0) return null;
 
+    let baseCabHire = 0;
+    let extraKm = 0;
+    let extraHours = 0;
     let subtotal = 0;
     let toll = 0;
     let parking = 0;
     let mcd = 0;
     let stateTax = 0;
     for (const trip of selectedTrips) {
+      const bh = Number(trip.baseFareCharged || 0);
+      const km = Number(trip.extraKmCharged || 0);
+      const hr = Number(trip.extraHoursCharged || 0);
+      baseCabHire += bh;
+      extraKm += km;
+      extraHours += hr;
+
       subtotal +=
-        Number(trip.baseFareCharged || 0) +
-        Number(trip.extraKmCharged || 0) +
+        bh +
+        km +
+        hr +
         Number(trip.toll || 0) +
         Number(trip.parking || 0) +
         Number(trip.stateTaxCharged || 0) +
         Number(trip.mcdCharged || 0) +
         Number(trip.nightChargesCharged || 0) +
-        Number(trip.extraHoursCharged || 0) +
         Number(trip.driverAllowance || 0) +
         Number(trip.miscChargesCharged || 0);
 
@@ -281,6 +294,11 @@ export default function InvoicesPage() {
       mcd += Number(trip.mcdCharged || 0);
       stateTax += Number(trip.stateTaxCharged || 0);
     }
+
+    // Base fare definition per user: base cab hire charge + extra km + extra hour
+    const totalBaseFare = baseCabHire + extraKm + extraHours;
+    const rawDiscount = Number(genDiscount) || 0;
+    const discount = Math.min(Math.max(0, rawDiscount), totalBaseFare);
     
     // Check if selected customer has predefined rates
     const customer = selectedTrips[0]?.booking.customer;
@@ -293,7 +311,9 @@ export default function InvoicesPage() {
     const compStateCode = compGst.match(/^\d{2}/) ? compGst.substring(0, 2) : '07';
     const isSameState = custStateCode === compStateCode;
 
-    const gstTaxableAmount = Math.max(0, subtotal - (toll + parking + mcd + stateTax));
+    // Toll, parking and all are extra:
+    const nonTaxableExtras = toll + parking + mcd + stateTax;
+    const gstTaxableAmount = Math.max(0, subtotal - discount - nonTaxableExtras);
 
     let cgst = 0, sgst = 0, igst = 0;
     let cgstRate = 0, sgstRate = 0, igstRate = 0;
@@ -324,9 +344,31 @@ export default function InvoicesPage() {
     igst = (gstTaxableAmount * igstRate) / 100;
 
     const totalTax = cgst + sgst + igst;
-    const totalAmount = genIsRcm ? subtotal : (subtotal + totalTax);
+    // Total calculation: (base fare - discount) + gst + toll parking + allowances
+    const totalAmount = genIsRcm ? subtotal - discount : subtotal - discount + totalTax;
 
-    return { subtotal, cgst, sgst, igst, totalTax, totalAmount, cgstRate, sgstRate, igstRate };
+    return {
+      baseCabHire,
+      extraKm,
+      extraHours,
+      totalBaseFare,
+      discount,
+      subtotal,
+      toll,
+      parking,
+      stateTax,
+      mcd,
+      nonTaxableExtras,
+      gstTaxableAmount,
+      cgst,
+      sgst,
+      igst,
+      totalTax,
+      totalAmount,
+      cgstRate,
+      sgstRate,
+      igstRate,
+    };
   };
 
   const calcPreview = previewCalculation();
@@ -384,11 +426,13 @@ export default function InvoicesPage() {
           invoiceDate: new Date(genInvoiceDate).toISOString(),
           dueDate: new Date(genDueDate).toISOString(),
           isRcm: genIsRcm,
+          discount: Number(genDiscount) || 0,
         }),
       });
 
       setIsGenerateOpen(false);
       setGenSelectedTripIds([]);
+      setGenDiscount('0');
       setPage(1);
       fetchInvoices();
     } catch (err: any) {
@@ -554,6 +598,7 @@ export default function InvoicesPage() {
   const [editDueDate, setEditDueDate] = useState('');
   const [editStatus, setEditStatus] = useState<string>('UNPAID');
   const [editIsRcm, setEditIsRcm] = useState(false);
+  const [editDiscount, setEditDiscount] = useState<string>('0');
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -564,6 +609,7 @@ export default function InvoicesPage() {
     setEditDueDate(invoice.dueDate ? invoice.dueDate.split('T')[0] : '');
     setEditStatus(invoice.status);
     setEditIsRcm(!!(invoice as any).isRcm);
+    setEditDiscount(String((invoice as any).discount || '0'));
     setEditError(null);
     setIsEditOpen(true);
 
@@ -573,6 +619,7 @@ export default function InvoicesPage() {
         api.request('/invoices/uninvoiced-trips'),
       ]);
       setEditInvoice(fullInvoice);
+      setEditDiscount(String((fullInvoice as any).discount || '0'));
       const custTrips = (tripsRes || []).filter(
         (t: ClosedTrip) => t.booking?.customer?.id === invoice.customerId
       );
@@ -597,6 +644,7 @@ export default function InvoicesPage() {
           dueDate: editDueDate ? new Date(editDueDate).toISOString() : undefined,
           status: editStatus,
           isRcm: editIsRcm,
+          discount: Number(editDiscount) || 0,
         }),
       });
 
@@ -878,7 +926,14 @@ export default function InvoicesPage() {
                     </td>
                     <td className="py-4 px-6 text-[#64748B]">{new Date(invoice.invoiceDate).toLocaleDateString('en-GB')}</td>
                     <td className="py-4 px-6 text-[#64748B]">{new Date(invoice.dueDate).toLocaleDateString('en-GB')}</td>
-                    <td className="py-4 px-6 font-semibold">INR {Number(invoice.totalAmount).toFixed(2)}</td>
+                    <td className="py-4 px-6 font-semibold">
+                      <div>INR {Number(invoice.totalAmount).toFixed(2)}</div>
+                      {Number((invoice as any).discount || 0) > 0 && (
+                        <div className="text-[10px] font-bold text-rose-600 inline-flex items-center gap-0.5 mt-0.5 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                          -₹{Number((invoice as any).discount).toFixed(2)} Disc
+                        </div>
+                      )}
+                    </td>
                     <td className="py-4 px-6">
                       <span className={`font-semibold ${Number(invoice.dueAmount) > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                         INR {Number(invoice.dueAmount).toFixed(2)}
@@ -1284,6 +1339,43 @@ export default function InvoicesPage() {
                           </div>
                         </div>
 
+                        {/* Discount on Base Fare Field */}
+                        <div className="pt-1 border-t border-slate-100">
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[10px] font-bold text-[#475569] uppercase">
+                              Discount on Base Fare (₹)
+                            </label>
+                            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                              Max Base: ₹{calcPreview.totalBaseFare.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="relative">
+                            <span className="absolute left-2.5 top-2 text-xs font-bold text-[#64748B]">₹</span>
+                            <input
+                              type="number"
+                              min={0}
+                              max={calcPreview.totalBaseFare}
+                              step="any"
+                              value={genDiscount}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                if (val < 0) {
+                                  setGenDiscount('0');
+                                } else if (val > calcPreview.totalBaseFare) {
+                                  setGenDiscount(String(calcPreview.totalBaseFare));
+                                } else {
+                                  setGenDiscount(e.target.value);
+                                }
+                              }}
+                              placeholder="0.00"
+                              className="w-full border border-[#E2E8F0] bg-white rounded-lg pl-6 pr-2 py-2 text-xs text-[#0F172A] font-semibold focus:outline-none focus:border-blue-500"
+                            />
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-1">
+                            Base Fare = Cab Hire (₹{calcPreview.baseCabHire.toLocaleString()}) + Extra KM (₹{calcPreview.extraKm.toLocaleString()}) + Extra Hours (₹{calcPreview.extraHours.toLocaleString()}). Toll & Parking remain extra.
+                          </p>
+                        </div>
+
                         <div className="flex items-center space-x-2 pt-2">
                           <input
                             type="checkbox"
@@ -1320,9 +1412,25 @@ export default function InvoicesPage() {
                         </div>
 
                         <div className="border-t border-dashed border-[#E2E8F0] pt-2 space-y-1.5 text-[11px]">
-                          <div className="flex justify-between font-bold text-[#0F172A]">
-                            <span>Sub Total</span>
-                            <span>₹{calcPreview.subtotal.toLocaleString()}</span>
+                          <div className="flex justify-between text-[#475569]">
+                            <span>Base Fare (Hire + KM + Hrs)</span>
+                            <span>₹{calcPreview.totalBaseFare.toLocaleString()}</span>
+                          </div>
+                          {calcPreview.discount > 0 && (
+                            <div className="flex justify-between font-semibold text-rose-600">
+                              <span>Less: Discount on Base Fare</span>
+                              <span>-₹{calcPreview.discount.toLocaleString()}</span>
+                            </div>
+                          )}
+                          {calcPreview.discount > 0 && (
+                            <div className="flex justify-between text-slate-700 font-medium">
+                              <span>Net Discounted Base Fare</span>
+                              <span>₹{(calcPreview.totalBaseFare - calcPreview.discount).toLocaleString()}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-[#475569]">
+                            <span>Toll & Parking (Extra)</span>
+                            <span>₹{(calcPreview.toll + calcPreview.parking + calcPreview.mcd + calcPreview.stateTax).toLocaleString()}</span>
                           </div>
                           {calcPreview.cgstRate > 0 && (
                             <div className="flex justify-between text-[#64748B]">
@@ -1648,24 +1756,40 @@ export default function InvoicesPage() {
             <div className="border border-[#E2E8F0] rounded-xl p-4 bg-gray-50/50 mb-6 text-xs space-y-2">
               <div className="text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-1">Financial Calculation Breakdown</div>
               <div className="flex justify-between">
-                <span>Base Fare Charged:</span>
+                <span>Base Cab Hire Charged:</span>
                 <span className="font-semibold text-[#0F172A]">INR {Number(selectedInvoice.baseFare).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Extra KM Charges:</span>
                 <span className="font-semibold text-[#0F172A]">INR {Number(selectedInvoice.extraKmCharges).toFixed(2)}</span>
               </div>
+              {Number((selectedInvoice as any).extraHourCharges || 0) > 0 && (
+                <div className="flex justify-between">
+                  <span>Extra Hour Charges:</span>
+                  <span className="font-semibold text-[#0F172A]">INR {Number((selectedInvoice as any).extraHourCharges).toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-semibold text-blue-700 bg-blue-50/50 px-2 py-1 rounded">
+                <span>Total Base Fare (Hire + KM + Hours):</span>
+                <span>INR {(Number(selectedInvoice.baseFare) + Number(selectedInvoice.extraKmCharges) + Number((selectedInvoice as any).extraHourCharges || 0)).toFixed(2)}</span>
+              </div>
+              {Number((selectedInvoice as any).discount || 0) > 0 && (
+                <div className="flex justify-between font-bold text-rose-600 bg-rose-50/50 px-2 py-1 rounded">
+                  <span>Less: Discount on Base Fare:</span>
+                  <span>- INR {Number((selectedInvoice as any).discount).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between">
-                <span>Toll & Parking Fares:</span>
-                <span className="font-semibold text-[#0F172A]">INR {(Number(selectedInvoice.toll) + Number(selectedInvoice.parking)).toFixed(2)}</span>
+                <span>Toll, Parking & Taxes (Extras):</span>
+                <span className="font-semibold text-[#0F172A]">INR {(Number(selectedInvoice.toll) + Number(selectedInvoice.parking) + Number((selectedInvoice as any).stateTax || 0) + Number((selectedInvoice as any).mcd || 0)).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Night Allowances:</span>
+                <span>Night & Other Allowances:</span>
                 <span className="font-semibold text-[#0F172A]">INR {(Number(selectedInvoice.nightCharges) + Number(selectedInvoice.miscCharges)).toFixed(2)}</span>
               </div>
               <div className="h-[1px] bg-gray-200 my-1" />
               <div className="flex justify-between font-semibold text-[#0F172A]">
-                <span>Subtotal (Net Taxable Value):</span>
+                <span>Subtotal (Gross Charges):</span>
                 <span>INR {Number(selectedInvoice.subtotal).toFixed(2)}</span>
               </div>
               
@@ -2029,6 +2153,44 @@ export default function InvoicesPage() {
                       <option value="VOID">VOID</option>
                     </select>
                   </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-[#475569] uppercase">
+                      Discount on Base Fare (₹)
+                    </label>
+                    {editInvoice && (
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                        Base Fare: ₹{(Number(editInvoice.baseFare) + Number(editInvoice.extraKmCharges) + Number((editInvoice as any).extraHourCharges || 0)).toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-2 text-xs font-bold text-[#64748B]">₹</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={editInvoice ? (Number(editInvoice.baseFare) + Number(editInvoice.extraKmCharges) + Number((editInvoice as any).extraHourCharges || 0)) : undefined}
+                      step="any"
+                      value={editDiscount}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        const maxBase = editInvoice ? (Number(editInvoice.baseFare) + Number(editInvoice.extraKmCharges) + Number((editInvoice as any).extraHourCharges || 0)) : 999999;
+                        if (val < 0) {
+                          setEditDiscount('0');
+                        } else if (val > maxBase && maxBase > 0) {
+                          setEditDiscount(String(maxBase));
+                        } else {
+                          setEditDiscount(e.target.value);
+                        }
+                      }}
+                      className="w-full border border-[#E2E8F0] bg-white rounded-lg pl-6 pr-2 py-2 text-xs text-[#0F172A] font-semibold focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Applied strictly on Base Fare (Base Cab Hire + Extra KM + Extra Hours). Toll, Parking & Taxes remain extras.
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-2 pt-1">

@@ -41,4 +41,9 @@ export class UpdateInvoiceDto {
   @IsNumber()
   @IsOptional()
   igstRate?: number;
+
+  @IsNumber({}, { message: 'Discount must be a number' })
+  @Min(0, { message: 'Discount cannot be negative' })
+  @IsOptional()
+  discount?: number;
 }

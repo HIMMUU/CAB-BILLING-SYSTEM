@@ -8,4 +8,5 @@ export declare class UpdateInvoiceDto {
     cgstRate?: number;
     sgstRate?: number;
     igstRate?: number;
+    discount?: number;
 }
