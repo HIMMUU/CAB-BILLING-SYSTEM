@@ -110,4 +110,48 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateDutySlipDto.prototype, "manualVehicleModel", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateDutySlipDto.prototype, "carGroup", void 0);
+__decorate([
+    (0, class_validator_1.IsUUID)(4, { message: 'Rate Card ID must be a valid UUID' }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateDutySlipDto.prototype, "rateCardId", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateDutySlipDto.prototype, "billingMode", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateDutySlipDto.prototype, "baseFare", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateDutySlipDto.prototype, "extraKmRate", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateDutySlipDto.prototype, "extraHourRate", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateDutySlipDto.prototype, "packageKm", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateDutySlipDto.prototype, "packageHours", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreateDutySlipDto.prototype, "pricingSnapshot", void 0);
 //# sourceMappingURL=create-duty-slip.dto.js.map

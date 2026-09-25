@@ -215,7 +215,7 @@ export class DutySlipsService {
                 tenantId,
                 vehicleNumber: vNum,
                 model: vModel,
-                vehicleType: 'Sedan',
+                vehicleType: dto.carGroup?.trim() || 'Sedan',
                 seatingCapacity: 4,
                 registrationDate: new Date(),
                 insuranceExpiry: defaultExpiry,
@@ -239,7 +239,7 @@ export class DutySlipsService {
                     tenantId,
                     vehicleNumber: fallbackVNum,
                     model: vModel,
-                    vehicleType: 'Sedan',
+                    vehicleType: dto.carGroup?.trim() || 'Sedan',
                     seatingCapacity: 4,
                     registrationDate: new Date(),
                     insuranceExpiry: defaultExpiry,
@@ -368,6 +368,16 @@ export class DutySlipsService {
             employeeId: dto.employeeId,
             guestName: dto.guestName || dto.manualCustomerName,
             guestSalutation: dto.guestSalutation,
+            carGroup: dto.carGroup || vehicle.vehicleType,
+            rateCardId: dto.rateCardId,
+            billingMode: dto.billingMode,
+            baseFare: dto.baseFare !== undefined ? dto.baseFare : undefined,
+            extraKmRate: dto.extraKmRate !== undefined ? dto.extraKmRate : undefined,
+            extraHourRate: dto.extraHourRate !== undefined ? dto.extraHourRate : undefined,
+            packageKm: dto.packageKm !== undefined ? dto.packageKm : undefined,
+            packageHours: dto.packageHours !== undefined ? dto.packageHours : undefined,
+            remarks: dto.remarks,
+            pricingSnapshot: dto.pricingSnapshot || undefined,
           } as any,
         });
 
@@ -416,11 +426,47 @@ export class DutySlipsService {
         bookingId,
         status: 'ACTIVE',
       },
+      include: { vehicle: true },
     });
     if (!assignment) {
       throw new BadRequestException(
         'No active resource assignment found for this booking.',
       );
+    }
+
+    // Auto-resolve matching rate card and category for this booking if not explicitly provided
+    let resolvedRateCardId = dto.rateCardId;
+    let resolvedExtraKmRate = dto.extraKmRate;
+    let resolvedExtraHourRate = dto.extraHourRate;
+    let resolvedBaseFare = dto.baseFare;
+    const resolvedCarGroup = dto.carGroup || booking.vehicleTypeRequired || assignment.vehicle?.vehicleType;
+
+    if (!resolvedRateCardId && booking.customerId && resolvedCarGroup) {
+      const category = await this.prisma.vehicleCategory.findFirst({
+        where: { name: { equals: resolvedCarGroup, mode: 'insensitive' } },
+      });
+      if (category) {
+        const rc = await this.prisma.rateCard.findFirst({
+          where: {
+            vehicleCategoryId: category.id,
+            OR: [
+              { customerId: booking.customerId },
+              { customerId: null },
+            ],
+            status: 'ACTIVE',
+          },
+          orderBy: [
+            { customerId: 'desc' },
+            { effectiveFrom: 'desc' },
+          ],
+        });
+        if (rc) {
+          resolvedRateCardId = rc.id;
+          if (resolvedExtraKmRate === undefined) resolvedExtraKmRate = Number(rc.extraKmRate);
+          if (resolvedExtraHourRate === undefined) resolvedExtraHourRate = Number(rc.extraHourRate);
+          if (resolvedBaseFare === undefined) resolvedBaseFare = Number(rc.fullDayRate || rc.halfDayRate);
+        }
+      }
     }
 
     // 5. Generate unique duty slip number with tenant configuration
@@ -464,6 +510,16 @@ export class DutySlipsService {
         employeeId: employeeId || booking.employeeId,
         guestName: dto.guestName || booking.guestName,
         guestSalutation: dto.guestSalutation || booking.guestSalutation,
+        carGroup: resolvedCarGroup,
+        rateCardId: resolvedRateCardId,
+        billingMode: dto.billingMode,
+        baseFare: resolvedBaseFare,
+        extraKmRate: resolvedExtraKmRate,
+        extraHourRate: resolvedExtraHourRate,
+        packageKm: dto.packageKm,
+        packageHours: dto.packageHours,
+        remarks: dto.remarks,
+        pricingSnapshot: dto.pricingSnapshot || undefined,
       } as any,
       include: {
         booking: { include: { customer: true } },
@@ -554,6 +610,20 @@ export class DutySlipsService {
     }
 
     return dutySlip;
+  }
+
+  async getVehicleLastKm(vehicleId: string) {
+    const lastSlip = await this.prisma.dutySlip.findFirst({
+      where: {
+        vehicleId,
+        endKm: { not: null },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { endKm: true, startKm: true },
+    });
+    return {
+      lastEndKm: lastSlip?.endKm ? Number(lastSlip.endKm) : 0,
+    };
   }
 
   async update(id: string, dto: UpdateDutySlipDto) {
@@ -648,6 +718,16 @@ export class DutySlipsService {
         vehicleId: dto.vehicleId,
         guestName: cleanGuestName,
         guestSalutation: cleanGuestSalutation,
+        carGroup: dto.carGroup !== undefined ? dto.carGroup : undefined,
+        rateCardId: dto.rateCardId !== undefined ? dto.rateCardId : undefined,
+        billingMode: dto.billingMode !== undefined ? dto.billingMode : undefined,
+        baseFare: dto.baseFare !== undefined ? dto.baseFare : undefined,
+        extraKmRate: dto.extraKmRate !== undefined ? dto.extraKmRate : undefined,
+        extraHourRate: dto.extraHourRate !== undefined ? dto.extraHourRate : undefined,
+        packageKm: dto.packageKm !== undefined ? dto.packageKm : undefined,
+        packageHours: dto.packageHours !== undefined ? dto.packageHours : undefined,
+        remarks: dto.remarks !== undefined ? dto.remarks : undefined,
+        pricingSnapshot: dto.pricingSnapshot !== undefined ? dto.pricingSnapshot : undefined,
       },
       include: {
         booking: { include: { customer: true } },

@@ -424,6 +424,16 @@ model DutySlip {
   employeeId     String?        @map("employee_id") @db.VarChar(100)
   guestName       String?        @map("guest_name") @db.VarChar(255)
   guestSalutation String?        @map("guest_salutation") @db.VarChar(50)
+  carGroup        String?        @map("car_group") @db.VarChar(100)
+  rateCardId      String?        @map("rate_card_id") @db.Uuid
+  billingMode     String?        @map("billing_mode") @db.VarChar(20)
+  baseFare        Decimal?       @map("base_fare") @db.Decimal(10, 2)
+  extraKmRate     Decimal?       @map("extra_km_rate") @db.Decimal(10, 2)
+  extraHourRate   Decimal?       @map("extra_hour_rate") @db.Decimal(10, 2)
+  packageKm       Decimal?       @map("package_km") @db.Decimal(10, 2)
+  packageHours    Decimal?       @map("package_hours") @db.Decimal(5, 2)
+  remarks         String?        @map("remarks") @db.Text
+  pricingSnapshot Json?          @map("pricing_snapshot")
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz
 

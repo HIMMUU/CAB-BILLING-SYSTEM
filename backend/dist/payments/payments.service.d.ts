@@ -63,11 +63,11 @@ export declare class PaymentsService {
                 nightCharges: import("@prisma/client/runtime/library").Decimal;
                 stateTax: import("@prisma/client/runtime/library").Decimal;
                 mcd: import("@prisma/client/runtime/library").Decimal;
+                baseFare: import("@prisma/client/runtime/library").Decimal;
                 totalAmount: import("@prisma/client/runtime/library").Decimal;
                 invoiceNumber: string;
                 invoiceDate: Date;
                 dueDate: Date;
-                baseFare: import("@prisma/client/runtime/library").Decimal;
                 extraKmCharges: import("@prisma/client/runtime/library").Decimal;
                 extraHourCharges: import("@prisma/client/runtime/library").Decimal;
                 discount: import("@prisma/client/runtime/library").Decimal;
@@ -139,11 +139,11 @@ export declare class PaymentsService {
             nightCharges: import("@prisma/client/runtime/library").Decimal;
             stateTax: import("@prisma/client/runtime/library").Decimal;
             mcd: import("@prisma/client/runtime/library").Decimal;
+            baseFare: import("@prisma/client/runtime/library").Decimal;
             totalAmount: import("@prisma/client/runtime/library").Decimal;
             invoiceNumber: string;
             invoiceDate: Date;
             dueDate: Date;
-            baseFare: import("@prisma/client/runtime/library").Decimal;
             extraKmCharges: import("@prisma/client/runtime/library").Decimal;
             extraHourCharges: import("@prisma/client/runtime/library").Decimal;
             discount: import("@prisma/client/runtime/library").Decimal;

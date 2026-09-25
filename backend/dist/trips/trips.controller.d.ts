@@ -99,11 +99,14 @@ export declare class TripsController {
                 createdAt: Date;
                 updatedAt: Date;
                 tenantId: string;
+                extraKmRate: import("@prisma/client/runtime/library").Decimal | null;
+                extraHourRate: import("@prisma/client/runtime/library").Decimal | null;
                 driverAllowance: import("@prisma/client/runtime/library").Decimal;
                 driverId: string;
                 employeeId: string | null;
                 guestName: string | null;
                 guestSalutation: string | null;
+                remarks: string | null;
                 bookingId: string;
                 vehicleId: string;
                 dutySlipNumber: string;
@@ -118,6 +121,13 @@ export declare class TripsController {
                 endDateTime: Date | null;
                 stateTax: import("@prisma/client/runtime/library").Decimal;
                 mcd: import("@prisma/client/runtime/library").Decimal;
+                carGroup: string | null;
+                rateCardId: string | null;
+                billingMode: string | null;
+                baseFare: import("@prisma/client/runtime/library").Decimal | null;
+                packageKm: import("@prisma/client/runtime/library").Decimal | null;
+                packageHours: import("@prisma/client/runtime/library").Decimal | null;
+                pricingSnapshot: import("@prisma/client/runtime/library").JsonValue | null;
             };
         } & {
             id: string;

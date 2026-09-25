@@ -20,4 +20,13 @@ export declare class UpdateDutySlipDto {
     guestSalutation?: string;
     bookingBy?: string;
     remarks?: string;
+    carGroup?: string;
+    rateCardId?: string;
+    billingMode?: string;
+    baseFare?: number;
+    extraKmRate?: number;
+    extraHourRate?: number;
+    packageKm?: number;
+    packageHours?: number;
+    pricingSnapshot?: any;
 }

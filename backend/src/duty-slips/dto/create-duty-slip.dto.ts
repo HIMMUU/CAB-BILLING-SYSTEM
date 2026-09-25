@@ -88,4 +88,39 @@ export class CreateDutySlipDto {
   @IsString()
   @IsOptional()
   manualVehicleModel?: string;
+
+  @IsString()
+  @IsOptional()
+  carGroup?: string;
+
+  @IsUUID(4, { message: 'Rate Card ID must be a valid UUID' })
+  @IsOptional()
+  rateCardId?: string;
+
+  @IsString()
+  @IsOptional()
+  billingMode?: string;
+
+  @IsNumber()
+  @IsOptional()
+  baseFare?: number;
+
+  @IsNumber()
+  @IsOptional()
+  extraKmRate?: number;
+
+  @IsNumber()
+  @IsOptional()
+  extraHourRate?: number;
+
+  @IsNumber()
+  @IsOptional()
+  packageKm?: number;
+
+  @IsNumber()
+  @IsOptional()
+  packageHours?: number;
+
+  @IsOptional()
+  pricingSnapshot?: any;
 }

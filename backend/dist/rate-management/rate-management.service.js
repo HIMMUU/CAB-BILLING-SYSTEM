@@ -103,11 +103,11 @@ let RateManagementService = class RateManagementService {
     }
     async findAllRateCards(query) {
         const page = Number(query.page) || 1;
-        const limit = Number(query.limit) || 10;
+        const limit = Number(query.limit) || 100;
         const skip = (page - 1) * limit;
         const where = {};
         if (query.clientType && query.clientType !== 'ALL') {
-            where.clientType = query.clientType;
+            where.clientType = { equals: query.clientType, mode: 'insensitive' };
         }
         if (query.customerId && query.customerId !== 'ALL') {
             where.customerId = query.customerId;

@@ -18,4 +18,13 @@ export declare class CreateDutySlipDto {
     manualDriverPhone?: string;
     manualVehicleNumber?: string;
     manualVehicleModel?: string;
+    carGroup?: string;
+    rateCardId?: string;
+    billingMode?: string;
+    baseFare?: number;
+    extraKmRate?: number;
+    extraHourRate?: number;
+    packageKm?: number;
+    packageHours?: number;
+    pricingSnapshot?: any;
 }

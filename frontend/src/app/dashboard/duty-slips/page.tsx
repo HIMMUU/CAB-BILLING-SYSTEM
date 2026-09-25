@@ -46,6 +46,15 @@ interface DutySlip {
   remarks?: string;
   guestName?: string | null;
   guestSalutation?: string | null;
+  carGroup?: string | null;
+  rateCardId?: string | null;
+  billingMode?: string | null;
+  baseFare?: number | null;
+  extraKmRate?: number | null;
+  extraHourRate?: number | null;
+  packageKm?: number | null;
+  packageHours?: number | null;
+  pricingSnapshot?: any;
   trip?: any;
 }
 interface CalcPreview {
@@ -175,6 +184,7 @@ export default function DutySlipsPage() {
   /* Direct create & Edit unified full-screen form */
   const [isDirectOpen, setIsDirectOpen] = useState(false);
   const [editingSlip, setEditingSlip] = useState<DutySlip | null>(null);
+  const isRestoringRef = useRef(false);
   const [df, setDf] = useState({
     customerType: 'regular' as 'regular' | 'new',
     modeOfPayment: 'Credit', modeOfReservation: 'Email', clientType: 'COMPANY',
@@ -358,6 +368,8 @@ export default function DutySlipsPage() {
 
   /* ── Compute dynamic available Car Groups ── */
   const availableCarGroups = useMemo(() => {
+    let groups: string[] = [];
+
     // 1. If selected Customer has specific Rate Cards, show ONLY those rate card categories
     if (fullCustomer && fullCustomer.rateCards && Array.isArray(fullCustomer.rateCards) && fullCustomer.rateCards.length > 0) {
       const custCategories: string[] = [];
@@ -367,18 +379,27 @@ export default function DutySlipsPage() {
         }
       });
       if (custCategories.length > 0) {
-        return custCategories;
+        groups = custCategories;
       }
     }
 
     // 2. Otherwise fall back to master categories
-    if (categories && Array.isArray(categories) && categories.length > 0) {
-      return categories.map((cat: any) => cat.name).filter(Boolean);
+    if (groups.length === 0 && categories && Array.isArray(categories) && categories.length > 0) {
+      groups = categories.map((cat: any) => cat.name).filter(Boolean);
     }
 
     // 3. Fallback defaults if list is empty
-    return ['Sedan', 'SUV', 'Luxury', 'Executive', 'Hatchback', 'Tempo Traveller'];
-  }, [fullCustomer, categories]);
+    if (groups.length === 0) {
+      groups = ['Sedan', 'SUV', 'Luxury', 'Executive', 'Hatchback', 'Tempo Traveller'];
+    }
+
+    // 4. CRITICAL: Always ensure the current carGroup is in the list so the <select> shows correctly
+    if (df.carGroup && !groups.includes(df.carGroup)) {
+      groups = [df.carGroup, ...groups];
+    }
+
+    return groups;
+  }, [fullCustomer, categories, df.carGroup]);
 
   /* ── Fetch Customer details on selection ── */
   useEffect(() => {
@@ -389,7 +410,8 @@ export default function DutySlipsPage() {
     const fetchCust = async () => {
       try {
         const customer = await api.request(`/customers/${df.customerId}`);
-        setFullCustomer(customer);
+        // Only set fullCustomer if not already set by openUnifiedForm (during restore)
+        setFullCustomer((prev: any) => prev && prev.id === customer.id ? prev : customer);
         const taxRate = Number(customer.cgstRate || 0) + Number(customer.sgstRate || 0) + Number(customer.igstRate || 0);
         const firstCategory = customer.rateCards && customer.rateCards.length > 0 ? customer.rateCards[0].vehicleCategory?.name : null;
         setDf(f => ({
@@ -398,7 +420,8 @@ export default function DutySlipsPage() {
           phone: customer.phone || f.phone,
           clientType: customer.clientType || f.clientType,
           serviceTax: taxRate || f.serviceTax,
-          carGroup: f.carGroup || firstCategory || '',
+          // GUARD: Do NOT overwrite carGroup if restoring an existing slip
+          carGroup: isRestoringRef.current ? f.carGroup : (f.carGroup || firstCategory || ''),
         }));
       } catch (err) {
         console.error('Failed to fetch customer details:', err);
@@ -468,6 +491,10 @@ export default function DutySlipsPage() {
 
       if (rc) {
         setSelectedRateCard((prev: any) => {
+          // GUARD: If restoring a slip, keep the already-set rate card
+          if (isRestoringRef.current && prev && prev.id) {
+            return prev;
+          }
           if (editingSlip && prev && allCards.some((c: any) => c.id === prev.id)) {
             return prev;
           }
@@ -479,6 +506,9 @@ export default function DutySlipsPage() {
           !!rc.customerId
         );
         setDf(f => {
+          // GUARD: Do NOT mutate carGroup, billingMode, or rates when restoring
+          if (isRestoringRef.current) return f;
+
           const isOutstationDuty = f.dutyType === 'O' || f.dutyType === 'T';
           const isFlexDuty = f.dutyType === 'FLEXIBLE';
 
@@ -633,6 +663,9 @@ export default function DutySlipsPage() {
     }
 
     setDf(f => {
+      // GUARD: Do NOT recalculate any rates while openUnifiedForm is still restoring state
+      if (isRestoringRef.current) return f;
+
       const baseFareVal = f.isManualBaseFare ? f.baseFare : calculatedBaseFare;
       const extraKmRateVal = f.isManualExtraKmRate ? f.extraKmRate : calculatedExtraKmRate;
       const extraHourRateVal = f.isManualExtraHourRate ? f.extraHourRate : calculatedExtraHourRate;
@@ -973,7 +1006,18 @@ export default function DutySlipsPage() {
       let slipId = editingSlip?.id;
 
       if (editingSlip) {
-        // Update existing duty slip
+        // Update existing duty slip — save snapshot fields directly to DB columns
+        const packageKmVal = df.billingMode === 'C'
+          ? Number(selectedRateCard?.fullKm || selectedRateCard?.minKm || selectedRateCard?.includedKm || 120)
+          : df.billingMode === 'H' || df.billingMode === 'T'
+            ? Number(selectedRateCard?.minKm || 40)
+            : Number(selectedRateCard?.fullKm || 80);
+        const packageHoursVal = df.billingMode === 'C'
+          ? Number(selectedRateCard?.fullHr || selectedRateCard?.minHr || 12)
+          : df.billingMode === 'H' || df.billingMode === 'T'
+            ? Number(selectedRateCard?.minHr || 4)
+            : Number(selectedRateCard?.fullHr || 8);
+
         await api.request(`/duty-slips/${editingSlip.id}`, {
           method: 'PATCH',
           body: JSON.stringify({
@@ -997,6 +1041,46 @@ export default function DutySlipsPage() {
             guestSalutation: cleanGuestSalutation ? cleanGuestSalutation : null,
             bookingBy: df.bookingBy || undefined,
             remarks: payloadRemarks || undefined,
+            // ── Snapshot fields: persist commercial data to dedicated DB columns ──
+            carGroup: df.carGroup || undefined,
+            rateCardId: selectedRateCard?.id || undefined,
+            billingMode: df.billingMode || undefined,
+            baseFare: Number(df.baseFare) || undefined,
+            extraKmRate: Number(df.extraKmRate) || undefined,
+            extraHourRate: Number(df.extraHourRate) || undefined,
+            packageKm: packageKmVal || undefined,
+            packageHours: packageHoursVal || undefined,
+            pricingSnapshot: isFlexibleDuty ? {
+              isFlexible: true,
+              items: customParticulars,
+              userNotes: df.remarks || '',
+              billingMode: df.billingMode,
+              rateCardId: selectedRateCard?.id,
+              carGroup: df.carGroup,
+              baseFare: Number(df.baseFare) || 0,
+              extraKmRate: Number(df.extraKmRate) || 0,
+              extraHourRate: Number(df.extraHourRate) || 0,
+              includeNightCharges: df.includeNightCharges,
+              nightChargesOnTime: Number(df.nightChargesOnTime) || 0,
+              isManualNightCharges: df.isManualNightCharges,
+              includeDriverAllowance: df.includeDriverAllowance,
+              driverAllowance: Number(df.driverAllowance) || 0,
+              isManualDriverAllowance: df.isManualDriverAllowance,
+            } : {
+              userNotes: df.remarks || '',
+              billingMode: df.billingMode,
+              rateCardId: selectedRateCard?.id,
+              carGroup: df.carGroup,
+              baseFare: Number(df.baseFare) || 0,
+              extraKmRate: Number(df.extraKmRate) || 0,
+              extraHourRate: Number(df.extraHourRate) || 0,
+              includeNightCharges: df.includeNightCharges,
+              nightChargesOnTime: Number(df.nightChargesOnTime) || 0,
+              isManualNightCharges: df.isManualNightCharges,
+              includeDriverAllowance: df.includeDriverAllowance,
+              driverAllowance: Number(df.driverAllowance) || 0,
+              isManualDriverAllowance: df.isManualDriverAllowance,
+            },
           }),
         });
       } else {
@@ -1022,11 +1106,30 @@ export default function DutySlipsPage() {
             manualDriverPhone: df.driverId === 'MANUAL' ? df.manualDriverPhone : undefined,
             manualVehicleNumber: df.vehicleId === 'MANUAL' ? df.manualVehicleNumber : undefined,
             manualVehicleModel: df.vehicleId === 'MANUAL' ? df.manualVehicleModel : undefined,
+            // ── Snapshot fields saved on creation ──
+            carGroup: df.carGroup || undefined,
+            rateCardId: selectedRateCard?.id || undefined,
+            billingMode: df.billingMode || undefined,
+            baseFare: Number(df.baseFare) || undefined,
+            extraKmRate: Number(df.extraKmRate) || undefined,
+            extraHourRate: Number(df.extraHourRate) || undefined,
           }),
         });
         slipId = slip.id;
 
-        // Patch other details
+
+        // Second PATCH to fill operational + snapshot details
+        const createPackageKm = df.billingMode === 'C'
+          ? Number(selectedRateCard?.fullKm || selectedRateCard?.minKm || selectedRateCard?.includedKm || 120)
+          : df.billingMode === 'H' || df.billingMode === 'T'
+            ? Number(selectedRateCard?.minKm || 40)
+            : Number(selectedRateCard?.fullKm || 80);
+        const createPackageHours = df.billingMode === 'C'
+          ? Number(selectedRateCard?.fullHr || selectedRateCard?.minHr || 12)
+          : df.billingMode === 'H' || df.billingMode === 'T'
+            ? Number(selectedRateCard?.minHr || 4)
+            : Number(selectedRateCard?.fullHr || 8);
+
         await api.request(`/duty-slips/${slip.id}`, {
           method: 'PATCH',
           body: JSON.stringify({
@@ -1043,6 +1146,40 @@ export default function DutySlipsPage() {
             mcd: Number(df.mcdToll) || 0,
             status: patchStatus,
             employeeId: df.employeeId || undefined,
+            // ── Snapshot fields also saved in second PATCH ──
+            packageKm: createPackageKm || undefined,
+            packageHours: createPackageHours || undefined,
+            pricingSnapshot: isFlexibleDuty ? {
+              isFlexible: true,
+              items: customParticulars,
+              userNotes: df.remarks || '',
+              billingMode: df.billingMode,
+              rateCardId: selectedRateCard?.id,
+              carGroup: df.carGroup,
+              baseFare: Number(df.baseFare) || 0,
+              extraKmRate: Number(df.extraKmRate) || 0,
+              extraHourRate: Number(df.extraHourRate) || 0,
+              includeNightCharges: df.includeNightCharges,
+              nightChargesOnTime: Number(df.nightChargesOnTime) || 0,
+              isManualNightCharges: df.isManualNightCharges,
+              includeDriverAllowance: df.includeDriverAllowance,
+              driverAllowance: Number(df.driverAllowance) || 0,
+              isManualDriverAllowance: df.isManualDriverAllowance,
+            } : {
+              userNotes: df.remarks || '',
+              billingMode: df.billingMode,
+              rateCardId: selectedRateCard?.id,
+              carGroup: df.carGroup,
+              baseFare: Number(df.baseFare) || 0,
+              extraKmRate: Number(df.extraKmRate) || 0,
+              extraHourRate: Number(df.extraHourRate) || 0,
+              includeNightCharges: df.includeNightCharges,
+              nightChargesOnTime: Number(df.nightChargesOnTime) || 0,
+              isManualNightCharges: df.isManualNightCharges,
+              includeDriverAllowance: df.includeDriverAllowance,
+              driverAllowance: Number(df.driverAllowance) || 0,
+              isManualDriverAllowance: df.isManualDriverAllowance,
+            },
           }),
         });
       }
@@ -1094,6 +1231,7 @@ export default function DutySlipsPage() {
   const handleDirectCreate = (e: React.FormEvent) => handleUnifiedSave(e);
 
   const openUnifiedForm = async (slip: DutySlip) => {
+    isRestoringRef.current = true;
     loadAssets();
     setFormError(null);
     setEditingSlip(slip);
@@ -1145,12 +1283,13 @@ export default function DutySlipsPage() {
 
     let parsedParticulars: Array<{ id: string; particular: string; rate: number; quantity: number; amount: number }> = [];
     let isFlex = slip.booking?.tripType === 'HOURLY_RENTAL';
-    let remarksText = slip.remarks || slip.booking?.remarks || '';
+    let remarksText = '';
     let savedBillingMode: 'N' | 'H' | 'F' | 'C' | 'T' | null = null;
     let savedRateCardId: string | null = null;
     let savedBaseFare: number | null = null;
     let savedExtraKmRate: number | null = null;
     let savedExtraHourRate: number | null = null;
+    let savedCarGroup: string | null = null;
     let savedIncludeNightCharges: boolean | null = null;
     let savedNightChargesOnTime: number | null = null;
     let savedIsManualNightCharges: boolean | null = null;
@@ -1158,49 +1297,62 @@ export default function DutySlipsPage() {
     let savedDriverAllowance: number | null = null;
     let savedIsManualDriverAllowance: boolean | null = null;
 
-    try {
-      if (remarksText.trim().startsWith('{')) {
-        const obj = JSON.parse(remarksText);
-        if (obj.isFlexible && Array.isArray(obj.items)) {
-          isFlex = true;
-          parsedParticulars = obj.items;
-        }
-        if (obj.billingMode) {
-          savedBillingMode = obj.billingMode;
-        }
-        if (obj.rateCardId) {
-          savedRateCardId = obj.rateCardId;
-        }
-        if (typeof obj.baseFare === 'number') {
-          savedBaseFare = obj.baseFare;
-        }
-        if (typeof obj.extraKmRate === 'number') {
-          savedExtraKmRate = obj.extraKmRate;
-        }
-        if (typeof obj.extraHourRate === 'number') {
-          savedExtraHourRate = obj.extraHourRate;
-        }
-        if (typeof obj.includeNightCharges === 'boolean') {
-          savedIncludeNightCharges = obj.includeNightCharges;
-        }
-        if (typeof obj.nightChargesOnTime === 'number') {
-          savedNightChargesOnTime = obj.nightChargesOnTime;
-        }
-        if (typeof obj.isManualNightCharges === 'boolean') {
-          savedIsManualNightCharges = obj.isManualNightCharges;
-        }
-        if (typeof obj.includeDriverAllowance === 'boolean') {
-          savedIncludeDriverAllowance = obj.includeDriverAllowance;
-        }
-        if (typeof obj.driverAllowance === 'number') {
-          savedDriverAllowance = obj.driverAllowance;
-        }
-        if (typeof obj.isManualDriverAllowance === 'boolean') {
-          savedIsManualDriverAllowance = obj.isManualDriverAllowance;
-        }
-        remarksText = obj.userNotes || '';
+    // ── PRIORITY 1: Read from dedicated DB snapshot columns (most reliable) ──
+    if (slip.carGroup) savedCarGroup = slip.carGroup;
+    if (slip.rateCardId) savedRateCardId = slip.rateCardId;
+    if (slip.billingMode) savedBillingMode = slip.billingMode as any;
+    if (typeof slip.baseFare === 'number' && slip.baseFare > 0) savedBaseFare = slip.baseFare;
+    if (typeof slip.extraKmRate === 'number' && slip.extraKmRate > 0) savedExtraKmRate = slip.extraKmRate;
+    if (typeof slip.extraHourRate === 'number' && slip.extraHourRate > 0) savedExtraHourRate = slip.extraHourRate;
+
+    // ── PRIORITY 2: Parse pricingSnapshot JSON (if available in DB) ──
+    if (slip.pricingSnapshot && typeof slip.pricingSnapshot === 'object') {
+      const snap = slip.pricingSnapshot as any;
+      if (snap.isFlexible && Array.isArray(snap.items)) {
+        isFlex = true;
+        parsedParticulars = snap.items;
       }
-    } catch (e) { }
+      if (!savedBillingMode && snap.billingMode) savedBillingMode = snap.billingMode;
+      if (!savedRateCardId && snap.rateCardId) savedRateCardId = snap.rateCardId;
+      if (!savedCarGroup && snap.carGroup) savedCarGroup = snap.carGroup;
+      if (savedBaseFare === null && typeof snap.baseFare === 'number') savedBaseFare = snap.baseFare;
+      if (savedExtraKmRate === null && typeof snap.extraKmRate === 'number') savedExtraKmRate = snap.extraKmRate;
+      if (savedExtraHourRate === null && typeof snap.extraHourRate === 'number') savedExtraHourRate = snap.extraHourRate;
+      if (typeof snap.includeNightCharges === 'boolean') savedIncludeNightCharges = snap.includeNightCharges;
+      if (typeof snap.nightChargesOnTime === 'number') savedNightChargesOnTime = snap.nightChargesOnTime;
+      if (typeof snap.isManualNightCharges === 'boolean') savedIsManualNightCharges = snap.isManualNightCharges;
+      if (typeof snap.includeDriverAllowance === 'boolean') savedIncludeDriverAllowance = snap.includeDriverAllowance;
+      if (typeof snap.driverAllowance === 'number') savedDriverAllowance = snap.driverAllowance;
+      if (typeof snap.isManualDriverAllowance === 'boolean') savedIsManualDriverAllowance = snap.isManualDriverAllowance;
+      remarksText = snap.userNotes || slip.remarks || '';
+    } else {
+      // ── PRIORITY 3: Fallback — parse legacy JSON from booking.remarks ──
+      const rawRemarks = slip.remarks || slip.booking?.remarks || '';
+      try {
+        if (rawRemarks.trim().startsWith('{')) {
+          const obj = JSON.parse(rawRemarks);
+          if (obj.isFlexible && Array.isArray(obj.items)) {
+            isFlex = true;
+            parsedParticulars = obj.items;
+          }
+          if (!savedBillingMode && obj.billingMode) savedBillingMode = obj.billingMode;
+          if (!savedRateCardId && obj.rateCardId) savedRateCardId = obj.rateCardId;
+          if (!savedCarGroup && obj.carGroup) savedCarGroup = obj.carGroup;
+          if (savedBaseFare === null && typeof obj.baseFare === 'number') savedBaseFare = obj.baseFare;
+          if (savedExtraKmRate === null && typeof obj.extraKmRate === 'number') savedExtraKmRate = obj.extraKmRate;
+          if (savedExtraHourRate === null && typeof obj.extraHourRate === 'number') savedExtraHourRate = obj.extraHourRate;
+          if (typeof obj.includeNightCharges === 'boolean') savedIncludeNightCharges = obj.includeNightCharges;
+          if (typeof obj.nightChargesOnTime === 'number') savedNightChargesOnTime = obj.nightChargesOnTime;
+          if (typeof obj.isManualNightCharges === 'boolean') savedIsManualNightCharges = obj.isManualNightCharges;
+          if (typeof obj.includeDriverAllowance === 'boolean') savedIncludeDriverAllowance = obj.includeDriverAllowance;
+          if (typeof obj.driverAllowance === 'number') savedDriverAllowance = obj.driverAllowance;
+          if (typeof obj.isManualDriverAllowance === 'boolean') savedIsManualDriverAllowance = obj.isManualDriverAllowance;
+          remarksText = obj.userNotes || '';
+        } else {
+          remarksText = rawRemarks;
+        }
+      } catch (e) { remarksText = rawRemarks; }
+    }
 
     setCustomParticulars(parsedParticulars);
 
@@ -1209,7 +1361,8 @@ export default function DutySlipsPage() {
       matchedRc = allCards.find((r: any) => r.id === savedRateCardId);
     }
     if (!matchedRc) {
-      const targetCategory = slip.vehicle?.vehicleType || slip.booking?.vehicleTypeRequired || slip.vehicle?.model;
+      // Use savedCarGroup for matching first, then fallback to vehicle type
+      const targetCategory = savedCarGroup || slip.booking?.vehicleTypeRequired || slip.vehicle?.vehicleType || slip.vehicle?.model;
       matchedRc = allCards.find(
         (r: any) =>
           targetCategory &&
@@ -1289,6 +1442,9 @@ export default function DutySlipsPage() {
       ? (slip.guestSalutation || slip.booking?.guestSalutation || 'Mr')
       : 'Mr';
 
+    // Resolved carGroup: DB snapshot > booking vehicleTypeRequired > vehicle type
+    const resolvedCarGroup = savedCarGroup || slip.booking?.vehicleTypeRequired || slip.vehicle?.vehicleType || matchedRc?.vehicleCategory?.name || '';
+
     setDf({
       customerType: slip.booking?.customer ? 'regular' : 'new',
       modeOfPayment: slip.booking?.modeOfPayment || 'Credit',
@@ -1309,7 +1465,7 @@ export default function DutySlipsPage() {
       reportingTime: resolvedRepTime,
       pickupType: (slip.booking?.pickupType || 'other') as any,
       vehicleId: slip.vehicleId || '',
-      carGroup: slip.vehicle?.vehicleType || matchedRc?.vehicleCategory?.name || '',
+      carGroup: resolvedCarGroup,
       carName: slip.vehicle?.model || '',
       carFrom: '',
       driverId: slip.driverId || '',
@@ -1355,7 +1511,7 @@ export default function DutySlipsPage() {
       manualVehicleNumber: '',
       manualVehicleModel: '',
 
-      // Override values
+      // Override values — DB snapshot takes priority over calculated values
       baseFare: hasClosedTrip
         ? Number((slip.trip as any).baseFareCharged)
         : (savedBaseFare !== null
@@ -1371,6 +1527,7 @@ export default function DutySlipsPage() {
       extraHoursCharged: hasClosedTrip ? Number((slip.trip as any).extraHoursCharged) : 0,
       includeDriverAllowance: resolvedIncludeDA,
       includeNightCharges: resolvedIncludeNight,
+      // Mark rates as "manual" so the reactive calculator won't overwrite them
       isManualBaseFare: hasClosedTrip || savedBaseFare !== null,
       isManualExtraKmRate: savedExtraKmRate !== null,
       isManualExtraHourRate: savedExtraHourRate !== null,
@@ -1379,6 +1536,9 @@ export default function DutySlipsPage() {
       isManualDriverAllowance: resolvedIsManualDA,
       isManualNightCharges: resolvedIsManualNight,
     });
+
+    // Release the restore guard after a short tick so React flushes state before effects run
+    setTimeout(() => { isRestoringRef.current = false; }, 100);
 
     setIsDirectOpen(true);
   };
@@ -1831,7 +1991,9 @@ export default function DutySlipsPage() {
                             carName:
                               v?.model ||
                               (val === 'MANUAL' ? f.manualVehicleModel : ''),
-                            carGroup: v?.vehicleType || f.carGroup || '',
+                            // Only set carGroup from vehicle's physical type if carGroup is empty
+                            // Do NOT override existing commercial category (e.g. SUV) with physical type (e.g. Sedan)
+                            carGroup: f.carGroup || v?.vehicleType || '',
                           }));
                         }}
                         className={sel}

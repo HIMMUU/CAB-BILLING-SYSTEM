@@ -108,4 +108,38 @@ export class UpdateDutySlipDto {
   @IsString()
   @IsOptional()
   remarks?: string;
+
+  @IsString()
+  @IsOptional()
+  carGroup?: string;
+
+  @IsOptional()
+  rateCardId?: string;
+
+  @IsString()
+  @IsOptional()
+  billingMode?: string;
+
+  @IsNumber()
+  @IsOptional()
+  baseFare?: number;
+
+  @IsNumber()
+  @IsOptional()
+  extraKmRate?: number;
+
+  @IsNumber()
+  @IsOptional()
+  extraHourRate?: number;
+
+  @IsNumber()
+  @IsOptional()
+  packageKm?: number;
+
+  @IsNumber()
+  @IsOptional()
+  packageHours?: number;
+
+  @IsOptional()
+  pricingSnapshot?: any;
 }
