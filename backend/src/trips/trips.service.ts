@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloseTripDto } from './dto/close-trip.dto';
@@ -12,12 +13,117 @@ import {
   DriverStatus,
   VehicleStatus,
   TripType,
+  Prisma,
 } from '@prisma/client';
 import * as fs from 'fs';
 
+type DutySlipWithRateContext = Prisma.DutySlipGetPayload<{
+  include: {
+    booking: { include: { customer: true } };
+    vehicle: true;
+  };
+}>;
+
 @Injectable()
 export class TripsService {
+  private readonly logger = new Logger(TripsService.name);
+
   constructor(private readonly prisma: PrismaService) {}
+
+  private async resolveRateCard(
+    slip: DutySlipWithRateContext,
+    effectiveAt: Date,
+  ) {
+    const booking = slip.booking;
+    const customer = booking?.customer;
+    if (!booking || !customer) {
+      throw new BadRequestException(
+        'A valid booking and customer are required before closing this duty slip.',
+      );
+    }
+
+    const modelFirstWord = slip.vehicle?.model.split(' ')[0];
+    const categoryNames = [
+      booking.vehicleTypeRequired,
+      slip.vehicle?.vehicleType,
+      slip.carGroup,
+      slip.vehicle?.model,
+      modelFirstWord,
+    ].filter((name): name is string => !!name?.trim());
+
+    let category: { id: string } | null = null;
+    for (const name of categoryNames) {
+      category = await this.prisma.vehicleCategory.findFirst({
+        where: { name: { equals: name.trim(), mode: 'insensitive' } },
+        select: { id: true },
+      });
+      if (category) break;
+    }
+
+    if (!category) {
+      throw new BadRequestException(
+        'No vehicle category matches this booking. Configure a vehicle category and an applicable rate card before closing.',
+      );
+    }
+
+    const mappedClientType =
+      customer.type === 'INDIVIDUAL'
+        ? 'Individual'
+        : /travel|holiday|resort|tour/i.test(customer.companyName || '')
+          ? 'Travel Company'
+          : 'Company';
+    const applicableRateCardWhere = {
+      tenantId: slip.tenantId,
+      vehicleCategoryId: category.id,
+      status: 'ACTIVE',
+      effectiveFrom: { lte: effectiveAt },
+    };
+
+    const latestCustomerRateCard = await this.prisma.rateCard.findFirst({
+      where: { ...applicableRateCardWhere, customerId: customer.id },
+      orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+    });
+    const rateCard =
+      latestCustomerRateCard ||
+      (await this.prisma.rateCard.findFirst({
+        where: {
+          ...applicableRateCardWhere,
+          customerId: null,
+          clientType: mappedClientType,
+        },
+        orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+      }));
+
+    if (!rateCard) {
+      throw new BadRequestException(
+        'No active and effective rate card is configured for this booking and vehicle category. Select or create a matching rate card before closing.',
+      );
+    }
+    if (slip.rateCardId && slip.rateCardId !== rateCard.id) {
+      throw new BadRequestException(
+        'The saved rate card is not the current applicable card for this booking. Reload the duty slip and select the latest matching card.',
+      );
+    }
+
+    const hasValidBaseRate =
+      booking.tripType === TripType.OUTSTATION
+        ? Number(rateCard.minKmPerDay) > 0 &&
+          Number(rateCard.outstationRatePerKm) > 0
+        : (Number(rateCard.fullDayRate) > 0 ||
+            Number(rateCard.halfDayRate) > 0) &&
+          (Number(rateCard.fullKm) ||
+            Number(rateCard.minKm) ||
+            Number(rateCard.includedKm)) > 0 &&
+          (Number(rateCard.fullHr) || Number(rateCard.minHr)) > 0;
+
+    if (!hasValidBaseRate) {
+      throw new BadRequestException(
+        'The applicable rate card has no valid base fare for this trip type. Update the rate card before closing.',
+      );
+    }
+
+    return { rateCard, vehicleCategoryId: category.id };
+  }
 
   async calculateTripCharges(
     dutySlipId: string,
@@ -38,6 +144,16 @@ export class TripsService {
     }
 
     const startKm = Number(slip.startKm);
+    if (!Number.isFinite(startKm) || startKm < 0) {
+      throw new BadRequestException(
+        'The duty slip has an invalid starting odometer reading.',
+      );
+    }
+    if (!Number.isFinite(endKm) || endKm < 0) {
+      throw new BadRequestException(
+        'End KM must be a finite number greater than or equal to zero.',
+      );
+    }
     const totalDistance = endKm - startKm;
 
     if (totalDistance < 0) {
@@ -47,6 +163,19 @@ export class TripsService {
     // Resolve dates
     const startDateTime = overrideStartDateTime || slip.startDateTime;
     const endDateTime = overrideEndDateTime || slip.endDateTime;
+    const effectiveAt =
+      endDateTime && !isNaN(new Date(endDateTime).getTime())
+        ? new Date(endDateTime)
+        : new Date();
+
+    if (
+      (startDateTime && Number.isNaN(new Date(startDateTime).getTime())) ||
+      (endDateTime && Number.isNaN(new Date(endDateTime).getTime()))
+    ) {
+      throw new BadRequestException(
+        'Trip start and end date-times must be valid dates.',
+      );
+    }
 
     if (
       startDateTime &&
@@ -65,9 +194,7 @@ export class TripsService {
     if (startDateTime && endDateTime) {
       const diffMs =
         new Date(endDateTime).getTime() - new Date(startDateTime).getTime();
-      calculatedHours = Number(
-        (diffMs / (1000 * 60 * 60)).toFixed(2),
-      );
+      calculatedHours = Number((diffMs / (1000 * 60 * 60)).toFixed(2));
 
       const getIstDateString = (dt: Date | string) => {
         const d = new Date(dt);
@@ -86,130 +213,44 @@ export class TripsService {
       );
     }
 
-    // 1. Find mapped VehicleCategory (check booking requested category first, fallback to vehicle type & model)
-    const categoryName =
-      slip.booking?.vehicleTypeRequired || slip.vehicle?.vehicleType;
-    let category = categoryName
-      ? await this.prisma.vehicleCategory.findFirst({
-          where: {
-            name: { equals: categoryName, mode: 'insensitive' },
-          },
-        })
-      : null;
-
-    if (!category && slip.vehicle?.vehicleType) {
-      category = await this.prisma.vehicleCategory.findFirst({
-        where: {
-          name: { equals: slip.vehicle.vehicleType, mode: 'insensitive' },
-        },
-      });
-    }
-
-    if (!category && slip.vehicle?.model) {
-      const modelFirstWord = slip.vehicle.model.split(' ')[0];
-      category = await this.prisma.vehicleCategory.findFirst({
-        where: {
-          OR: [
-            { name: { equals: slip.vehicle.model, mode: 'insensitive' } },
-            { name: { equals: modelFirstWord, mode: 'insensitive' } },
-          ],
-        },
-      });
-    }
-
-    // Determine client type mapping for defaults
-    let mappedClientType = 'Individual';
-    if (slip.booking.customer.type === 'CORPORATE') {
-      const lowerName = (slip.booking.customer.companyName || '').toLowerCase();
-      if (
-        lowerName.includes('travel') ||
-        lowerName.includes('holiday') ||
-        lowerName.includes('resort') ||
-        lowerName.includes('tour')
-      ) {
-        mappedClientType = 'Travel Company';
-      } else {
-        mappedClientType = 'Company';
-      }
-    }
-
-    // 2. Resolve Rate Card: Customer-specific first, fallback to Tenant Default
-    let rateCard: any = null;
-    if (category) {
-      rateCard = await this.prisma.rateCard.findFirst({
-        where: {
-          customerId: slip.booking.customerId,
-          vehicleCategoryId: category.id,
-          status: 'ACTIVE',
-        },
-        orderBy: { effectiveFrom: 'desc' },
-      });
-
-      if (!rateCard) {
-        rateCard = await this.prisma.rateCard.findFirst({
-          where: {
-            customerId: null,
-            clientType: mappedClientType,
-            vehicleCategoryId: category.id,
-            status: 'ACTIVE',
-          },
-          orderBy: { effectiveFrom: 'desc' },
-        });
-      }
-    }
-
-    if (!rateCard && slip.booking.customerId) {
-      rateCard = await this.prisma.rateCard.findFirst({
-        where: {
-          customerId: slip.booking.customerId,
-          status: 'ACTIVE',
-        },
-        orderBy: { effectiveFrom: 'desc' },
-      });
-    }
+    const { rateCard, vehicleCategoryId } = await this.resolveRateCard(
+      slip,
+      effectiveAt,
+    );
 
     // 3. Dynamic Rate Calculation based on Trip Type & Rate Card Fields
-    let baseFare = 2000;
-    let baseKm = 120;
-    let extraKmRate = 14;
-    let extraHourRate = 150;
-    let driverAllowanceAmount = 250;
-    let nightChargesAmount = 200;
+    let baseFare = 0;
+    let baseKm = 0;
+    let extraKmRate = Number(rateCard.extraKmRate);
+    let extraHourRate = Number(rateCard.extraHourRate);
+    let driverAllowanceAmount = Number(rateCard.driverAllowance);
+    let nightChargesAmount = Number(rateCard.nightCharge);
 
-    if (rateCard) {
-      extraKmRate = Number(rateCard.extraKmRate) || 14;
-      extraHourRate = Number(rateCard.extraHourRate) || 150;
-      baseKm = Number(rateCard.fullKm || rateCard.minKm || rateCard.includedKm) || 120;
+    if (slip.booking.tripType === TripType.OUTSTATION) {
+      const minKm = Number(rateCard.minKmPerDay);
+      const ratePerKm = Number(rateCard.outstationRatePerKm);
+      baseKm = calculatedDays * minKm;
+      baseFare = baseKm * ratePerKm;
+      extraKmRate = ratePerKm;
+      driverAllowanceAmount = calculatedDays * driverAllowanceAmount;
+      nightChargesAmount =
+        calculatedDays *
+        (Number(rateCard.outstationNightCharge) ||
+          Number(rateCard.nightCharge));
+    } else {
+      // Local hourly rental, local package, or airport transfer
+      const packageHr = Number(rateCard.fullHr) || Number(rateCard.minHr);
+      const packageKm =
+        Number(rateCard.fullKm) ||
+        Number(rateCard.minKm) ||
+        Number(rateCard.includedKm);
+      const packageFare =
+        Number(rateCard.fullDayRate) || Number(rateCard.halfDayRate);
 
-      if (slip.booking.tripType === TripType.OUTSTATION) {
-        const minKm = Number(rateCard.minKmPerDay) || 250;
-        const ratePerKm = Number(rateCard.outstationRatePerKm) || 15;
-        baseKm = calculatedDays * minKm;
-        baseFare = baseKm * ratePerKm;
-        extraKmRate = ratePerKm;
-        driverAllowanceAmount =
-          calculatedDays * (Number(rateCard.driverAllowance) || 250);
-        nightChargesAmount =
-          calculatedDays *
-          (Number(rateCard.outstationNightCharge || rateCard.nightCharge) ||
-            200);
-      } else {
-        // Local hourly rental, local package, or airport transfer
-        const packageHr = Number(rateCard.fullHr || rateCard.minHr) || 12;
-        const packageKm =
-          Number(rateCard.fullKm || rateCard.minKm || rateCard.includedKm) || 120;
-        const packageFare =
-          Number(rateCard.fullDayRate || rateCard.halfDayRate) || 2000;
-
-        baseFare = packageFare;
-        baseKm = packageKm;
-        const baseHr = packageHr;
-        if (calculatedHours > baseHr) {
-          extraHours = calculatedHours - baseHr;
-        }
-
-        driverAllowanceAmount = Number(rateCard.driverAllowance) || 250;
-        nightChargesAmount = Number(rateCard.nightCharge) || 200;
+      baseFare = packageFare;
+      baseKm = packageKm;
+      if (calculatedHours > packageHr) {
+        extraHours = calculatedHours - packageHr;
       }
     }
 
@@ -265,6 +306,13 @@ export class TripsService {
       totalAmount,
       totalHours: calculatedHours,
       totalDays: calculatedDays,
+      rateCardId: rateCard.id,
+      rateCardUpdatedAt: rateCard.updatedAt,
+      vehicleCategoryId,
+      bookingCustomerId: slip.booking!.customerId,
+      bookingTripType: slip.booking!.tripType,
+      bookingUpdatedAt: slip.booking!.updatedAt,
+      customerUpdatedAt: slip.booking!.customer.updatedAt,
     };
   }
 
@@ -379,11 +427,24 @@ export class TripsService {
       const slip = await this.prisma.dutySlip.findUnique({
         where: { id: dto.dutySlipId },
         include: {
-          booking: true,
+          booking: { include: { customer: true } },
         },
       });
       if (!slip) {
         throw new NotFoundException('Duty slip not found');
+      }
+      if (!slip.bookingId || !slip.booking) {
+        throw new BadRequestException(
+          'A valid booking is required before this duty slip can be closed.',
+        );
+      }
+      if (
+        slip.booking.status !== BookingStatus.ASSIGNED &&
+        slip.booking.status !== BookingStatus.COMPLETED
+      ) {
+        throw new BadRequestException(
+          'Only a duty slip linked to an assigned booking can be closed.',
+        );
       }
 
       // Resolve overrides or defaults for dates (fallback startDateTime to reportingTime if missing)
@@ -444,6 +505,90 @@ export class TripsService {
 
       // 4. Run database updates inside a safe prisma transaction
       return this.prisma.$transaction(async (tx) => {
+        const currentBooking = await tx.booking.findFirst({
+          where: {
+            id: slip.bookingId!,
+            tenantId: slip.tenantId,
+            customerId: calculations.bookingCustomerId,
+            tripType: calculations.bookingTripType,
+            updatedAt: calculations.bookingUpdatedAt,
+            status: {
+              in: [BookingStatus.ASSIGNED, BookingStatus.COMPLETED],
+            },
+          },
+          include: { customer: true },
+        });
+        if (!currentBooking) {
+          throw new BadRequestException(
+            'The booking changed or is no longer assigned. Reload the duty slip and try again.',
+          );
+        }
+        if (
+          currentBooking.customer.updatedAt.getTime() !==
+          calculations.customerUpdatedAt.getTime()
+        ) {
+          throw new BadRequestException(
+            'The customer changed while closing the trip. Reload the duty slip and try again.',
+          );
+        }
+
+        const currentClientType =
+          currentBooking.customer.type === 'INDIVIDUAL'
+            ? 'Individual'
+            : /travel|holiday|resort|tour/i.test(
+                  currentBooking.customer.companyName || '',
+                )
+              ? 'Travel Company'
+              : 'Company';
+        const applicableRateCardWhere = {
+          tenantId: slip.tenantId,
+          vehicleCategoryId: calculations.vehicleCategoryId,
+          status: 'ACTIVE',
+          effectiveFrom: {
+            lte: endDateTime || new Date(),
+          },
+        };
+        const latestCustomerRateCard = await tx.rateCard.findFirst({
+          where: {
+            ...applicableRateCardWhere,
+            customerId: currentBooking.customerId,
+          },
+          orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+        });
+        const currentRateCard =
+          latestCustomerRateCard ||
+          (await tx.rateCard.findFirst({
+            where: {
+              ...applicableRateCardWhere,
+              customerId: null,
+              clientType: currentClientType,
+            },
+            orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+          }));
+        const rateCardStillValid =
+          currentRateCard?.id === calculations.rateCardId &&
+          currentRateCard.updatedAt.getTime() ===
+            calculations.rateCardUpdatedAt.getTime()
+            ? currentRateCard
+            : null;
+        const hasValidCurrentBaseRate =
+          rateCardStillValid &&
+          (currentBooking.tripType === TripType.OUTSTATION
+            ? Number(rateCardStillValid.minKmPerDay) > 0 &&
+              Number(rateCardStillValid.outstationRatePerKm) > 0
+            : (Number(rateCardStillValid.fullDayRate) > 0 ||
+                Number(rateCardStillValid.halfDayRate) > 0) &&
+              (Number(rateCardStillValid.fullKm) ||
+                Number(rateCardStillValid.minKm) ||
+                Number(rateCardStillValid.includedKm)) > 0 &&
+              (Number(rateCardStillValid.fullHr) ||
+                Number(rateCardStillValid.minHr)) > 0);
+        if (!hasValidCurrentBaseRate) {
+          throw new BadRequestException(
+            'The rate card changed or is no longer valid. Reload the duty slip and select an active, effective rate card before closing.',
+          );
+        }
+
         let trip;
         if (existingTrip) {
           // Update existing Trip record
@@ -505,6 +650,7 @@ export class TripsService {
           where: { id: dto.dutySlipId },
           data: {
             status: DutySlipStatus.CLOSED,
+            rateCardId: calculations.rateCardId,
             endKm: dto.endKm,
             toll,
             parking,
@@ -545,8 +691,21 @@ export class TripsService {
 
         return trip;
       });
-    } catch (err: any) {
-      console.error(`Error in closeTrip: ${err.message}`, err.stack);
+    } catch (err) {
+      const details = err instanceof Error ? err.message : String(err);
+      if (
+        err instanceof BadRequestException ||
+        err instanceof NotFoundException
+      ) {
+        this.logger.warn(
+          `Trip close rejected for duty slip ${dto.dutySlipId}: ${details}`,
+        );
+      } else {
+        this.logger.error(
+          `Trip close failed for duty slip ${dto.dutySlipId}: ${details}`,
+          err instanceof Error ? err.stack : undefined,
+        );
+      }
       throw err;
     }
   }
