@@ -680,7 +680,10 @@ export class DutySlipsService {
     if (
       hasGuestUpdate ||
       dto.bookingBy !== undefined ||
-      dto.remarks !== undefined
+      dto.remarks !== undefined ||
+      dto.pickupLocation !== undefined ||
+      dto.dropLocation !== undefined ||
+      dto.tripType !== undefined
     ) {
       await this.prisma.booking.update({
         where: { id: slip.bookingId },
@@ -688,6 +691,9 @@ export class DutySlipsService {
           guestName: cleanGuestName,
           guestSalutation: cleanGuestSalutation,
           bookingBy: dto.bookingBy,
+          pickupLocation: dto.pickupLocation !== undefined ? dto.pickupLocation : undefined,
+          dropLocation: dto.dropLocation !== undefined ? dto.dropLocation : undefined,
+          tripType: dto.tripType !== undefined ? (dto.tripType as any) : undefined,
           remarks: dto.remarks,
         },
       });
