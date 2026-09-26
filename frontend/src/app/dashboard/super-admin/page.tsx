@@ -25,8 +25,12 @@ interface Metrics {
   totalInvoices: number;
 }
 
+interface PlatformUser {
+  role: string;
+}
+
 export default function SuperAdminPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<PlatformUser | null>(null);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,34 +40,36 @@ export default function SuperAdminPage() {
   // Track status updates locally to show loading states
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const currentUser = api.getUser();
-    if (!currentUser || currentUser.role !== 'SUPER_ADMIN') {
-      if (typeof window !== 'undefined') {
-        window.location.href = '/dashboard';
-      }
-    } else {
-      setUser(currentUser);
-      loadPlatformData();
-    }
-  }, []);
-
-  const loadPlatformData = async () => {
+  const loadPlatformData = React.useCallback(async () => {
     setLoading(true);
     try {
       const [tenantsRes, metricsRes] = await Promise.all([
-        api.request('/super-admin/tenants'),
-        api.request('/super-admin/metrics'),
+        api.request<Tenant[]>('/super-admin/tenants'),
+        api.request<Metrics>('/super-admin/metrics'),
       ]);
       setTenants(tenantsRes);
       setMetrics(metricsRes);
       setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch platform administration details.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch platform administration details.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      const currentUser = api.getUser() as PlatformUser | null;
+      if (!currentUser || currentUser.role !== 'SUPER_ADMIN') {
+        window.location.href = '/dashboard';
+      } else {
+        setUser(currentUser);
+        void loadPlatformData();
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadPlatformData]);
 
   const handleUpdateStatus = async (tenantId: string, currentStatus: string) => {
     const nextStatus = currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
@@ -75,8 +81,8 @@ export default function SuperAdminPage() {
       });
       // Refetch
       await loadPlatformData();
-    } catch (err: any) {
-      alert(err.message || 'Failed to update tenant status');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to update tenant status');
     } finally {
       setUpdatingId(null);
     }
@@ -91,8 +97,8 @@ export default function SuperAdminPage() {
       });
       // Refetch
       await loadPlatformData();
-    } catch (err: any) {
-      alert(err.message || 'Failed to change subscription plan');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to change subscription plan');
     } finally {
       setUpdatingId(null);
     }

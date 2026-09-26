@@ -1,25 +1,36 @@
 'use strict';
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '@/lib/api';
+
+const subscribeToAuth = (callback: () => void) => {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener('storage', callback);
+  return () => window.removeEventListener('storage', callback);
+};
+
+const getAuthSnapshot = () =>
+  typeof window !== 'undefined' && Boolean(window.localStorage.getItem('accessToken'));
+
+const getServerAuthSnapshot = () => false;
 
 export default function LandingPage() {
   const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const isAuthenticated = useSyncExternalStore(
+    subscribeToAuth,
+    getAuthSnapshot,
+    getServerAuthSnapshot,
+  );
+  const isHydrated = useSyncExternalStore(
+    subscribeToAuth,
+    () => true,
+    getServerAuthSnapshot,
+  );
+  const loading = !isHydrated;
   const [activeTab, setActiveTab] = useState<'duty-slips' | 'rate-cards' | 'invoicing' | 'fleet'>('duty-slips');
   const [activeStep, setActiveStep] = useState<number>(1);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-
-  useEffect(() => {
-    const token = api.getToken();
-    if (token) {
-      setIsAuthenticated(true);
-    }
-    setLoading(false);
-  }, []);
 
   const handleNavigate = (path: string) => {
     router.push(path);

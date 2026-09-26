@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import DatePicker from '@/components/DatePicker';
@@ -18,6 +18,63 @@ interface Customer {
   clientType?: string | null;
   billingAddress?: string | null;
   phone?: string | null;
+  rateCards?: RateCard[];
+}
+interface VehicleCategory { id?: string; name: string }
+interface RateCard {
+  id: string;
+  name?: string;
+  tenantId?: string;
+  customerId?: string | null;
+  clientType: string;
+  status: string;
+  effectiveFrom: string;
+  createdAt?: string;
+  updatedAt?: string;
+  vehicleCategory: VehicleCategory;
+  halfDayRate?: number | string | null;
+  fullDayRate?: number | string | null;
+  includedKm?: number | string | null;
+  extraKmRate?: number | string | null;
+  extraHourRate?: number | string | null;
+  minKmPerDay?: number | string | null;
+  outstationRatePerKm?: number | string | null;
+  driverAllowance?: number | string | null;
+  nightCharge?: number | string | null;
+  outstationNightCharge?: number | string | null;
+  nightStartTime?: string | null;
+  nightEndTime?: string | null;
+  minHr?: number | string | null;
+  minKm?: number | string | null;
+  fullHr?: number | string | null;
+  fullKm?: number | string | null;
+}
+interface User { id: string; role: string; [key: string]: unknown }
+interface Trip {
+  totalKm?: number | string | null;
+  totalHours?: number | string | null;
+  nightChargesCharged?: number | string | null;
+  driverAllowance?: number | string | null;
+  baseFareCharged?: number | string | null;
+  extraKmCharged?: number | string | null;
+  extraHoursCharged?: number | string | null;
+}
+interface PricingSnapshot {
+  isFlexible?: boolean;
+  items?: Array<{ id: string; particular: string; rate: number; quantity?: number; amount: number }>;
+  userNotes?: string;
+  billingMode?: 'N' | 'H' | 'F' | 'C' | 'T';
+  rateCardId?: string;
+  carGroup?: string;
+  baseFare?: number;
+  extraKmRate?: number;
+  extraHourRate?: number;
+  includeNightCharges?: boolean;
+  nightChargesOnTime?: number;
+  isManualNightCharges?: boolean;
+  includeDriverAllowance?: boolean;
+  driverAllowance?: number;
+  isManualDriverAllowance?: boolean;
 }
 interface Booking {
   id: string; bookingNumber: string; pickupLocation: string; dropLocation: string;
@@ -32,6 +89,7 @@ interface Booking {
   pickupType?: string;
   remarks?: string;
   tripType?: string;
+  dutySlip?: DutySlip | null;
 }
 interface Driver { id: string; name: string; mobile: string }
 interface Vehicle { id: string; vehicleNumber: string; model: string; vehicleType: string }
@@ -56,27 +114,10 @@ interface DutySlip {
   extraHourRate?: number | null;
   packageKm?: number | null;
   packageHours?: number | null;
-  pricingSnapshot?: any;
-  trip?: any;
+  pricingSnapshot?: PricingSnapshot | null;
+  trip?: Trip | null;
 }
-interface CalcPreview {
-  baseFareCharged: number; extraKmCharged: number; extraHoursCharged: number;
-  toll: number; parking: number; driverAllowance: number; nightCharges: number;
-  extraCharges: number; stateTax: number; mcd: number; totalDistance: number; totalAmount: number;
-}
-
 /* ─── Helpers ────────────────────────────────────────────────────────── */
-const handleDateChange = (val: string): string => {
-  const clean = val.replace(/\D/g, '').slice(0, 8);
-  if (clean.length >= 5) {
-    return `${clean.slice(0, 2)}/${clean.slice(2, 4)}/${clean.slice(4)}`;
-  }
-  if (clean.length >= 3) {
-    return `${clean.slice(0, 2)}/${clean.slice(2)}`;
-  }
-  return clean;
-};
-
 const handleTimeChange = (val: string): string => {
   const clean = val.replace(/\D/g, '').slice(0, 4);
   if (clean.length >= 3) {
@@ -90,16 +131,6 @@ const dateToApi = (d: string): string => {
   const parts = d.split('/');
   if (parts.length === 3) {
     return `${parts[2]}-${parts[1]}-${parts[0]}`;
-  }
-  return d;
-};
-
-const dateToDisplay = (d: string): string => {
-  if (!d) return '';
-  const clean = d.split('T')[0];
-  const parts = clean.split('-');
-  if (parts.length === 3) {
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
   }
   return d;
 };
@@ -122,7 +153,7 @@ const mergeDT = (date: string, time: string) => {
   return isNaN(d.getTime()) ? null : d.toISOString();
 };
 
-const getRateClientType = (customer: any): string => {
+const getRateClientType = (customer: Customer): string => {
   if (customer?.type === 'INDIVIDUAL') return 'Individual';
   return /travel|holiday|resort|tour/i.test(customer?.companyName || '')
     ? 'Travel Company'
@@ -149,8 +180,8 @@ const getRateEffectiveAt = (
 };
 
 const filterApplicableRateCards = (
-  cards: any[],
-  customer: any,
+  cards: RateCard[],
+  customer: Customer | null,
   tripType: string | undefined,
   effectiveAt: Date,
   categoryName?: string | null,
@@ -267,7 +298,7 @@ const sel = inp + " cursor-pointer";
 /* ══════════════════════════════════════════════════════════════════════ */
 export default function DutySlipsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user] = useState<User | null>(() => api.getUser());
 
   /* data */
   const [dutySlips, setDutySlips] = useState<DutySlip[]>([]);
@@ -275,9 +306,9 @@ export default function DutySlipsPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [selectedRateCard, setSelectedRateCard] = useState<any>(null);
-  const [availableRateCards, setAvailableRateCards] = useState<any[]>([]);
-  const [fullCustomer, setFullCustomer] = useState<any>(null);
+  const [selectedRateCard, setSelectedRateCard] = useState<RateCard | null>(null);
+  const [availableRateCards, setAvailableRateCards] = useState<RateCard[]>([]);
+  const [fullCustomer, setFullCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -354,7 +385,6 @@ export default function DutySlipsPage() {
     setCustomParticulars([]);
     setFormError(null);
     setRateCardLoadError(null);
-    const today = new Date().toISOString().split('T')[0];
     setDf({
       customerType: 'regular',
       modeOfPayment: 'Credit', modeOfReservation: 'Email', clientType: 'COMPANY',
@@ -399,7 +429,7 @@ export default function DutySlipsPage() {
 
   /* Flexible Duty Slip custom line items state */
   const [customParticulars, setCustomParticulars] = useState<
-    Array<{ id: string; particular: string; rate: number; amount: number }>
+    Array<{ id: string; particular: string; rate: number; quantity?: number; amount: number }>
   >([]);
 
   const handleAddParticularRow = () => {
@@ -409,7 +439,7 @@ export default function DutySlipsPage() {
     ]);
   };
 
-  const handleUpdateParticular = (id: string, field: string, value: any) => {
+  const handleUpdateParticular = (id: string, field: string, value: string) => {
     setCustomParticulars(prev =>
       prev.map(row => {
         if (row.id !== id) return row;
@@ -430,23 +460,16 @@ export default function DutySlipsPage() {
     setCustomParticulars(prev => prev.filter(row => row.id !== id));
   };
 
-  /* Print */
-  const [printSlip, setPrintSlip] = useState<DutySlip | null>(null);
-
   /* submitting */
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-
-  /* Action menu */
-  const [actionMenu, setActionMenu] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   /* Helper to calculate night hours */
   const calculateNightHours = (start: Date, end: Date, nightStartStr = '22:00', nightEndStr = '06:00'): number => {
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) return 0;
     let nightHours = 0;
-    const [nsH, nsM] = nightStartStr.split(':').map(Number);
-    const [neH, neM] = nightEndStr.split(':').map(Number);
+    const [nsH] = nightStartStr.split(':').map(Number);
+    const [neH] = nightEndStr.split(':').map(Number);
     let current = new Date(start);
     const stepMs = 30 * 60 * 1000;
     while (current < end) {
@@ -468,25 +491,8 @@ export default function DutySlipsPage() {
 
   /* ── auth ── */
   useEffect(() => {
-    const token = api.getToken();
-    const u = api.getUser();
-    if (!token || !u) { router.push('/login'); return; }
-    setUser(u);
-    fetchDutySlips();
-  }, []);
-
-  useEffect(() => {
-    if (user) fetchDutySlips();
-  }, [page, filterStatus, search]);
-
-  /* click outside menu */
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setActionMenu(null);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+    if (!api.getToken() || !user) router.push('/login');
+  }, [router, user]);
 
   /* ── Compute dynamic available Car Groups ── */
   const availableCarGroups = useMemo(() => {
@@ -532,7 +538,6 @@ export default function DutySlipsPage() {
   /* ── Fetch Customer details on selection ── */
   useEffect(() => {
     if (!df.customerId) {
-      setFullCustomer(null);
       return;
     }
     const fetchCust = async () => {
@@ -544,7 +549,7 @@ export default function DutySlipsPage() {
           throw new Error('Customer API returned an invalid response.');
         }
         // Only set fullCustomer if not already set by openUnifiedForm (during restore)
-        setFullCustomer((prev: any) => prev && prev.id === customer.id ? prev : customer);
+        setFullCustomer((prev) => prev && prev.id === customer.id ? prev : customer);
         const taxRate = Number(customer.cgstRate || 0) + Number(customer.sgstRate || 0) + Number(customer.igstRate || 0);
         const effectiveAt = getRateEffectiveAt(
           undefined,
@@ -573,7 +578,7 @@ export default function DutySlipsPage() {
           carGroup: isRestoringRef.current
             ? f.carGroup
             : customerRateCards.some(
-                (card: any) =>
+                (card) =>
                   card.vehicleCategory?.name?.toLowerCase() ===
                   f.carGroup.toLowerCase(),
               )
@@ -603,7 +608,7 @@ export default function DutySlipsPage() {
       }
 
       setRateCardLoadError(null);
-      let allCards: any[] = Array.isArray(fullCustomer.rateCards)
+      let allCards: RateCard[] = Array.isArray(fullCustomer.rateCards)
         ? [...fullCustomer.rateCards]
         : [];
       try {
@@ -943,7 +948,6 @@ export default function DutySlipsPage() {
     const extraCharges = Number(df.extraCharges || 0);
 
     const subtotal = baseFare + extraKmCharged + extraHoursCharged + toll + parking + stateTax + mcd + driverAllowance + nightCharges + extraCharges;
-    const gstRate = 0;
     const taxAmount = 0;
     const totalAmount = subtotal;
 
@@ -1007,10 +1011,10 @@ export default function DutySlipsPage() {
       includedHours,
       packageType,
     };
-  }, [df, selectedRateCard]);
+  }, [df, selectedRateCard, customParticulars]);
 
   /* ── fetchers ── */
-  const fetchDutySlips = async () => {
+  const fetchDutySlips = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
@@ -1019,9 +1023,17 @@ export default function DutySlipsPage() {
       const res = await api.request(`/duty-slips?${params}`);
       setDutySlips(res.data || []);
       setTotalPages(res.meta?.lastPage || 1);
-    } catch (e: any) { setError(e.message); }
+    } catch (e: unknown) { setError(getErrorMessage(e)); }
     finally { setLoading(false); }
-  };
+  }, [page, search, filterStatus]);
+
+  useEffect(() => {
+    if (!user) return;
+    const timeoutId = window.setTimeout(() => {
+      void fetchDutySlips();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [user, fetchDutySlips]);
 
   const loadAssets = async () => {
     setLoadingBookings(true);
@@ -1032,7 +1044,7 @@ export default function DutySlipsPage() {
         api.request('/drivers?limit=200'),
         api.request('/vehicles?limit=200'),
       ]);
-      setAssignedBookings((bRes.data || []).filter((b: any) => !b.dutySlip));
+      setAssignedBookings((bRes.data || []).filter((b: Booking) => !b.dutySlip));
       setCustomers(cRes.data || cRes || []);
       setDrivers(dRes.data || dRes || []);
       setVehicles(vRes.data || vRes || []);
@@ -1146,13 +1158,16 @@ export default function DutySlipsPage() {
         return;
       }
 
-      const effectiveAt = endDateTime ? new Date(endDateTime).getTime() : Date.now();
+      const effectiveAt = getRateEffectiveAt(
+        df.dutyEndDate || df.dutyStartDate || df.reportingDate,
+        df.dutyEndTime || df.dutyStartTime || df.reportingTime,
+      ).getTime();
       const categoryName =
         booking.vehicleTypeRequired ||
         editingSlip.carGroup ||
         editingSlip.vehicle?.vehicleType;
       const hasValidRateCard = filterApplicableRateCards(
-        [selectedRateCard],
+        selectedRateCard ? [selectedRateCard] : [],
         booking.customer,
         booking.tripType,
         new Date(effectiveAt),
@@ -1393,8 +1408,6 @@ export default function DutySlipsPage() {
     finally { setSubmitting(false); }
   };
 
-  const handleDirectCreate = (e: React.FormEvent) => handleUnifiedSave(e);
-
   const openUnifiedForm = async (slip: DutySlip) => {
     isRestoringRef.current = true;
     loadAssets();
@@ -1415,7 +1428,7 @@ export default function DutySlipsPage() {
 
     // Fetch customer details to get custom rate cards and tax rates
     let customerObj = null;
-    let allCards: any[] = [];
+    let allCards: RateCard[] = [];
     try {
       if (slip.booking?.customerId) {
         customerObj = await api.request(
@@ -1461,7 +1474,7 @@ export default function DutySlipsPage() {
     );
     setAvailableRateCards(allCards);
 
-    let parsedParticulars: Array<{ id: string; particular: string; rate: number; quantity: number; amount: number }> = [];
+    let parsedParticulars: Array<{ id: string; particular: string; rate: number; quantity?: number; amount: number }> = [];
     let isFlex = slip.booking?.tripType === 'HOURLY_RENTAL';
     let remarksText = '';
     let savedBillingMode: 'N' | 'H' | 'F' | 'C' | 'T' | null = null;
@@ -1480,14 +1493,20 @@ export default function DutySlipsPage() {
     // ── PRIORITY 1: Read from dedicated DB snapshot columns (most reliable) ──
     if (slip.carGroup) savedCarGroup = slip.carGroup;
     if (slip.rateCardId) savedRateCardId = slip.rateCardId;
-    if (slip.billingMode) savedBillingMode = slip.billingMode as any;
+    if (
+      slip.billingMode === 'N' ||
+      slip.billingMode === 'H' ||
+      slip.billingMode === 'F' ||
+      slip.billingMode === 'C' ||
+      slip.billingMode === 'T'
+    ) savedBillingMode = slip.billingMode;
     if (typeof slip.baseFare === 'number' && slip.baseFare > 0) savedBaseFare = slip.baseFare;
     if (typeof slip.extraKmRate === 'number' && slip.extraKmRate > 0) savedExtraKmRate = slip.extraKmRate;
     if (typeof slip.extraHourRate === 'number' && slip.extraHourRate > 0) savedExtraHourRate = slip.extraHourRate;
 
     // ── PRIORITY 2: Parse pricingSnapshot JSON (if available in DB) ──
     if (slip.pricingSnapshot && typeof slip.pricingSnapshot === 'object') {
-      const snap = slip.pricingSnapshot as any;
+      const snap = slip.pricingSnapshot;
       if (snap.isFlexible && Array.isArray(snap.items)) {
         isFlex = true;
         parsedParticulars = snap.items;
@@ -1510,7 +1529,7 @@ export default function DutySlipsPage() {
       const rawRemarks = slip.remarks || slip.booking?.remarks || '';
       try {
         if (rawRemarks.trim().startsWith('{')) {
-          const obj = JSON.parse(rawRemarks);
+          const obj: PricingSnapshot = JSON.parse(rawRemarks);
           if (obj.isFlexible && Array.isArray(obj.items)) {
             isFlex = true;
             parsedParticulars = obj.items;
@@ -1531,7 +1550,7 @@ export default function DutySlipsPage() {
         } else {
           remarksText = rawRemarks;
         }
-      } catch (e) { remarksText = rawRemarks; }
+      } catch { remarksText = rawRemarks; }
     }
 
     setCustomParticulars(parsedParticulars);
@@ -1549,9 +1568,9 @@ export default function DutySlipsPage() {
       targetCategory,
     );
     const matchedRc =
-      cardsForCategory.find((card: any) => card.id === savedRateCardId) ||
+      cardsForCategory.find((card) => card.id === savedRateCardId) ||
       cardsForCategory.find(
-        (card: any) => card.customerId === slip.booking?.customerId,
+        (card) => card.customerId === slip.booking?.customerId,
       ) ||
       cardsForCategory[0] ||
       null;
@@ -1561,8 +1580,8 @@ export default function DutySlipsPage() {
       ? Number(customerObj.cgstRate || 0) + Number(customerObj.sgstRate || 0) + Number(customerObj.igstRate || 0)
       : Number(slip.booking?.customer?.cgstRate || 0) + Number(slip.booking?.customer?.sgstRate || 0) + Number(slip.booking?.customer?.igstRate || 0);
 
-    const actKm = slip.trip ? Number((slip.trip as any).totalKm || 0) : Math.max(0, (Number(slip.endKm) || 0) - (Number(slip.startKm) || 0));
-    const actHrs = slip.trip ? Number((slip.trip as any).totalHours || 0) : 0;
+    const actKm = slip.trip ? Number(slip.trip.totalKm || 0) : Math.max(0, (Number(slip.endKm) || 0) - (Number(slip.startKm) || 0));
+    const actHrs = slip.trip ? Number(slip.trip.totalHours || 0) : 0;
 
     const isPickupTransfer = slip.booking?.pickupType === 'airport' || slip.booking?.pickupType === 'railway';
     const isOutstation = slip.booking?.tripType === 'OUTSTATION';
@@ -1587,7 +1606,7 @@ export default function DutySlipsPage() {
 
     const hasClosedTrip = !!slip.trip;
 
-    const rawNightCharge = Number(slip.nightCharges || (slip.trip as any)?.nightChargesCharged || 0);
+    const rawNightCharge = Number(slip.nightCharges || slip.trip?.nightChargesCharged || 0);
     const resolvedIncludeNight = savedIncludeNightCharges !== null
       ? savedIncludeNightCharges
       : rawNightCharge > 0;
@@ -1598,7 +1617,7 @@ export default function DutySlipsPage() {
       ? savedIsManualNightCharges
       : (hasClosedTrip || rawNightCharge > 0 || savedIncludeNightCharges !== null);
 
-    const rawDA = Number(slip.driverAllowance || (slip.trip as any)?.driverAllowance || 0);
+    const rawDA = Number(slip.driverAllowance || slip.trip?.driverAllowance || 0);
     const resolvedIncludeDA = savedIncludeDriverAllowance !== null
       ? savedIncludeDriverAllowance
       : (rawDA > 0 || isOutstation);
@@ -1635,7 +1654,12 @@ export default function DutySlipsPage() {
       employeeId: slip.employeeId || '',
       reportingDate: resolvedRepDate,
       reportingTime: resolvedRepTime,
-      pickupType: (slip.booking?.pickupType || 'other') as any,
+      pickupType:
+        slip.booking?.pickupType === 'airport' ||
+        slip.booking?.pickupType === 'railway' ||
+        slip.booking?.pickupType === 'hotel'
+          ? slip.booking.pickupType
+          : 'other',
       vehicleId: slip.vehicleId || '',
       carGroup: resolvedCarGroup,
       carName: slip.vehicle?.model || '',
@@ -1685,7 +1709,7 @@ export default function DutySlipsPage() {
 
       // Override values — DB snapshot takes priority over calculated values
       baseFare: hasClosedTrip
-        ? Number((slip.trip as any).baseFareCharged)
+        ? Number(slip.trip?.baseFareCharged)
         : (savedBaseFare !== null
           ? savedBaseFare
           : resolvedBillingMode === 'H' || resolvedBillingMode === 'T'
@@ -1695,8 +1719,8 @@ export default function DutySlipsPage() {
               : (Number(matchedRc?.fullDayRate) || 1600)),
       extraKmRate: savedExtraKmRate !== null ? savedExtraKmRate : Number(matchedRc?.extraKmRate || 12),
       extraHourRate: savedExtraHourRate !== null ? savedExtraHourRate : Number(matchedRc?.extraHourRate || 100),
-      extraKmCharged: hasClosedTrip ? Number((slip.trip as any).extraKmCharged) : 0,
-      extraHoursCharged: hasClosedTrip ? Number((slip.trip as any).extraHoursCharged) : 0,
+      extraKmCharged: hasClosedTrip ? Number(slip.trip?.extraKmCharged) : 0,
+      extraHoursCharged: hasClosedTrip ? Number(slip.trip?.extraHoursCharged) : 0,
       includeDriverAllowance: resolvedIncludeDA,
       includeNightCharges: resolvedIncludeNight,
       // Mark rates as "manual" so the reactive calculator won't overwrite them
@@ -1731,21 +1755,6 @@ export default function DutySlipsPage() {
   };
 
 
-  const handleDelete = async (id: string) => {
-    if (
-      !confirm(
-        'Are you sure you want to delete this duty slip? This will remove associated unbilled trips and return any linked booking to pending status.',
-      )
-    )
-      return;
-    try {
-      await api.request(`/duty-slips/${id}`, { method: 'DELETE' });
-      fetchDutySlips();
-    } catch (e: any) {
-      alert(e.message || 'Failed to delete duty slip.');
-    }
-  };
-
   const downloadPdf = async (id: string, num: string) => {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/duty-slips/${id}/pdf`, {
@@ -1756,7 +1765,7 @@ export default function DutySlipsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = `DS-${num}.pdf`;
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch (e: any) { alert(e.message); }
+    } catch (e: unknown) { alert(getErrorMessage(e)); }
   };
 
   const previewPdf = async (id: string, num: string) => {
@@ -1770,7 +1779,7 @@ export default function DutySlipsPage() {
       const url = URL.createObjectURL(blob);
       setPreviewPdfUrl(url);
       setPreviewTitle(`Duty Slip: ${num}`);
-    } catch (e: any) { alert(e.message); }
+    } catch (e: unknown) { alert(getErrorMessage(e)); }
     finally { setPreviewLoading(false); }
   };
 
@@ -1963,9 +1972,9 @@ export default function DutySlipsPage() {
                     value={bookingForm.bookingId}
                     onChange={(e) => {
                       const selectedId = e.target.value;
-                      const found = assignedBookings.find((b: any) => b.id === selectedId);
+                      const found = assignedBookings.find((b) => b.id === selectedId);
                       if (found) {
-                        const dt = splitDT(found.pickupDate || (found as any).reportingTime);
+                        const dt = splitDT(found.pickupDate || found.pickupTime);
                         setBookingForm((f) => ({
                           ...f,
                           bookingId: selectedId,
@@ -1980,7 +1989,7 @@ export default function DutySlipsPage() {
                     className={sel}
                   >
                     <option value="">— Choose Booking —</option>
-                    {assignedBookings.map((b: any) => (
+                    {assignedBookings.map((b) => (
                       <option key={b.id} value={b.id}>{b.bookingNumber} · {b.customer?.name}</option>
                     ))}
                   </select>
@@ -2463,12 +2472,6 @@ export default function DutySlipsPage() {
                         const customHr = Number(selectedRateCard?.fullHr) || Number(selectedRateCard?.minHr) || 0;
                         const customFare = Number(selectedRateCard?.fullDayRate) || Number(selectedRateCard?.halfDayRate) || 0;
 
-                        const hasCustomPackage = !!(selectedRateCard && (
-                          (customKm !== 40 && customKm !== 80) ||
-                          (customHr !== 4 && customHr !== 8) ||
-                          !!selectedRateCard.customerId
-                        ));
-
                         const halfDayFare = Number(selectedRateCard?.halfDayRate) || 0;
                         const halfDayKm = Number(selectedRateCard?.minKm) || 0;
                         const halfDayHr = Number(selectedRateCard?.minHr) || 0;
@@ -2600,7 +2603,7 @@ export default function DutySlipsPage() {
                                     }}
                                     className={sel}
                                   >
-                                    {cardsForSelectedCategory.map((rc: any) => {
+                                    {cardsForSelectedCategory.map((rc) => {
                                       const baseKm = Number(rc.fullKm) || Number(rc.minKm) || Number(rc.includedKm);
                                       const baseHr = Number(rc.fullHr) || Number(rc.minHr);
                                       const baseFare = Number(rc.fullDayRate) || Number(rc.halfDayRate);
@@ -3328,8 +3331,8 @@ export default function DutySlipsPage() {
                     await api.request(`/duty-slips/${deletingSlip.id}`, { method: 'DELETE' });
                     setDeletingSlip(null);
                     fetchDutySlips();
-                  } catch (err: any) {
-                    alert(err.message || 'Failed to delete duty slip.');
+                  } catch (err: unknown) {
+                    alert(getErrorMessage(err) || 'Failed to delete duty slip.');
                   } finally {
                     setIsDeleting(false);
                   }

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
 interface Customer {
+  id: string;
   name: string;
   companyName: string | null;
 }
@@ -29,9 +30,17 @@ interface Payment {
   createdAt?: string;
 }
 
+interface DashboardUser {
+  role?: string;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function PaymentsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<DashboardUser | null>(null);
 
   // Payments log state
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -78,7 +87,7 @@ export default function PaymentsPage() {
     if (!token || !currentUser) {
       router.push('/login');
     } else {
-      setUser(currentUser);
+      void Promise.resolve().then(() => setUser(currentUser as DashboardUser));
     }
   }, [router]);
 
@@ -93,8 +102,8 @@ export default function PaymentsPage() {
       setPayments(res.data);
       setTotalPages(res.meta.totalPages);
       setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch payment ledger');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to fetch payment ledger'));
     } finally {
       setLoading(false);
     }
@@ -103,9 +112,9 @@ export default function PaymentsPage() {
   const fetchOutstandingInvoices = async () => {
     try {
       // Fetch invoices which have outstanding dues
-      const res = await api.request('/invoices?limit=100');
+      const res = await api.request<{ data: Invoice[] }>('/invoices?limit=100');
       // Filter unpaid or partially paid
-      const outstanding = res.data.filter((inv: any) => Number(inv.dueAmount) > 0);
+      const outstanding = res.data.filter((inv) => Number(inv.dueAmount) > 0);
       setOutstandingInvoices(outstanding);
       if (outstanding.length > 0) {
         setFormInvoiceId(outstanding[0].id);
@@ -118,7 +127,7 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     if (user) {
-      fetchPayments();
+      void Promise.resolve().then(fetchPayments);
     }
   }, [user, page, statusFilter]);
 
@@ -176,8 +185,8 @@ export default function PaymentsPage() {
       setIsRecordOpen(false);
       setPage(1);
       fetchPayments();
-    } catch (err: any) {
-      setFormError(err.message || 'Failed to log payment transaction');
+    } catch (err: unknown) {
+      setFormError(getErrorMessage(err, 'Failed to log payment transaction'));
     } finally {
       setFormSubmitting(false);
     }
@@ -210,8 +219,8 @@ export default function PaymentsPage() {
 
       setEditPayment(null);
       fetchPayments();
-    } catch (err: any) {
-      setEditError(err.message || 'Failed to update payment record');
+    } catch (err: unknown) {
+      setEditError(getErrorMessage(err, 'Failed to update payment record'));
     } finally {
       setEditSubmitting(false);
     }
@@ -231,8 +240,8 @@ export default function PaymentsPage() {
 
       setDeletePayment(null);
       fetchPayments();
-    } catch (err: any) {
-      setDeleteError(err.message || 'Failed to delete payment record');
+    } catch (err: unknown) {
+      setDeleteError(getErrorMessage(err, 'Failed to delete payment record'));
     } finally {
       setDeleteSubmitting(false);
     }
@@ -528,7 +537,7 @@ export default function PaymentsPage() {
                   <label className="block text-xs font-bold text-[#475569] uppercase tracking-wide mb-1">Payment Mode</label>
                   <select
                     value={formMode}
-                    onChange={(e) => setFormMode(e.target.value as any)}
+                    onChange={(e) => setFormMode(e.target.value as Payment['paymentMode'])}
                     className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none"
                   >
                     <option value="UPI">UPI Interface</option>
@@ -685,7 +694,7 @@ export default function PaymentsPage() {
                 <label className="block text-xs font-bold text-[#475569] uppercase tracking-wide mb-1">Payment Status</label>
                 <select
                   value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value as any)}
+                  onChange={(e) => setEditStatus(e.target.value as Payment['status'])}
                   className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500 font-semibold"
                 >
                   <option value="SUCCESS">SUCCESS (Applied to Invoice)</option>
@@ -786,4 +795,3 @@ export default function PaymentsPage() {
     </main>
   );
 }
-

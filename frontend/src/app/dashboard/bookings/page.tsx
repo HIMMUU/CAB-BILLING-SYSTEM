@@ -1,7 +1,7 @@
 'use strict';
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import DatePicker from '@/components/DatePicker';
@@ -110,12 +110,107 @@ const dateToDisplay = (d: string): string => {
   return d;
 };
 
+interface AuthUser {
+  role: string;
+}
+
+interface VehicleCategory {
+  id: string;
+  name: string;
+}
+
+interface CustomerRateCard {
+  fullKm?: number | string;
+  minKm?: number | string;
+  includedKm?: number | string;
+  fullHr?: number | string;
+  minHr?: number | string;
+  fullDayRate?: number | string;
+  halfDayRate?: number | string;
+  extraKmRate?: number | string;
+  extraHourRate?: number | string;
+  outstationRatePerKm?: number | string;
+  vehicleCategory?: {
+    name?: string;
+  };
+}
+
+const BOOKING_TRIP_TYPES: Booking['tripType'][] = [
+  'LOCAL',
+  'AIRPORT_TRANSFER',
+  'OUTSTATION',
+  'HOURLY_RENTAL',
+];
+const BOOKING_STATUSES: Booking['status'][] = [
+  'PENDING',
+  'ASSIGNED',
+  'STARTED',
+  'COMPLETED',
+  'CANCELLED',
+];
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isVehicleCategory = (value: unknown): value is VehicleCategory =>
+  isRecord(value) && typeof value.id === 'string' && typeof value.name === 'string';
+
+const getVehicleCategories = (value: unknown): VehicleCategory[] =>
+  Array.isArray(value) ? value.filter(isVehicleCategory) : [];
+
+const isAuthUser = (value: unknown): value is AuthUser =>
+  isRecord(value) && typeof value.role === 'string';
+
+const readAuthUser = (snapshot: string | null): AuthUser | null => {
+  if (!snapshot) return null;
+  try {
+    const value: unknown = JSON.parse(snapshot);
+    return isAuthUser(value) ? value : null;
+  } catch {
+    return null;
+  }
+};
+
+const getVehicleCategoryNames = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((category: unknown) =>
+    isRecord(category) && typeof category.name === 'string' ? [category.name] : [],
+  );
+};
+
+const isCustomerRateCard = (value: unknown): value is CustomerRateCard =>
+  isRecord(value) &&
+  isRecord(value.vehicleCategory) &&
+  typeof value.vehicleCategory.name === 'string';
+
+const getCustomerRateCards = (value: unknown): CustomerRateCard[] =>
+  Array.isArray(value) ? value.filter(isCustomerRateCard) : [];
+
+const subscribeToUser = (callback: () => void) => {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener('storage', callback);
+  return () => window.removeEventListener('storage', callback);
+};
+
+const getUserSnapshot = () =>
+  typeof window === 'undefined' ? null : window.localStorage.getItem('user');
+
+const getServerUserSnapshot = () => null;
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
 export default function BookingsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const userSnapshot = useSyncExternalStore(
+    subscribeToUser,
+    getUserSnapshot,
+    getServerUserSnapshot,
+  );
+  const user = readAuthUser(userSnapshot);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -172,7 +267,7 @@ export default function BookingsPage() {
     driverId: '',
     vehicleId: '',
   });
-  const [custRateCards, setCustRateCards] = useState<any[]>([]);
+  const [custRateCards, setCustRateCards] = useState<CustomerRateCard[]>([]);
 
   const fetchCustomerRates = async (custId: string) => {
     if (!custId) {
@@ -181,7 +276,7 @@ export default function BookingsPage() {
     }
     try {
       const fullCust = await api.request(`/customers/${custId}`);
-      setCustRateCards(fullCust.rateCards || []);
+      setCustRateCards(getCustomerRateCards(fullCust.rateCards));
     } catch (e) {
       setCustRateCards([]);
     }
@@ -199,7 +294,7 @@ export default function BookingsPage() {
   const fetchCategories = async () => {
     try {
       const res = await api.request('/rate-management/categories');
-      setCategories(res || []);
+      setCategories(getVehicleCategories(res));
     } catch (err) {
       console.error('Failed to load categories list', err);
     }
@@ -219,17 +314,16 @@ export default function BookingsPage() {
   };
 
   useEffect(() => {
-    const token = api.getToken();
-    const currentUser = api.getUser();
-    if (!token || !currentUser) {
+    if (!api.getToken() || !userSnapshot) {
       router.push('/login');
     } else {
-      setUser(currentUser);
-      fetchCustomers();
-      fetchCategories();
-      fetchDriversAndVehicles();
+      void Promise.resolve().then(() => {
+        fetchCustomers();
+        fetchCategories();
+        fetchDriversAndVehicles();
+      });
     }
-  }, [router]);
+  }, [router, userSnapshot]);
 
   const fetchBookings = async () => {
     setLoading(true);
@@ -242,8 +336,8 @@ export default function BookingsPage() {
       setBookings(res.data);
       setTotalPages(res.meta.totalPages);
       setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load bookings');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to load bookings'));
     } finally {
       setLoading(false);
     }
@@ -253,7 +347,7 @@ export default function BookingsPage() {
     try {
       const res = await api.request('/rate-management/categories');
       if (Array.isArray(res) && res.length > 0) {
-        setCompanyCarGroups(res.map((c: any) => c.name));
+        setCompanyCarGroups(getVehicleCategoryNames(res));
       }
     } catch (err) {
       console.error('Failed to load company car groups', err);
@@ -261,12 +355,14 @@ export default function BookingsPage() {
   };
 
   useEffect(() => {
-    if (user) {
-      fetchBookings();
-      fetchDriversAndVehicles();
-      fetchCarGroups();
+    if (userSnapshot) {
+      void Promise.resolve().then(() => {
+        fetchBookings();
+        fetchDriversAndVehicles();
+        fetchCarGroups();
+      });
     }
-  }, [user, page, filterStatus]);
+  }, [userSnapshot, page, filterStatus]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -376,8 +472,8 @@ export default function BookingsPage() {
 
       setIsFormOpen(false);
       fetchBookings();
-    } catch (err: any) {
-      setFormError(err.message || 'Operation failed.');
+    } catch (err) {
+      setFormError(getErrorMessage(err, 'Operation failed.'));
     } finally {
       setSubmitting(false);
     }
@@ -388,8 +484,8 @@ export default function BookingsPage() {
     try {
       await api.request(`/bookings/${id}`, { method: 'DELETE' });
       fetchBookings();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete booking.');
+    } catch (err) {
+      alert(getErrorMessage(err, 'Failed to delete booking.'));
     }
   };
 
@@ -414,8 +510,8 @@ export default function BookingsPage() {
       // Auto select first entries if available
       if (res.drivers?.length > 0) setTargetDriverId(res.drivers[0].id);
       if (res.vehicles?.length > 0) setTargetVehicleId(res.vehicles[0].id);
-    } catch (err: any) {
-      setDrawerError(err.message || 'Failed to load available resources.');
+    } catch (err) {
+      setDrawerError(getErrorMessage(err, 'Failed to load available resources.'));
     } finally {
       setLoadingResources(false);
     }
@@ -459,8 +555,8 @@ export default function BookingsPage() {
       setIsAssignDrawerOpen(false);
       setSelectedBookingForAssign(null);
       fetchBookings();
-    } catch (err: any) {
-      setDrawerError(err.message || 'Assignment failed.');
+    } catch (err) {
+      setDrawerError(getErrorMessage(err, 'Assignment failed.'));
     } finally {
       setAssigningSubmitting(false);
     }
@@ -476,7 +572,7 @@ export default function BookingsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = `DS-${num}.pdf`;
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch (e: any) { alert(e.message); }
+    } catch (error) { alert(getErrorMessage(error, 'Failed to download duty slip.')); }
   };
 
   if (!user) return null;
@@ -566,7 +662,7 @@ export default function BookingsPage() {
           </div>
         ) : bookings.length === 0 ? (
           <div className="p-12 text-center text-[#64748B]">
-            No bookings found. Click "Create Booking" to add one.
+            No bookings found. Click &quot;Create Booking&quot; to add one.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -776,11 +872,11 @@ export default function BookingsPage() {
                       Booking Status
                     </label>
                     <div className="grid grid-cols-5 gap-1.5">
-                      {['PENDING', 'ASSIGNED', 'STARTED', 'COMPLETED', 'CANCELLED'].map((status) => (
+                      {BOOKING_STATUSES.map((status) => (
                         <button
                           key={status}
                           type="button"
-                          onClick={() => setFormData({ ...formData, status: status as any })}
+                          onClick={() => setFormData({ ...formData, status })}
                           className={`py-2 text-center rounded-lg text-[9px] font-bold uppercase border transition-all ${
                             formData.status === status
                               ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
@@ -896,7 +992,10 @@ export default function BookingsPage() {
                     <select
                       required
                       value={formData.tripType}
-                      onChange={(e) => setFormData({ ...formData, tripType: e.target.value as any })}
+                      onChange={(e) => {
+                        const tripType = BOOKING_TRIP_TYPES.find((value) => value === e.target.value);
+                        if (tripType) setFormData({ ...formData, tripType });
+                      }}
                       className="w-full px-4 py-2.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
                     >
                       <option value="LOCAL">Local Trip</option>
@@ -937,7 +1036,7 @@ export default function BookingsPage() {
                 </div>
 
                 {(() => {
-                  const matchedRc = custRateCards.find((rc: any) =>
+                  const matchedRc = custRateCards.find((rc) =>
                     rc.vehicleCategory?.name?.toLowerCase() === formData.vehicleTypeRequired?.toLowerCase()
                   );
                   if (!matchedRc) return null;
@@ -1400,8 +1499,8 @@ export default function BookingsPage() {
                     await api.request(`/bookings/${deletingBooking.id}`, { method: 'DELETE' });
                     setDeletingBooking(null);
                     fetchBookings();
-                  } catch (err: any) {
-                    alert(err.message || 'Failed to delete booking.');
+                  } catch (err) {
+                    alert(getErrorMessage(err, 'Failed to delete booking.'));
                   } finally {
                     setIsDeletingBooking(false);
                   }

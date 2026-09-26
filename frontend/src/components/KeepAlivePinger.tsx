@@ -59,12 +59,13 @@ export function KeepAlivePinger() {
   };
 
   useEffect(() => {
-    // Initial ping on load
-    pingBackend();
+    const initialPing = window.setTimeout(() => {
+      void pingBackend();
+    }, 0);
 
     // 30-second main interval
     const interval = setInterval(() => {
-      pingBackend();
+      void pingBackend();
     }, 30000);
 
     // 1-second countdown ticker
@@ -76,6 +77,7 @@ export function KeepAlivePinger() {
     }, 1000);
 
     return () => {
+      window.clearTimeout(initialPing);
       clearInterval(interval);
       clearInterval(timer);
     };

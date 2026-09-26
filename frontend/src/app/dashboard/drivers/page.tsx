@@ -1,7 +1,7 @@
 'use strict';
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
@@ -16,9 +16,50 @@ interface Driver {
   status: 'AVAILABLE' | 'ON_TRIP' | 'INACTIVE';
 }
 
+interface AuthUser {
+  role: string;
+}
+
+const DRIVER_STATUSES: Driver['status'][] = ['AVAILABLE', 'ON_TRIP', 'INACTIVE'];
+
+const isAuthUser = (value: unknown): value is AuthUser =>
+  typeof value === 'object' &&
+  value !== null &&
+  'role' in value &&
+  typeof value.role === 'string';
+
+const readAuthUser = (snapshot: string | null): AuthUser | null => {
+  if (!snapshot) return null;
+  try {
+    const value: unknown = JSON.parse(snapshot);
+    return isAuthUser(value) ? value : null;
+  } catch {
+    return null;
+  }
+};
+
+const subscribeToUser = (callback: () => void) => {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener('storage', callback);
+  return () => window.removeEventListener('storage', callback);
+};
+
+const getUserSnapshot = () =>
+  typeof window === 'undefined' ? null : window.localStorage.getItem('user');
+
+const getServerUserSnapshot = () => null;
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
 export default function DriversPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const userSnapshot = useSyncExternalStore(
+    subscribeToUser,
+    getUserSnapshot,
+    getServerUserSnapshot,
+  );
+  const user = readAuthUser(userSnapshot);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,14 +88,10 @@ export default function DriversPage() {
   });
 
   useEffect(() => {
-    const token = api.getToken();
-    const currentUser = api.getUser();
-    if (!token || !currentUser) {
+    if (!api.getToken() || !userSnapshot) {
       router.push('/login');
-    } else {
-      setUser(currentUser);
     }
-  }, [router]);
+  }, [router, userSnapshot]);
 
   const [deletingDriver, setDeletingDriver] = useState<Driver | null>(null);
   const [isDeletingDriver, setIsDeletingDriver] = useState(false);
@@ -70,18 +107,18 @@ export default function DriversPage() {
       setDrivers(res.data);
       setTotalPages(res.meta.totalPages);
       setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load drivers');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to load drivers'));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user) {
-      fetchDrivers();
+    if (userSnapshot) {
+      void Promise.resolve().then(fetchDrivers);
     }
-  }, [user, page, filterStatus]);
+  }, [userSnapshot, page, filterStatus]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,8 +185,8 @@ export default function DriversPage() {
 
       setIsFormOpen(false);
       fetchDrivers();
-    } catch (err: any) {
-      setFormError(err.message || 'Operation failed.');
+    } catch (err) {
+      setFormError(getErrorMessage(err, 'Operation failed.'));
     } finally {
       setSubmitting(false);
     }
@@ -165,8 +202,8 @@ export default function DriversPage() {
         );
       }
       fetchDrivers();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete driver.');
+    } catch (err) {
+      alert(getErrorMessage(err, 'Failed to delete driver.'));
     }
   };
 
@@ -395,11 +432,11 @@ export default function DriversPage() {
                     Driver Status
                   </label>
                   <div className="grid grid-cols-3 gap-3">
-                    {['AVAILABLE', 'ON_TRIP', 'INACTIVE'].map((status) => (
+                    {DRIVER_STATUSES.map((status) => (
                       <button
                         key={status}
                         type="button"
-                        onClick={() => setFormData({ ...formData, status: status as any })}
+                        onClick={() => setFormData({ ...formData, status })}
                         className={`py-2 text-center rounded-lg text-xs font-semibold uppercase border transition-all ${
                           formData.status === status
                             ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
@@ -563,8 +600,8 @@ export default function DriversPage() {
                       alert('Driver has historical records and has been archived as INACTIVE.');
                     }
                     fetchDrivers();
-                  } catch (err: any) {
-                    alert(err.message || 'Failed to delete driver.');
+                  } catch (err) {
+                    alert(getErrorMessage(err, 'Failed to delete driver.'));
                   } finally {
                     setIsDeletingDriver(false);
                   }

@@ -17,6 +17,8 @@ interface Customer {
   cgstRate?: string | number;
   sgstRate?: string | number;
   igstRate?: string | number;
+  gstin?: string | null;
+  isRcm?: boolean;
 }
 
 interface InvoiceItem {
@@ -47,6 +49,9 @@ interface Invoice {
   extraKmCharges: string;
   extraHourCharges?: string;
   discount?: string;
+  isRcm?: boolean;
+  stateTax?: string;
+  mcd?: string;
   toll: string;
   parking: string;
   nightCharges: string;
@@ -106,9 +111,20 @@ interface ClosedTrip {
   };
 }
 
+interface DashboardUser {
+  role?: string;
+}
+
+type PaymentMode = 'BANK_TRANSFER' | 'UPI' | 'CASH' | 'CHEQUE';
+type GstType = 'INTRASTATE' | 'INTERSTATE';
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function InvoicesPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<DashboardUser | null>(null);
   
   // Data State
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -135,7 +151,7 @@ export default function InvoicesPage() {
   const [genGstRate, setGenGstRate] = useState<number>(5);
   const [genInvoiceDate, setGenInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [genDueDate, setGenDueDate] = useState(
-    new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    new Date(new Date().getTime() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   );
   const [genSubmitting, setGenSubmitting] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
@@ -174,7 +190,7 @@ export default function InvoicesPage() {
     if (!token || !currentUser) {
       router.push('/login');
     } else {
-      setUser(currentUser);
+      void Promise.resolve().then(() => setUser(currentUser as DashboardUser));
     }
   }, [router]);
 
@@ -189,8 +205,8 @@ export default function InvoicesPage() {
       setInvoices(res.data);
       setTotalPages(res.meta.totalPages);
       setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load invoices');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to load invoices'));
     } finally {
       setLoading(false);
     }
@@ -202,14 +218,14 @@ export default function InvoicesPage() {
       setUninvoicedTrips(res);
       setGenSelectedTripIds([]);
       setGenCustomerFilter('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load eligible trips', err);
     }
   };
 
   useEffect(() => {
     if (user) {
-      fetchInvoices();
+      void Promise.resolve().then(fetchInvoices);
     }
   }, [user, page, statusFilter]);
 
@@ -224,7 +240,7 @@ export default function InvoicesPage() {
   
   // Get active customers
   const activeCustomers = allCustomers.filter(
-    (c) => c.status === 'ACTIVE' || (c as any).status === 'ACTIVE'
+    (c) => c.status === 'ACTIVE'
   );
 
   // Filter active customers by search term across all parties
@@ -234,7 +250,7 @@ export default function InvoicesPage() {
     const nameMatch = (c.name || '').toLowerCase().includes(term);
     const companyMatch = (c.companyName || '').toLowerCase().includes(term);
     const phoneMatch = (c.phone || '').toLowerCase().includes(term);
-    const gstMatch = ((c as any).gstin || c.gstNumber || '').toLowerCase().includes(term);
+    const gstMatch = (c.gstin || c.gstNumber || '').toLowerCase().includes(term);
     return nameMatch || companyMatch || phoneMatch || gstMatch;
   });
 
@@ -318,9 +334,9 @@ export default function InvoicesPage() {
     let cgst = 0, sgst = 0, igst = 0;
     let cgstRate = 0, sgstRate = 0, igstRate = 0;
     
-    const custCgst = Number((customer as any)?.cgstRate || 0);
-    const custSgst = Number((customer as any)?.sgstRate || 0);
-    const custIgst = Number((customer as any)?.igstRate || 0);
+    const custCgst = Number(customer?.cgstRate || 0);
+    const custSgst = Number(customer?.sgstRate || 0);
+    const custIgst = Number(customer?.igstRate || 0);
     const hasCustGst = custCgst > 0 || custSgst > 0 || custIgst > 0;
 
     if (hasCustGst) {
@@ -381,9 +397,9 @@ export default function InvoicesPage() {
     // Automatically set GST Type, Rate, and RCM if defined on the customer
     const selectedCust = allCustomers.find(c => c.id === customerId);
     if (selectedCust) {
-      const cgst = Number((selectedCust as any).cgstRate || 0);
-      const sgst = Number((selectedCust as any).sgstRate || 0);
-      const igst = Number((selectedCust as any).igstRate || 0);
+      const cgst = Number(selectedCust.cgstRate || 0);
+      const sgst = Number(selectedCust.sgstRate || 0);
+      const igst = Number(selectedCust.igstRate || 0);
 
       // Rule: Compare Customer GST first 2 digits vs Company GST first 2 digits
       const custGst = selectedCust.gstNumber ? selectedCust.gstNumber.trim() : '';
@@ -401,7 +417,7 @@ export default function InvoicesPage() {
         setGenGstRate(igst || 5);
       }
 
-      setGenIsRcm(!!(selectedCust as any).isRcm);
+      setGenIsRcm(!!selectedCust.isRcm);
     }
   };
 
@@ -435,8 +451,8 @@ export default function InvoicesPage() {
       setGenDiscount('0');
       setPage(1);
       fetchInvoices();
-    } catch (err: any) {
-      setGenError(err.message || 'Failed to generate invoice');
+    } catch (err: unknown) {
+      setGenError(getErrorMessage(err, 'Failed to generate invoice'));
     } finally {
       setGenSubmitting(false);
     }
@@ -466,8 +482,8 @@ export default function InvoicesPage() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-    } catch (err: any) {
-      alert(err.message || 'Error downloading invoice PDF');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Error downloading invoice PDF'));
     }
   };
 
@@ -491,8 +507,8 @@ export default function InvoicesPage() {
       const url = window.URL.createObjectURL(blob);
       setPreviewPdfUrl(url);
       setPreviewTitle(`Invoice: ${invoiceNumber}`);
-    } catch (err: any) {
-      alert(err.message || 'Error generating PDF preview');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Error generating PDF preview'));
     } finally {
       setPreviewLoading(false);
     }
@@ -516,8 +532,8 @@ export default function InvoicesPage() {
       setAllCustomers(customersRes.data || []);
       setCompanyGst(tenantRes?.companyGst || '');
       setIsGenerateOpen(true);
-    } catch (err: any) {
-      alert(err.message || 'Failed to load eligible uninvoiced trips');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Failed to load eligible uninvoiced trips'));
     }
   };
 
@@ -568,8 +584,8 @@ export default function InvoicesPage() {
       const updatedInvoice = await api.request(`/invoices/${selectedInvoice.id}`);
       setSelectedInvoice(updatedInvoice);
       fetchInvoices();
-    } catch (err: any) {
-      setPayError(err.message || 'Failed to record payment');
+    } catch (err: unknown) {
+      setPayError(getErrorMessage(err, 'Failed to record payment'));
     } finally {
       setPaySubmitting(false);
     }
@@ -608,8 +624,8 @@ export default function InvoicesPage() {
     setEditInvoiceDate(invoice.invoiceDate ? invoice.invoiceDate.split('T')[0] : '');
     setEditDueDate(invoice.dueDate ? invoice.dueDate.split('T')[0] : '');
     setEditStatus(invoice.status);
-    setEditIsRcm(!!(invoice as any).isRcm);
-    setEditDiscount(String((invoice as any).discount || '0'));
+    setEditIsRcm(!!invoice.isRcm);
+    setEditDiscount(String(invoice.discount || '0'));
     setEditError(null);
     setIsEditOpen(true);
 
@@ -619,12 +635,12 @@ export default function InvoicesPage() {
         api.request('/invoices/uninvoiced-trips'),
       ]);
       setEditInvoice(fullInvoice);
-      setEditDiscount(String((fullInvoice as any).discount || '0'));
+      setEditDiscount(String(fullInvoice.discount || '0'));
       const custTrips = (tripsRes || []).filter(
         (t: ClosedTrip) => t.booking?.customer?.id === invoice.customerId
       );
       setAvailableTrips(custTrips);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load full invoice or available trips', err);
     }
   };
@@ -651,8 +667,8 @@ export default function InvoicesPage() {
       setIsEditOpen(false);
       setEditInvoice(null);
       fetchInvoices();
-    } catch (err: any) {
-      setEditError(err.message || 'Failed to update invoice');
+    } catch (err: unknown) {
+      setEditError(getErrorMessage(err, 'Failed to update invoice'));
     } finally {
       setEditSubmitting(false);
     }
@@ -701,8 +717,8 @@ export default function InvoicesPage() {
       );
       setAvailableTrips(custTrips);
       fetchInvoices();
-    } catch (err: any) {
-      alert(err.message || 'Failed to add duty slip to invoice');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Failed to add duty slip to invoice'));
     }
   };
 
@@ -779,8 +795,8 @@ export default function InvoicesPage() {
       setAvailableTrips(custTrips);
       setSelectedAddTripIds([]);
       setIsAddDutySlipOpen(true);
-    } catch (err: any) {
-      alert(err.message || 'Failed to load available duty slips');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Failed to load available duty slips'));
     } finally {
       setAddDutySlipLoading(false);
     }
@@ -796,8 +812,8 @@ export default function InvoicesPage() {
       setSelectedInvoice(updatedInvoice);
       setIsAddDutySlipOpen(false);
       fetchInvoices();
-    } catch (err: any) {
-      alert(err.message || 'Failed to add duty slip to invoice');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Failed to add duty slip to invoice'));
     }
   };
 
@@ -928,9 +944,9 @@ export default function InvoicesPage() {
                     <td className="py-4 px-6 text-[#64748B]">{new Date(invoice.dueDate).toLocaleDateString('en-GB')}</td>
                     <td className="py-4 px-6 font-semibold">
                       <div>INR {Number(invoice.totalAmount).toFixed(2)}</div>
-                      {Number((invoice as any).discount || 0) > 0 && (
+                      {Number(invoice.discount || 0) > 0 && (
                         <div className="text-[10px] font-bold text-rose-600 inline-flex items-center gap-0.5 mt-0.5 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
-                          -₹{Number((invoice as any).discount).toFixed(2)} Disc
+                          -₹{Number(invoice.discount).toFixed(2)} Disc
                         </div>
                       )}
                     </td>
@@ -1156,7 +1172,7 @@ export default function InvoicesPage() {
                       </select>
                       {categoryFilteredCustomers.length === 0 && (
                         <p className="text-xs text-amber-600 font-medium p-2 bg-amber-50 rounded-lg border border-amber-200">
-                          ⚠️ No parties found matching "{partySearchTerm}". Try clearing your search.
+                          ⚠️ No parties found matching &quot;{partySearchTerm}&quot;. Try clearing your search.
                         </p>
                       )}
                     </div>
@@ -1296,7 +1312,7 @@ export default function InvoicesPage() {
                             <label className="block text-[10px] font-bold text-[#475569] uppercase mb-1">GST Mode</label>
                             <select
                               value={genGstType}
-                              onChange={(e) => setGenGstType(e.target.value as any)}
+                              onChange={(e) => setGenGstType(e.target.value as GstType)}
                               className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-xs text-[#0F172A] focus:outline-none"
                             >
                               <option value="INTRASTATE">Intrastate (CGST+SGST)</option>
@@ -1714,7 +1730,7 @@ export default function InvoicesPage() {
                 <div className="divide-y divide-[#E2E8F0] bg-white">
                   {selectedInvoice.items.length === 0 ? (
                     <div className="p-4 text-center text-xs text-slate-400">
-                      No duty slips linked to this bill. Click "Add Duty Slip to Bill" above to add unbilled slips.
+                      No duty slips linked to this bill. Click &quot;Add Duty Slip to Bill&quot; above to add unbilled slips.
                     </div>
                   ) : (
                     selectedInvoice.items.map((item) => (
@@ -1763,25 +1779,25 @@ export default function InvoicesPage() {
                 <span>Extra KM Charges:</span>
                 <span className="font-semibold text-[#0F172A]">INR {Number(selectedInvoice.extraKmCharges).toFixed(2)}</span>
               </div>
-              {Number((selectedInvoice as any).extraHourCharges || 0) > 0 && (
+              {Number(selectedInvoice.extraHourCharges || 0) > 0 && (
                 <div className="flex justify-between">
                   <span>Extra Hour Charges:</span>
-                  <span className="font-semibold text-[#0F172A]">INR {Number((selectedInvoice as any).extraHourCharges).toFixed(2)}</span>
+                  <span className="font-semibold text-[#0F172A]">INR {Number(selectedInvoice.extraHourCharges).toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between font-semibold text-blue-700 bg-blue-50/50 px-2 py-1 rounded">
                 <span>Total Base Fare (Hire + KM + Hours):</span>
-                <span>INR {(Number(selectedInvoice.baseFare) + Number(selectedInvoice.extraKmCharges) + Number((selectedInvoice as any).extraHourCharges || 0)).toFixed(2)}</span>
+                <span>INR {(Number(selectedInvoice.baseFare) + Number(selectedInvoice.extraKmCharges) + Number(selectedInvoice.extraHourCharges || 0)).toFixed(2)}</span>
               </div>
-              {Number((selectedInvoice as any).discount || 0) > 0 && (
+              {Number(selectedInvoice.discount || 0) > 0 && (
                 <div className="flex justify-between font-bold text-rose-600 bg-rose-50/50 px-2 py-1 rounded">
                   <span>Less: Discount on Base Fare:</span>
-                  <span>- INR {Number((selectedInvoice as any).discount).toFixed(2)}</span>
+                  <span>- INR {Number(selectedInvoice.discount).toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span>Toll, Parking & Taxes (Extras):</span>
-                <span className="font-semibold text-[#0F172A]">INR {(Number(selectedInvoice.toll) + Number(selectedInvoice.parking) + Number((selectedInvoice as any).stateTax || 0) + Number((selectedInvoice as any).mcd || 0)).toFixed(2)}</span>
+                <span className="font-semibold text-[#0F172A]">INR {(Number(selectedInvoice.toll) + Number(selectedInvoice.parking) + Number(selectedInvoice.stateTax || 0) + Number(selectedInvoice.mcd || 0)).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Night & Other Allowances:</span>
@@ -1879,7 +1895,7 @@ export default function InvoicesPage() {
                   <label className="block text-xs font-bold text-[#475569] uppercase tracking-wide mb-1">Payment Mode</label>
                   <select
                     value={payMode}
-                    onChange={(e) => setPayMode(e.target.value as any)}
+                    onChange={(e) => setPayMode(e.target.value as PaymentMode)}
                     className="w-full border border-[#E2E8F0] bg-white rounded-lg p-2 text-sm text-[#0F172A] focus:outline-none"
                   >
                     <option value="UPI">UPI Interface</option>
@@ -2162,7 +2178,7 @@ export default function InvoicesPage() {
                     </label>
                     {editInvoice && (
                       <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                        Base Fare: ₹{(Number(editInvoice.baseFare) + Number(editInvoice.extraKmCharges) + Number((editInvoice as any).extraHourCharges || 0)).toFixed(2)}
+                        Base Fare: ₹{(Number(editInvoice.baseFare) + Number(editInvoice.extraKmCharges) + Number(editInvoice.extraHourCharges || 0)).toFixed(2)}
                       </span>
                     )}
                   </div>
@@ -2171,12 +2187,12 @@ export default function InvoicesPage() {
                     <input
                       type="number"
                       min={0}
-                      max={editInvoice ? (Number(editInvoice.baseFare) + Number(editInvoice.extraKmCharges) + Number((editInvoice as any).extraHourCharges || 0)) : undefined}
+                      max={editInvoice ? (Number(editInvoice.baseFare) + Number(editInvoice.extraKmCharges) + Number(editInvoice.extraHourCharges || 0)) : undefined}
                       step="any"
                       value={editDiscount}
                       onChange={(e) => {
                         const val = Number(e.target.value);
-                        const maxBase = editInvoice ? (Number(editInvoice.baseFare) + Number(editInvoice.extraKmCharges) + Number((editInvoice as any).extraHourCharges || 0)) : 999999;
+                        const maxBase = editInvoice ? (Number(editInvoice.baseFare) + Number(editInvoice.extraKmCharges) + Number(editInvoice.extraHourCharges || 0)) : 999999;
                         if (val < 0) {
                           setEditDiscount('0');
                         } else if (val > maxBase && maxBase > 0) {
@@ -2390,8 +2406,8 @@ export default function InvoicesPage() {
                   try {
                     await confirmModal.onConfirm();
                     setConfirmModal(null);
-                  } catch (err: any) {
-                    alert(err.message || 'Action failed');
+                  } catch (err: unknown) {
+                    alert(getErrorMessage(err, 'Action failed'));
                   } finally {
                     setIsConfirming(false);
                   }

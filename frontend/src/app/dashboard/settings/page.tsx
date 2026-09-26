@@ -5,9 +5,17 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
+interface DashboardUser {
+  role?: string;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function CompanySettingsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<DashboardUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +82,7 @@ export default function CompanySettingsPage() {
     if (!token || !currentUser) {
       router.push('/login');
     } else {
-      setUser(currentUser);
+      void Promise.resolve().then(() => setUser(currentUser as DashboardUser));
     }
   }, [router]);
 
@@ -121,8 +129,8 @@ export default function CompanySettingsPage() {
         currentFiscalYear: settings.currentFiscalYear || '2026-27',
         fiscalYearStartMonth: settings.fiscalYearStartMonth || 4,
       });
-    } catch (err: any) {
-      setError(err.message || 'Failed to load company settings');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to load company settings'));
     } finally {
       setLoading(false);
     }
@@ -131,7 +139,7 @@ export default function CompanySettingsPage() {
 
   useEffect(() => {
     if (user) {
-      fetchSettings();
+      void Promise.resolve().then(fetchSettings);
     }
   }, [user]);
 
@@ -175,8 +183,8 @@ export default function CompanySettingsPage() {
         [field]: res.url,
       }));
       setSuccess(`${field === 'logoUrl' ? 'Logo' : 'Digital Signature'} uploaded successfully to Cloudinary!`);
-    } catch (err: any) {
-      setError(err.message || 'Failed to upload file');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to upload file'));
     } finally {
       if (field === 'logoUrl') setUploadingLogo(false);
       else setUploadingSignature(false);
@@ -209,8 +217,8 @@ export default function CompanySettingsPage() {
       });
       setSuccess('Settings updated successfully!');
       fetchSettings();
-    } catch (err: any) {
-      setError(err.message || 'Failed to update company settings');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to update company settings'));
     } finally {
       setSaving(false);
     }
@@ -245,8 +253,8 @@ export default function CompanySettingsPage() {
       setResetFyModalOpen(false);
       fetchSettings();
       alert('Fiscal Year successfully updated and document counters reset!');
-    } catch (err: any) {
-      alert(err.message || 'Failed to reset fiscal year');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Failed to reset fiscal year'));
     } finally {
       setResetSubmitting(false);
     }

@@ -28,6 +28,9 @@ interface Booking {
   } | null;
 }
 
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
 const formatTimeTo24h = (timeStr: string | null | undefined): string => {
   if (!timeStr) return 'N/A';
   const parts = timeStr.trim().split(':');
@@ -70,8 +73,8 @@ export default function CustomerHistoryPage() {
         setCustomer(customerData);
         setBookings(historyData);
         setError(null);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load customer details');
+      } catch (err) {
+        setError(getErrorMessage(err, 'Failed to load customer details'));
       } finally {
         setLoading(false);
       }

@@ -1,7 +1,7 @@
 'use strict';
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
@@ -59,6 +59,29 @@ interface Assignment {
   vehicle: Vehicle;
 }
 
+interface AuthUser {
+  role: string;
+}
+
+interface VehicleCategory {
+  id: string;
+  name: string;
+}
+
+const subscribeToUser = (callback: () => void) => {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener('storage', callback);
+  return () => window.removeEventListener('storage', callback);
+};
+
+const getUserSnapshot = () =>
+  typeof window === 'undefined' ? null : window.localStorage.getItem('user');
+
+const getServerUserSnapshot = () => null;
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
 const formatTimeTo24h = (timeStr: string | null | undefined): string => {
   if (!timeStr) return 'N/A';
   const parts = timeStr.trim().split(':');
@@ -75,7 +98,12 @@ const formatTimeTo24h = (timeStr: string | null | undefined): string => {
 
 export default function AssignmentsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const userSnapshot = useSyncExternalStore(
+    subscribeToUser,
+    getUserSnapshot,
+    getServerUserSnapshot,
+  );
+  const user = userSnapshot ? (JSON.parse(userSnapshot) as AuthUser) : null;
   
   // Data lists
   const [unassignedBookings, setUnassignedBookings] = useState<Booking[]>([]);
@@ -110,21 +138,17 @@ export default function AssignmentsPage() {
   const [drawerError, setDrawerError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = api.getToken();
-    const currentUser = api.getUser();
-    if (!token || !currentUser) {
+    if (!api.getToken() || !userSnapshot) {
       router.push('/login');
-    } else {
-      setUser(currentUser);
     }
-  }, [router]);
+  }, [router, userSnapshot]);
 
   const fetchUnassignedBookings = async () => {
     setLoadingUnassigned(true);
     try {
       const res = await api.request('/bookings?status=PENDING&limit=100');
       setUnassignedBookings(res.data || []);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to load pending bookings', err);
     } finally {
       setLoadingUnassigned(false);
@@ -142,8 +166,8 @@ export default function AssignmentsPage() {
       setAssignments(res.data || []);
       setTotalHistoryPages(res.meta.totalPages || 1);
       setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load assignment logs');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to load assignment logs'));
     } finally {
       setLoadingHistory(false);
     }
@@ -153,7 +177,7 @@ export default function AssignmentsPage() {
     try {
       const res = await api.request('/rate-management/categories');
       if (Array.isArray(res) && res.length > 0) {
-        setCompanyCarGroups(res.map((c: any) => c.name));
+        setCompanyCarGroups((res as VehicleCategory[]).map((category) => category.name));
       }
     } catch (err) {
       console.error('Failed to load company car groups', err);
@@ -161,12 +185,14 @@ export default function AssignmentsPage() {
   };
 
   useEffect(() => {
-    if (user) {
-      fetchUnassignedBookings();
-      fetchAssignmentsHistory();
-      fetchCarGroups();
+    if (userSnapshot) {
+      void Promise.resolve().then(() => {
+        fetchUnassignedBookings();
+        fetchAssignmentsHistory();
+        fetchCarGroups();
+      });
     }
-  }, [user, historyPage, filterStatus]);
+  }, [userSnapshot, historyPage, filterStatus]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,8 +221,8 @@ export default function AssignmentsPage() {
       // Auto select first entries if available
       if (res.drivers?.length > 0) setTargetDriverId(res.drivers[0].id);
       if (res.vehicles?.length > 0) setTargetVehicleId(res.vehicles[0].id);
-    } catch (err: any) {
-      setDrawerError(err.message || 'Failed to load available resources.');
+    } catch (err) {
+      setDrawerError(getErrorMessage(err, 'Failed to load available resources.'));
     } finally {
       setLoadingResources(false);
     }
@@ -242,8 +268,8 @@ export default function AssignmentsPage() {
       // Reload both tables
       fetchUnassignedBookings();
       fetchAssignmentsHistory();
-    } catch (err: any) {
-      setDrawerError(err.message || 'Assignment failed.');
+    } catch (err) {
+      setDrawerError(getErrorMessage(err, 'Assignment failed.'));
     } finally {
       setSubmitting(false);
     }
@@ -261,8 +287,8 @@ export default function AssignmentsPage() {
       // Reload both lists
       fetchUnassignedBookings();
       fetchAssignmentsHistory();
-    } catch (err: any) {
-      alert(err.message || `Failed to update assignment status.`);
+    } catch (err) {
+      alert(getErrorMessage(err, 'Failed to update assignment status.'));
     }
   };
 
@@ -280,8 +306,8 @@ export default function AssignmentsPage() {
       });
       fetchUnassignedBookings();
       fetchAssignmentsHistory();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete assignment.');
+    } catch (err) {
+      alert(getErrorMessage(err, 'Failed to delete assignment.'));
     }
   };
 
@@ -295,7 +321,7 @@ export default function AssignmentsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = `DS-${num}.pdf`;
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch (e: any) { alert(e.message); }
+    } catch (error) { alert(getErrorMessage(error, 'Failed to download duty slip.')); }
   };
 
   const handlePrintDutySlip = async (booking: Booking) => {
@@ -305,7 +331,7 @@ export default function AssignmentsPage() {
     if (!slipId) {
       try {
         const pDate = new Date(booking.pickupDate);
-        let repTimeDate = new Date(booking.pickupDate);
+        const repTimeDate = new Date(booking.pickupDate);
         if (booking.pickupTime) {
           const timeParts = booking.pickupTime.split(':');
           if (timeParts.length >= 2) {
@@ -329,8 +355,8 @@ export default function AssignmentsPage() {
         
         // Refresh logs
         fetchAssignmentsHistory();
-      } catch (err: any) {
-        alert(err.message || 'Failed to create draft duty slip');
+      } catch (err) {
+        alert(getErrorMessage(err, 'Failed to create draft duty slip'));
         return;
       }
     }
