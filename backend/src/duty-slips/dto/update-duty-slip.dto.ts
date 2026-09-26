@@ -107,6 +107,18 @@ export class UpdateDutySlipDto {
 
   @IsString()
   @IsOptional()
+  pickupLocation?: string;
+
+  @IsString()
+  @IsOptional()
+  dropLocation?: string;
+
+  @IsString()
+  @IsOptional()
+  tripType?: string;
+
+  @IsString()
+  @IsOptional()
   remarks?: string;
 
   @IsString()

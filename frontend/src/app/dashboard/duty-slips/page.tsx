@@ -965,23 +965,23 @@ export default function DutySlipsPage() {
     const cleanGuestName = (df.guestName || '').trim();
     const cleanGuestSalutation = cleanGuestName ? (df.guestSalutation || '').trim() : '';
 
-    const payloadRemarks = JSON.stringify({
+    const pricingSnapshot = {
       isFlexible: isFlexibleDuty,
-      items: isFlexibleDuty ? customParticulars : undefined,
+      items: isFlexibleDuty ? customParticulars : [],
       userNotes: df.remarks || '',
       miscCharges: Number(df.extraCharges) || 0,
-      billingMode: df.billingMode,
+      billingMode: df.billingMode || undefined,
       rateCardId: selectedRateCard?.id || undefined,
-      carGroup: df.carGroup,
+      carGroup: df.carGroup || undefined,
       baseFare: Number(df.baseFare) || 0,
       extraKmRate: Number(df.extraKmRate) || 0,
       extraHourRate: Number(df.extraHourRate) || 0,
-      includeNightCharges: df.includeNightCharges,
+      includeNightCharges: Boolean(df.includeNightCharges),
       nightChargesOnTime: Number(df.nightChargesOnTime) || 0,
-      isManualNightCharges: df.isManualNightCharges,
-      includeDriverAllowance: df.includeDriverAllowance,
+      isManualNightCharges: Boolean(df.isManualNightCharges),
+      includeDriverAllowance: Boolean(df.includeDriverAllowance),
       driverAllowance: Number(df.driverAllowance) || 0,
-      isManualDriverAllowance: df.isManualDriverAllowance,
+      isManualDriverAllowance: Boolean(df.isManualDriverAllowance),
       packageKm: df.billingMode === 'C'
         ? Number(selectedRateCard?.fullKm || selectedRateCard?.minKm || selectedRateCard?.includedKm || 120)
         : df.billingMode === 'H' || df.billingMode === 'T'
@@ -992,7 +992,14 @@ export default function DutySlipsPage() {
         : df.billingMode === 'H' || df.billingMode === 'T'
           ? Number(selectedRateCard?.minHr || 4)
           : Number(selectedRateCard?.fullHr || 8),
-    });
+      guestName: cleanGuestName || undefined,
+      guestSalutation: cleanGuestSalutation || undefined,
+      bookingBy: df.bookingBy || undefined,
+      pickupLocation: df.pickupLocation || df.reportingAt || undefined,
+      dropLocation: df.dropLocation || undefined,
+      tripType: df.dutyType === 'O' || df.dutyType === 'T' ? 'OUTSTATION' : isFlexibleDuty ? 'HOURLY_RENTAL' : 'LOCAL',
+    };
+    const payloadRemarks = JSON.stringify(pricingSnapshot);
 
     const calcExtraCharges = Number(df.extraCharges) || 0;
     const calcDriverAllowance = isFlexibleDuty ? 0 : (df.includeDriverAllowance ? (Number(df.driverAllowance) || 0) : 0);
@@ -1040,6 +1047,9 @@ export default function DutySlipsPage() {
             guestName: cleanGuestName ? cleanGuestName : null,
             guestSalutation: cleanGuestSalutation ? cleanGuestSalutation : null,
             bookingBy: df.bookingBy || undefined,
+            pickupLocation: df.pickupLocation || df.reportingAt || undefined,
+            dropLocation: df.dropLocation || undefined,
+            tripType: df.dutyType === 'O' || df.dutyType === 'T' ? 'OUTSTATION' : isFlexibleDuty ? 'HOURLY_RENTAL' : 'LOCAL',
             remarks: payloadRemarks || undefined,
             // ── Snapshot fields: persist commercial data to dedicated DB columns ──
             carGroup: df.carGroup || undefined,
@@ -1050,37 +1060,7 @@ export default function DutySlipsPage() {
             extraHourRate: Number(df.extraHourRate) || undefined,
             packageKm: packageKmVal || undefined,
             packageHours: packageHoursVal || undefined,
-            pricingSnapshot: isFlexibleDuty ? {
-              isFlexible: true,
-              items: customParticulars,
-              userNotes: df.remarks || '',
-              billingMode: df.billingMode,
-              rateCardId: selectedRateCard?.id,
-              carGroup: df.carGroup,
-              baseFare: Number(df.baseFare) || 0,
-              extraKmRate: Number(df.extraKmRate) || 0,
-              extraHourRate: Number(df.extraHourRate) || 0,
-              includeNightCharges: df.includeNightCharges,
-              nightChargesOnTime: Number(df.nightChargesOnTime) || 0,
-              isManualNightCharges: df.isManualNightCharges,
-              includeDriverAllowance: df.includeDriverAllowance,
-              driverAllowance: Number(df.driverAllowance) || 0,
-              isManualDriverAllowance: df.isManualDriverAllowance,
-            } : {
-              userNotes: df.remarks || '',
-              billingMode: df.billingMode,
-              rateCardId: selectedRateCard?.id,
-              carGroup: df.carGroup,
-              baseFare: Number(df.baseFare) || 0,
-              extraKmRate: Number(df.extraKmRate) || 0,
-              extraHourRate: Number(df.extraHourRate) || 0,
-              includeNightCharges: df.includeNightCharges,
-              nightChargesOnTime: Number(df.nightChargesOnTime) || 0,
-              isManualNightCharges: df.isManualNightCharges,
-              includeDriverAllowance: df.includeDriverAllowance,
-              driverAllowance: Number(df.driverAllowance) || 0,
-              isManualDriverAllowance: df.isManualDriverAllowance,
-            },
+            pricingSnapshot,
           }),
         });
       } else {
@@ -1146,40 +1126,13 @@ export default function DutySlipsPage() {
             mcd: Number(df.mcdToll) || 0,
             status: patchStatus,
             employeeId: df.employeeId || undefined,
+            pickupLocation: df.pickupLocation || df.reportingAt || undefined,
+            dropLocation: df.dropLocation || undefined,
+            tripType: df.dutyType === 'O' || df.dutyType === 'T' ? 'OUTSTATION' : isFlexibleDuty ? 'HOURLY_RENTAL' : 'LOCAL',
             // ── Snapshot fields also saved in second PATCH ──
             packageKm: createPackageKm || undefined,
             packageHours: createPackageHours || undefined,
-            pricingSnapshot: isFlexibleDuty ? {
-              isFlexible: true,
-              items: customParticulars,
-              userNotes: df.remarks || '',
-              billingMode: df.billingMode,
-              rateCardId: selectedRateCard?.id,
-              carGroup: df.carGroup,
-              baseFare: Number(df.baseFare) || 0,
-              extraKmRate: Number(df.extraKmRate) || 0,
-              extraHourRate: Number(df.extraHourRate) || 0,
-              includeNightCharges: df.includeNightCharges,
-              nightChargesOnTime: Number(df.nightChargesOnTime) || 0,
-              isManualNightCharges: df.isManualNightCharges,
-              includeDriverAllowance: df.includeDriverAllowance,
-              driverAllowance: Number(df.driverAllowance) || 0,
-              isManualDriverAllowance: df.isManualDriverAllowance,
-            } : {
-              userNotes: df.remarks || '',
-              billingMode: df.billingMode,
-              rateCardId: selectedRateCard?.id,
-              carGroup: df.carGroup,
-              baseFare: Number(df.baseFare) || 0,
-              extraKmRate: Number(df.extraKmRate) || 0,
-              extraHourRate: Number(df.extraHourRate) || 0,
-              includeNightCharges: df.includeNightCharges,
-              nightChargesOnTime: Number(df.nightChargesOnTime) || 0,
-              isManualNightCharges: df.isManualNightCharges,
-              includeDriverAllowance: df.includeDriverAllowance,
-              driverAllowance: Number(df.driverAllowance) || 0,
-              isManualDriverAllowance: df.isManualDriverAllowance,
-            },
+            pricingSnapshot,
           }),
         });
       }
