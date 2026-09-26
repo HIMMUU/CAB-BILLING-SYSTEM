@@ -10,6 +10,9 @@ const demoAccounts = [
   { role: 'Acme Operator', email: 'admin@acme.cabbs.local', desc: 'Acme Cabs' }
 ];
 
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('staff@traveldreamholiday.com');
@@ -36,8 +39,8 @@ export default function LoginPage() {
     try {
       await api.login(email, password);
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Login failed. Please check your credentials.'));
     } finally {
       setLoading(false);
     }
@@ -134,7 +137,7 @@ export default function LoginPage() {
         </form>
 
         <p className="text-xs text-[#64748B] text-center mt-5">
-          Don't have a portal?{' '}
+          Don&apos;t have a portal?{' '}
           <a href="/register" className="text-blue-600 font-semibold hover:underline">
             Register a new company
           </a>

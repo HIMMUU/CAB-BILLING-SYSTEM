@@ -1,7 +1,7 @@
 'use strict';
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
@@ -20,9 +20,94 @@ interface Customer {
   isRcm?: boolean;
 }
 
+interface AuthUser {
+  role: string;
+}
+
+interface VehicleCategory {
+  id: string;
+  name: string;
+}
+
+interface RateGridRow {
+  id?: string;
+  vehicleCategoryId?: string;
+  vehicleCategoryName: string;
+  halfDayRate: number | string;
+  fullDayRate: number | string;
+  minKm: number | string;
+  minHr: number | string;
+  fullKm: number | string;
+  fullHr: number | string;
+  extraKmRate: number | string;
+  extraHourRate: number | string;
+  minKmPerDay: number | string;
+  outstationRatePerKm: number | string;
+  driverAllowance: number | string;
+  nightCharge: number | string;
+  nightStartTime: string;
+  nightEndTime: string;
+  outstationNightCharge: number | string;
+}
+
+interface CustomerRateCard extends Partial<RateGridRow> {
+  vehicleCategory: VehicleCategory;
+  includedKm?: number | string;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isAuthUser = (value: unknown): value is AuthUser =>
+  isRecord(value) && typeof value.role === 'string';
+
+const readAuthUser = (snapshot: string | null): AuthUser | null => {
+  if (!snapshot) return null;
+  try {
+    const value: unknown = JSON.parse(snapshot);
+    return isAuthUser(value) ? value : null;
+  } catch {
+    return null;
+  }
+};
+
+const isVehicleCategory = (value: unknown): value is VehicleCategory =>
+  isRecord(value) && typeof value.id === 'string' && typeof value.name === 'string';
+
+const getVehicleCategories = (value: unknown): VehicleCategory[] =>
+  Array.isArray(value) ? value.filter(isVehicleCategory) : [];
+
+const isCustomerRateCard = (value: unknown): value is CustomerRateCard =>
+  isRecord(value) &&
+  isRecord(value.vehicleCategory) &&
+  typeof value.vehicleCategory.id === 'string' &&
+  typeof value.vehicleCategory.name === 'string';
+
+const getCustomerRateCards = (value: unknown): CustomerRateCard[] =>
+  Array.isArray(value) ? value.filter(isCustomerRateCard) : [];
+
+const subscribeToUser = (callback: () => void) => {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener('storage', callback);
+  return () => window.removeEventListener('storage', callback);
+};
+
+const getUserSnapshot = () =>
+  typeof window === 'undefined' ? null : window.localStorage.getItem('user');
+
+const getServerUserSnapshot = () => null;
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
 export default function CustomersPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const userSnapshot = useSyncExternalStore(
+    subscribeToUser,
+    getUserSnapshot,
+    getServerUserSnapshot,
+  );
+  const user = readAuthUser(userSnapshot);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,9 +125,9 @@ export default function CustomersPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   // Categories & Grid states
-  const [categories, setCategories] = useState<any[]>([]);
-  const [gridRows, setGridRows] = useState<any[]>([]);
-  const [copiedRow, setCopiedRow] = useState<any | null>(null);
+  const [categories, setCategories] = useState<VehicleCategory[]>([]);
+  const [gridRows, setGridRows] = useState<RateGridRow[]>([]);
+  const [copiedRow, setCopiedRow] = useState<RateGridRow | null>(null);
   const [bulkColumn, setBulkColumn] = useState<string>('halfDayRate');
   const [bulkValue, setBulkValue] = useState<string>('');
 
@@ -67,30 +152,26 @@ export default function CustomersPage() {
   const fetchCategories = async () => {
     try {
       const res = await api.request('/rate-management/categories');
-      setCategories(res || []);
+      setCategories(getVehicleCategories(res));
     } catch (err) {
       console.error('Failed to load categories', err);
     }
   };
 
   useEffect(() => {
-    const token = api.getToken();
-    const currentUser = api.getUser();
-    if (!token || !currentUser) {
+    if (!api.getToken() || !userSnapshot) {
       router.push('/login');
-    } else {
-      setUser(currentUser);
     }
-  }, [router]);
+  }, [router, userSnapshot]);
 
   const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
   const [isDeletingCustomer, setIsDeletingCustomer] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchCategories();
+    if (userSnapshot) {
+      void Promise.resolve().then(fetchCategories);
     }
-  }, [user]);
+  }, [userSnapshot]);
 
   const fetchCustomers = async () => {
     setLoading(true);
@@ -103,18 +184,18 @@ export default function CustomersPage() {
       setCustomers(res.data);
       setTotalPages(res.meta.totalPages);
       setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load customers');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to load customers'));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user) {
-      fetchCustomers();
+    if (userSnapshot) {
+      void Promise.resolve().then(fetchCustomers);
     }
-  }, [user, page, filterType]);
+  }, [userSnapshot, page, filterType]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,8 +268,9 @@ export default function CustomersPage() {
         isRcm: !!fullCust.isRcm,
       });
 
-      if (fullCust.rateCards && fullCust.rateCards.length > 0) {
-        setGridRows(fullCust.rateCards.map((rc: any) => ({
+      const rateCards = getCustomerRateCards(fullCust.rateCards);
+      if (rateCards.length > 0) {
+        setGridRows(rateCards.map((rc) => ({
           id: rc.id,
           vehicleCategoryId: rc.vehicleCategoryId,
           vehicleCategoryName: rc.vehicleCategory.name,
@@ -230,12 +312,12 @@ export default function CustomersPage() {
         })));
       }
       setIsFormOpen(true);
-    } catch (err: any) {
-      alert(err.message || 'Failed to fetch customer details');
+    } catch (err) {
+      alert(getErrorMessage(err, 'Failed to fetch customer details'));
     }
   };
 
-  const handleCellChange = (rowIndex: number, field: string, value: any) => {
+  const handleCellChange = (rowIndex: number, field: keyof RateGridRow, value: string | number) => {
     setGridRows((prev) =>
       prev.map((row, idx) => (idx === rowIndex ? { ...row, [field]: value } : row))
     );
@@ -332,7 +414,7 @@ export default function CustomersPage() {
     if (!bulkColumn || bulkValue === '') return;
     const isNum = !['nightStartTime', 'nightEndTime', 'vehicleCategoryName'].includes(bulkColumn);
     const parsedVal = isNum ? Number(bulkValue) : bulkValue;
-    if (isNum && isNaN(parsedVal as any)) {
+    if (isNum && typeof parsedVal === 'number' && Number.isNaN(parsedVal)) {
       alert('Bulk update value must be a valid number');
       return;
     }
@@ -418,8 +500,8 @@ export default function CustomersPage() {
 
       setIsFormOpen(false);
       fetchCustomers();
-    } catch (err: any) {
-      setFormError(err.message || 'Operation failed.');
+    } catch (err) {
+      setFormError(getErrorMessage(err, 'Operation failed.'));
     } finally {
       setSubmitting(false);
     }
@@ -435,8 +517,8 @@ export default function CustomersPage() {
         );
       }
       fetchCustomers();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete customer.');
+    } catch (err) {
+      alert(getErrorMessage(err, 'Failed to delete customer.'));
     }
   };
 
@@ -520,7 +602,7 @@ export default function CustomersPage() {
           </div>
         ) : customers.length === 0 ? (
           <div className="p-12 text-center text-[#64748B]">
-            No customers found. Click "Add Customer" to add one.
+            No customers found. Click &quot;Add Customer&quot; to add one.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -1225,8 +1307,8 @@ export default function CustomersPage() {
                       alert('Customer has historical billing/trip records and has been archived as INACTIVE.');
                     }
                     fetchCustomers();
-                  } catch (err: any) {
-                    alert(err.message || 'Failed to delete customer.');
+                  } catch (err) {
+                    alert(getErrorMessage(err, 'Failed to delete customer.'));
                   } finally {
                     setIsDeletingCustomer(false);
                   }

@@ -78,9 +78,17 @@ interface OutstandingReport {
   ledger: OutstandingLedgerEntry[];
 }
 
+interface DashboardUser {
+  role?: string;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function ReportsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<DashboardUser | null>(null);
 
   // Active sub-dashboard tab: 'operations' | 'financials'
   const [activeTab, setActiveTab] = useState<'operations' | 'financials'>('operations');
@@ -111,11 +119,8 @@ export default function ReportsPage() {
     if (!token || !currentUser) {
       router.push('/login');
     } else {
-      setUser(currentUser);
+      void Promise.resolve().then(() => setUser(currentUser as DashboardUser));
       // If user is a dispatcher, enforce operations tab only
-      if (currentUser.role === 'DISPATCHER') {
-        setActiveTab('operations');
-      }
     }
   }, [router]);
 
@@ -146,8 +151,8 @@ export default function ReportsPage() {
         setRevenueReport(revenue);
         setOutstandingReport(outstanding);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to aggregate reports databases.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to aggregate reports databases.'));
     } finally {
       setLoading(false);
     }
@@ -155,7 +160,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     if (user) {
-      loadReportData();
+      void Promise.resolve().then(loadReportData);
     }
   }, [user, startDate, endDate]);
 

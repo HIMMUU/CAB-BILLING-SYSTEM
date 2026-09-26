@@ -92,7 +92,7 @@ export default function DatePicker({
       const clean = raw.replace(/\D/g, '').slice(0, 8);
       let dayStr = clean.slice(0, 2);
       let monthStr = clean.slice(2, 4);
-      let yearStr = clean.slice(4, 8);
+      const yearStr = clean.slice(4, 8);
 
       // Validate & Clamp Day (01 - 31)
       if (dayStr.length === 2) {

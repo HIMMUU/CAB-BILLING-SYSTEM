@@ -21,9 +21,28 @@ interface BillRegisterRow {
   total: number;
 }
 
+interface DashboardUser {
+  role?: string;
+}
+
+interface CustomerOption {
+  id: string;
+  name: string;
+  gstNumber?: string | null;
+}
+
+interface BookingOption {
+  guestName?: string | null;
+  employeeId?: string | null;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function BillRegisterPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<DashboardUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +63,7 @@ export default function BillRegisterPage() {
   const [billCoverNo, setBillCoverNo] = useState('');
 
   // Dropdown data options
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [gstOptions, setGstOptions] = useState<string[]>([]);
   const [guestOptions, setGuestOptions] = useState<string[]>([]);
   const [employeeOptions, setEmployeeOptions] = useState<string[]>([]);
@@ -59,37 +78,37 @@ export default function BillRegisterPage() {
     if (!token || !currentUser) {
       router.push('/login');
     } else {
-      setUser(currentUser);
+      void Promise.resolve().then(() => setUser(currentUser as DashboardUser));
     }
   }, [router]);
 
   const loadDropdownOptions = async () => {
     try {
       // Fetch customers
-      const custRes = await api.request('/customers?limit=500');
+      const custRes = await api.request<{ data: CustomerOption[] }>('/customers?limit=500');
       const custList = custRes.data || [];
       setCustomers(custList);
 
-      const uniqueGsts = Array.from(new Set(custList.map((c: any) => c.gstNumber).filter(Boolean))) as string[];
+      const uniqueGsts = Array.from(new Set(custList.map((c) => c.gstNumber).filter((gst): gst is string => Boolean(gst))));
       setGstOptions(uniqueGsts.sort());
 
       // Fetch bookings to compile unique guest names and employee IDs
-      const bookingsRes = await api.request('/bookings?limit=500');
+      const bookingsRes = await api.request<{ data: BookingOption[] }>('/bookings?limit=500');
       const bookings = bookingsRes.data || [];
 
-      const guests = Array.from(new Set(bookings.map((b: any) => b.guestName).filter(Boolean))) as string[];
-      const employees = Array.from(new Set(bookings.map((b: any) => b.employeeId).filter(Boolean))) as string[];
+      const guests = Array.from(new Set(bookings.map((b) => b.guestName).filter((guest): guest is string => Boolean(guest))));
+      const employees = Array.from(new Set(bookings.map((b) => b.employeeId).filter((employee): employee is string => Boolean(employee))));
 
       setGuestOptions(guests.sort());
       setEmployeeOptions(employees.sort());
-    } catch (err: any) {
-      console.warn('Failed to load dropdown filters:', err.message);
+    } catch (err: unknown) {
+      console.warn('Failed to load dropdown filters:', getErrorMessage(err, 'Unknown error'));
     }
   };
 
   useEffect(() => {
     if (user) {
-      loadDropdownOptions();
+      void Promise.resolve().then(loadDropdownOptions);
     }
   }, [user]);
 
@@ -119,8 +138,8 @@ export default function BillRegisterPage() {
       const res = await api.request(`/reports/bill-register?${q}`, { bypassCache: true });
       setResults(res || []);
       setSearched(true);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch register data');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to fetch register data'));
     } finally {
       setLoading(false);
     }
@@ -151,7 +170,7 @@ export default function BillRegisterPage() {
         a.remove();
         window.URL.revokeObjectURL(url);
       })
-      .catch((err) => setError(err.message))
+      .catch((err: unknown) => setError(getErrorMessage(err, 'PDF download failed')))
       .finally(() => setLoading(false));
   };
 
@@ -174,7 +193,7 @@ export default function BillRegisterPage() {
         const url = window.URL.createObjectURL(blob);
         window.open(url, '_blank');
       })
-      .catch((err) => setError(err.message))
+      .catch((err: unknown) => setError(getErrorMessage(err, 'PDF rendering failed')))
       .finally(() => setLoading(false));
   };
 

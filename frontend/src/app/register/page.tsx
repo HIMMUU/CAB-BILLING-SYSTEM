@@ -5,6 +5,9 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
 export default function RegisterPage() {
   const router = useRouter();
   
@@ -105,8 +108,8 @@ export default function RegisterPage() {
       const { confirmPassword, ...registerPayload } = formData;
       await api.register(registerPayload);
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Onboarding registration failed. Please try again.');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Onboarding registration failed. Please try again.'));
     } finally {
       setLoading(false);
     }

@@ -20,9 +20,35 @@ interface DutySlipRegisterRow {
   status: string;
 }
 
+interface DashboardUser {
+  role?: string;
+}
+
+interface CustomerOption {
+  id: string;
+  name: string;
+  companyName?: string | null;
+}
+
+interface DriverOption {
+  id: string;
+  name: string;
+  mobile: string;
+}
+
+interface VehicleOption {
+  id: string;
+  vehicleNumber: string;
+  model: string;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function DutySlipRegisterPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<DashboardUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,9 +72,9 @@ export default function DutySlipRegisterPage() {
   const [cityName, setCityName] = useState('');
 
   // Dropdown data options
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [drivers, setDrivers] = useState<any[]>([]);
-  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<CustomerOption[]>([]);
+  const [drivers, setDrivers] = useState<DriverOption[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
 
   // Results list
   const [results, setResults] = useState<DutySlipRegisterRow[]>([]);
@@ -60,29 +86,29 @@ export default function DutySlipRegisterPage() {
     if (!token || !currentUser) {
       router.push('/login');
     } else {
-      setUser(currentUser);
+      void Promise.resolve().then(() => setUser(currentUser as DashboardUser));
     }
   }, [router]);
 
   const loadDropdownOptions = async () => {
     try {
       const [custRes, driverRes, vehicleRes] = await Promise.all([
-        api.request('/customers?limit=500'),
-        api.request('/drivers?limit=500'),
-        api.request('/vehicles?limit=500'),
+        api.request<{ data: CustomerOption[] }>('/customers?limit=500'),
+        api.request<{ data: DriverOption[] }>('/drivers?limit=500'),
+        api.request<{ data: VehicleOption[] }>('/vehicles?limit=500'),
       ]);
 
       setCustomers(custRes.data || []);
       setDrivers(driverRes.data || []);
       setVehicles(vehicleRes.data || []);
-    } catch (err: any) {
-      console.warn('Failed to load dropdown filters:', err.message);
+    } catch (err: unknown) {
+      console.warn('Failed to load dropdown filters:', getErrorMessage(err, 'Unknown error'));
     }
   };
 
   useEffect(() => {
     if (user) {
-      loadDropdownOptions();
+      void Promise.resolve().then(loadDropdownOptions);
     }
   }, [user]);
 
@@ -117,8 +143,8 @@ export default function DutySlipRegisterPage() {
       const res = await api.request(`/reports/duty-slip-register?${q}`, { bypassCache: true });
       setResults(res || []);
       setSearched(true);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch duty slip register data');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to fetch duty slip register data'));
     } finally {
       setLoading(false);
     }
@@ -149,7 +175,7 @@ export default function DutySlipRegisterPage() {
         a.remove();
         window.URL.revokeObjectURL(url);
       })
-      .catch((err) => setError(err.message))
+      .catch((err: unknown) => setError(getErrorMessage(err, 'PDF download failed')))
       .finally(() => setLoading(false));
   };
 
@@ -172,7 +198,7 @@ export default function DutySlipRegisterPage() {
         const url = window.URL.createObjectURL(blob);
         window.open(url, '_blank');
       })
-      .catch((err) => setError(err.message))
+      .catch((err: unknown) => setError(getErrorMessage(err, 'PDF rendering failed')))
       .finally(() => setLoading(false));
   };
 
@@ -342,7 +368,7 @@ export default function DutySlipRegisterPage() {
           {/* Row 3 */}
           {/* Driver's Name */}
           <div className="space-y-1.5">
-            <label className="block font-bold text-[#64748B] uppercase tracking-wide">Driver's Name</label>
+            <label className="block font-bold text-[#64748B] uppercase tracking-wide">Driver&apos;s Name</label>
             <select
               value={driverId}
               onChange={(e) => setDriverId(e.target.value)}

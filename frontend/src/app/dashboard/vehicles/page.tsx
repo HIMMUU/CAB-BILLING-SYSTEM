@@ -1,10 +1,12 @@
 'use strict';
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import DatePicker from '@/components/DatePicker';
+
+type VehicleStatus = 'AVAILABLE' | 'ON_TRIP' | 'MAINTENANCE' | 'INACTIVE';
 
 interface Vehicle {
   id: string;
@@ -16,12 +18,42 @@ interface Vehicle {
   insuranceExpiry: string;
   fitnessExpiry: string;
   permitExpiry: string;
-  status: 'AVAILABLE' | 'ON_TRIP' | 'MAINTENANCE' | 'INACTIVE';
+  status: VehicleStatus;
 }
+
+interface VehicleFormData {
+  vehicleNumber: string;
+  vehicleType: string;
+  model: string;
+  seatingCapacity: number;
+  registrationDate: string;
+  insuranceExpiry: string;
+  fitnessExpiry: string;
+  permitExpiry: string;
+  status: VehicleStatus;
+}
+
+interface DashboardUser {
+  role: string;
+}
+
+interface VehicleCategory {
+  id: string;
+  name: string;
+}
+
+interface VehicleListResponse {
+  data: Vehicle[];
+  meta: {
+    totalPages: number;
+  };
+}
+
+const VEHICLE_STATUSES = ['AVAILABLE', 'ON_TRIP', 'MAINTENANCE', 'INACTIVE'] as const satisfies readonly VehicleStatus[];
 
 export default function VehiclesPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<DashboardUser | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +71,7 @@ export default function VehiclesPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   // Form inputs
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<VehicleFormData>({
     vehicleNumber: '',
     vehicleType: '',
     model: '',
@@ -48,58 +80,69 @@ export default function VehiclesPage() {
     insuranceExpiry: '',
     fitnessExpiry: '',
     permitExpiry: '',
-    status: 'AVAILABLE' as 'AVAILABLE' | 'ON_TRIP' | 'MAINTENANCE' | 'INACTIVE',
+    status: 'AVAILABLE',
   });
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<VehicleCategory[]>([]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
-      const res = await api.request('/rate-management/categories');
+      const res = await api.request<VehicleCategory[]>('/rate-management/categories');
       setCategories(res || []);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to load categories', err);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    const token = api.getToken();
-    const currentUser = api.getUser();
-    if (!token || !currentUser) {
-      router.push('/login');
-    } else {
-      setUser(currentUser);
-      fetchCategories();
-    }
-  }, [router]);
+    const timeoutId = window.setTimeout(() => {
+      const token = api.getToken();
+      const currentUser = api.getUser() as DashboardUser | null;
+      if (!token || !currentUser) {
+        router.push('/login');
+      } else {
+        setUser(currentUser);
+        void fetchCategories();
+      }
+    }, 0);
 
-  const fetchVehicles = async () => {
-    setLoading(true);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchCategories, router]);
+
+  const fetchVehicles = useCallback(async () => {
     try {
       let url = `/vehicles?page=${page}&limit=10`;
       if (search) url += `&search=${encodeURIComponent(search)}`;
       if (filterStatus !== 'ALL') url += `&status=${filterStatus}`;
 
-      const res = await api.request(url);
+      const res = await api.request<VehicleListResponse>(url);
       setVehicles(res.data);
       setTotalPages(res.meta.totalPages);
       setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load vehicles');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load vehicles');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterStatus, page, search]);
 
   useEffect(() => {
-    if (user) {
-      fetchVehicles();
-    }
-  }, [user, page, filterStatus]);
+    if (!user) return;
+
+    const timeoutId = window.setTimeout(() => {
+      void fetchVehicles();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchVehicles, user]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setPage(1);
-    fetchVehicles();
+    setLoading(true);
+    if (page !== 1) {
+      setPage(1);
+    } else {
+      void fetchVehicles();
+    }
   };
 
   const handleOpenCreate = () => {
@@ -182,9 +225,10 @@ export default function VehiclesPage() {
       }
 
       setIsFormOpen(false);
-      fetchVehicles();
-    } catch (err: any) {
-      setFormError(err.message || 'Operation failed.');
+      setLoading(true);
+      void fetchVehicles();
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : 'Operation failed.');
     } finally {
       setSubmitting(false);
     }
@@ -199,9 +243,10 @@ export default function VehiclesPage() {
           'Vehicle has historical trip records and has been marked as INACTIVE to protect financial logs.',
         );
       }
-      fetchVehicles();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete vehicle.');
+      setLoading(true);
+      void fetchVehicles();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to delete vehicle.');
     }
   };
 
@@ -294,10 +339,11 @@ export default function VehiclesPage() {
         </form>
 
         <div className="flex bg-gray-100 p-0.5 border border-[#E2E8F0] rounded-lg self-start">
-          {['ALL', 'AVAILABLE', 'ON_TRIP', 'MAINTENANCE', 'INACTIVE'].map((status) => (
+          {['ALL', ...VEHICLE_STATUSES].map((status) => (
             <button
               key={status}
               onClick={() => {
+                setLoading(true);
                 setFilterStatus(status);
                 setPage(1);
               }}
@@ -324,7 +370,7 @@ export default function VehiclesPage() {
           </div>
         ) : vehicles.length === 0 ? (
           <div className="p-12 text-center text-[#64748B]">
-            No vehicles found. Click "Add Vehicle" to register a fleet asset.
+            No vehicles found. Click &quot;Add Vehicle&quot; to register a fleet asset.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -400,7 +446,10 @@ export default function VehiclesPage() {
           <div className="border-t border-[#E2E8F0] px-6 py-4 flex items-center justify-between bg-[#F8FAFC]">
             <button
               disabled={page === 1}
-              onClick={() => setPage((p) => Math.max(p - 1, 1))}
+              onClick={() => {
+                setLoading(true);
+                setPage((p) => Math.max(p - 1, 1));
+              }}
               className="px-3 py-1.5 text-xs font-semibold text-[#64748B] hover:text-[#0F172A] bg-white border border-[#E2E8F0] rounded-lg disabled:opacity-50 transition"
             >
               Previous
@@ -410,7 +459,10 @@ export default function VehiclesPage() {
             </span>
             <button
               disabled={page === totalPages}
-              onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+              onClick={() => {
+                setLoading(true);
+                setPage((p) => Math.min(p + 1, totalPages));
+              }}
               className="px-3 py-1.5 text-xs font-semibold text-[#64748B] hover:text-[#0F172A] bg-white border border-[#E2E8F0] rounded-lg disabled:opacity-50 transition"
             >
               Next
@@ -450,11 +502,11 @@ export default function VehiclesPage() {
                     Vehicle Status
                   </label>
                   <div className="grid grid-cols-4 gap-2">
-                    {['AVAILABLE', 'ON_TRIP', 'MAINTENANCE', 'INACTIVE'].map((status) => (
+                    {VEHICLE_STATUSES.map((status) => (
                       <button
                         key={status}
                         type="button"
-                        onClick={() => setFormData({ ...formData, status: status as any })}
+                        onClick={() => setFormData({ ...formData, status })}
                         className={`py-2 text-center rounded-lg text-[10px] font-bold uppercase border transition-all ${
                           formData.status === status
                             ? 'bg-blue-600 border-blue-600 text-white shadow-sm'

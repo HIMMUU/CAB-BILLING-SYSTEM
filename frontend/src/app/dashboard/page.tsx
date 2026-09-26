@@ -1,7 +1,7 @@
 'use strict';
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
@@ -56,6 +56,56 @@ interface PendingBooking {
   guestSalutation?: string;
   bookingBy?: string;
 }
+
+interface AuthUser {
+  role: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  tenantId: string | null;
+}
+
+const subscribeToUser = (callback: () => void) => {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener('storage', callback);
+  return () => window.removeEventListener('storage', callback);
+};
+
+const getUserSnapshot = () =>
+  typeof window === 'undefined' ? null : window.localStorage.getItem('user');
+
+const getServerUserSnapshot = () => null;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isAuthUser = (value: unknown): value is AuthUser =>
+  isRecord(value) &&
+  typeof value.role === 'string' &&
+  typeof value.firstName === 'string' &&
+  typeof value.lastName === 'string' &&
+  typeof value.email === 'string' &&
+  (typeof value.tenantId === 'string' || value.tenantId === null);
+
+const readAuthUser = (snapshot: string | null): AuthUser | null => {
+  if (!snapshot) return null;
+  try {
+    const value: unknown = JSON.parse(snapshot);
+    return isAuthUser(value) ? value : null;
+  } catch {
+    return null;
+  }
+};
+
+const getVehicleCategoryNames = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((category: unknown) =>
+    isRecord(category) && typeof category.name === 'string' ? [category.name] : [],
+  );
+};
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
 
 const rolePermissionsMap: Record<string, string[]> = {
   SUPER_ADMIN: ['All Platform Operations (Full Admin Access)'],
@@ -115,7 +165,12 @@ const formatTimeTo24h = (timeStr: string | null | undefined): string => {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const userSnapshot = useSyncExternalStore(
+    subscribeToUser,
+    getUserSnapshot,
+    getServerUserSnapshot,
+  );
+  const user = readAuthUser(userSnapshot);
   const [summary, setSummary] = useState<WidgetsSummary | null>(null);
   const [chartData, setChartData] = useState<ChartEntry[]>([]);
   const [pendingBookings, setPendingBookings] = useState<PendingBooking[]>([]);
@@ -140,16 +195,10 @@ export default function DashboardPage() {
   const [drawerError, setDrawerError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = api.getToken();
-    const currentUser = api.getUser();
-    if (!token || !currentUser) {
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
-    } else {
-      setUser(currentUser);
+    if (!api.getToken() || !userSnapshot) {
+      if (typeof window !== 'undefined') window.location.href = '/login';
     }
-  }, []);
+  }, [userSnapshot]);
 
   const loadDashboardData = async () => {
     setLoading(true);
@@ -163,8 +212,8 @@ export default function DashboardPage() {
       setChartData(chartRes);
       setPendingBookings(pendingRes.data || []);
       setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to aggregate dashboard metadata.');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to aggregate dashboard metadata.'));
     } finally {
       setLoading(false);
     }
@@ -174,7 +223,7 @@ export default function DashboardPage() {
     try {
       const res = await api.request('/rate-management/categories');
       if (Array.isArray(res) && res.length > 0) {
-        setCompanyCarGroups(res.map((c: any) => c.name));
+        setCompanyCarGroups(getVehicleCategoryNames(res));
       }
     } catch (err) {
       console.error('Failed to load company car groups', err);
@@ -182,11 +231,13 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (user) {
-      loadDashboardData();
-      fetchCarGroups();
+    if (userSnapshot) {
+      void Promise.resolve().then(() => {
+        loadDashboardData();
+        fetchCarGroups();
+      });
     }
-  }, [user]);
+  }, [userSnapshot]);
 
   const handleOpenAssign = async (booking: PendingBooking) => {
     setSelectedBookingForAssign(booking);
@@ -208,8 +259,8 @@ export default function DashboardPage() {
       
       if (res.drivers?.length > 0) setTargetDriverId(res.drivers[0].id);
       if (res.vehicles?.length > 0) setTargetVehicleId(res.vehicles[0].id);
-    } catch (err: any) {
-      setDrawerError(err.message || 'Failed to load available resources.');
+    } catch (err) {
+      setDrawerError(getErrorMessage(err, 'Failed to load available resources.'));
     } finally {
       setLoadingResources(false);
     }
@@ -253,8 +304,8 @@ export default function DashboardPage() {
       setIsAssignDrawerOpen(false);
       setSelectedBookingForAssign(null);
       loadDashboardData();
-    } catch (err: any) {
-      setDrawerError(err.message || 'Assignment failed.');
+    } catch (err) {
+      setDrawerError(getErrorMessage(err, 'Assignment failed.'));
     } finally {
       setAssigningSubmitting(false);
     }
@@ -381,7 +432,7 @@ export default function DashboardPage() {
                   </svg>
                 </div>
                 <div>
-                  <span className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wide">Today's Bookings</span>
+                  <span className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wide">Today&apos;s Bookings</span>
                   <span className="text-xl font-bold text-[#0F172A] mt-0.5 block">{summary.todaysBookings}</span>
                 </div>
               </div>

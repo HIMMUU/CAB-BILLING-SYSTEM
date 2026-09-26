@@ -1,10 +1,19 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
+interface AuthResponse {
+  accessToken: string;
+  user: unknown;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 class ApiClient {
   private accessToken: string | null = null;
   private isRefreshing = false;
   private refreshSubscribers: ((token: string) => void)[] = [];
-  private cache = new Map<string, { data: any; timestamp: number }>();
+  private cache = new Map<string, { data: unknown; timestamp: number }>();
   private readonly CACHE_TTL = 15000; // 15 seconds
 
   clearCache() {
@@ -41,7 +50,10 @@ class ApiClient {
     this.refreshSubscribers.push(cb);
   }
 
-  async request(endpoint: string, options: RequestInit & { bypassCache?: boolean } = {}): Promise<any> {
+  async request<T = ReturnType<typeof JSON.parse>>(
+    endpoint: string,
+    options: RequestInit & { bypassCache?: boolean } = {},
+  ): Promise<T> {
     const method = (options.method || 'GET').toUpperCase();
     const isGet = method === 'GET';
     const cacheKey = `${endpoint}_${options.body ? JSON.stringify(options.body) : ''}`;
@@ -51,7 +63,7 @@ class ApiClient {
     } else if (!options.bypassCache) {
       const cached = this.cache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-        return Promise.resolve(JSON.parse(JSON.stringify(cached.data)));
+        return JSON.parse(JSON.stringify(cached.data)) as T;
       }
     }
 
@@ -90,10 +102,17 @@ class ApiClient {
             });
 
             if (refreshResponse.ok) {
-              const refreshData = await refreshResponse.json();
-              this.setToken(refreshData.accessToken);
+              const refreshData: unknown = await refreshResponse.json();
+              const accessToken =
+                isRecord(refreshData) && typeof refreshData.accessToken === 'string'
+                  ? refreshData.accessToken
+                  : null;
+              if (!accessToken) {
+                throw new Error('Invalid token refresh response');
+              }
+              this.setToken(accessToken);
               this.isRefreshing = false;
-              this.onRefreshed(refreshData.accessToken);
+              this.onRefreshed(accessToken);
             } else {
               this.isRefreshing = false;
               this.logout();
@@ -107,23 +126,23 @@ class ApiClient {
         }
 
         // Wait for the token to refresh and retry
-        return new Promise((resolve) => {
+        return new Promise<T>((resolve) => {
           this.addRefreshSubscriber((newToken) => {
             const retryHeaders = new Headers(config.headers);
             retryHeaders.set('Authorization', `Bearer ${newToken}`);
-            resolve(this.request(endpoint, { ...config, headers: retryHeaders }));
+            resolve(this.request<T>(endpoint, { ...config, headers: retryHeaders }));
           });
         });
       }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData: unknown = await response.json().catch(() => ({}));
         let errorMessage = `Request failed with status ${response.status}`;
-        if (Array.isArray(errorData.message)) {
+        if (isRecord(errorData) && Array.isArray(errorData.message)) {
           errorMessage = errorData.message.join(', ');
-        } else if (typeof errorData.message === 'string') {
+        } else if (isRecord(errorData) && typeof errorData.message === 'string') {
           errorMessage = errorData.message;
-        } else if (errorData.error) {
+        } else if (isRecord(errorData) && typeof errorData.error === 'string') {
           errorMessage = errorData.error;
         }
         throw new Error(errorMessage);
@@ -131,14 +150,14 @@ class ApiClient {
 
       // Check if no content response
       if (response.status === 204) {
-        return null;
+        return null as T;
       }
 
-      const data = await response.json();
+      const data: unknown = await response.json();
       if (isGet && !options.bypassCache) {
         this.cache.set(cacheKey, { data, timestamp: Date.now() });
       }
-      return JSON.parse(JSON.stringify(data));
+      return JSON.parse(JSON.stringify(data)) as T;
     } catch (error) {
       return Promise.reject(error);
     }
@@ -146,7 +165,7 @@ class ApiClient {
 
   async login(email: string, password: string) {
     this.clearCache();
-    const data = await this.request('/auth/login', {
+    const data = await this.request<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
@@ -157,9 +176,9 @@ class ApiClient {
     return data;
   }
 
-  async register(formData: any) {
+  async register(formData: Record<string, unknown>) {
     this.clearCache();
-    const data = await this.request('/auth/register', {
+    const data = await this.request<AuthResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(formData),
     });

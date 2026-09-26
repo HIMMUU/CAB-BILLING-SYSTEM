@@ -13,13 +13,7 @@ export class TripsController {
   @Post()
   @Permissions(Permission.CLOSE_TRIP)
   async closeTrip(@Body() closeTripDto: CloseTripDto) {
-    try {
-      console.log('Received closeTripDto:', JSON.stringify(closeTripDto));
-      return await this.tripsService.closeTrip(closeTripDto);
-    } catch (err: any) {
-      console.error('ERROR IN CLOSE TRIP:', err.message, err.stack);
-      throw err;
-    }
+    return this.tripsService.closeTrip(closeTripDto);
   }
 
   @Get('calculate')

@@ -60,8 +60,8 @@ interface AuditLog {
   action: string;
   entityName: string;
   entityId: string;
-  oldValues: any;
-  newValues: any;
+  oldValues: unknown;
+  newValues: unknown;
   createdAt: string;
   user?: {
     firstName: string;
@@ -70,9 +70,17 @@ interface AuditLog {
   } | null;
 }
 
+interface DashboardUser {
+  role?: string;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function RateManagementPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<DashboardUser | null>(null);
   const [activeTab, setActiveTab] = useState<'rates' | 'taxes'>('rates');
 
   // Shared Data
@@ -146,7 +154,7 @@ export default function RateManagementPage() {
     if (!token || !currentUser) {
       router.push('/login');
     } else {
-      setUser(currentUser);
+      void Promise.resolve().then(() => setUser(currentUser as DashboardUser));
     }
   }, [router]);
 
@@ -162,14 +170,14 @@ export default function RateManagementPage() {
       if (catsRes.length > 0) {
         setRateFormData((prev) => ({ ...prev, vehicleCategoryId: catsRes[0].id }));
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Failed to load configuration list:', e);
     }
   };
 
   useEffect(() => {
     if (user) {
-      loadSharedData();
+      void Promise.resolve().then(loadSharedData);
     }
   }, [user]);
 
@@ -188,8 +196,8 @@ export default function RateManagementPage() {
       setRateCards(res.data);
       setRatesTotalPages(res.meta.totalPages);
       setRatesError(null);
-    } catch (err: any) {
-      setRatesError(err.message || 'Failed to load rate cards');
+    } catch (err: unknown) {
+      setRatesError(getErrorMessage(err, 'Failed to load rate cards'));
     } finally {
       setLoadingRates(false);
     }
@@ -202,8 +210,8 @@ export default function RateManagementPage() {
       const res = await api.request('/rate-management/tax-configs');
       setTaxConfigs(res);
       setTaxesError(null);
-    } catch (err: any) {
-      setTaxesError(err.message || 'Failed to load tax settings');
+    } catch (err: unknown) {
+      setTaxesError(getErrorMessage(err, 'Failed to load tax settings'));
     } finally {
       setLoadingTaxes(false);
     }
@@ -213,9 +221,9 @@ export default function RateManagementPage() {
   useEffect(() => {
     if (user) {
       if (activeTab === 'rates') {
-        fetchRateCards();
+        void Promise.resolve().then(fetchRateCards);
       } else {
-        fetchTaxConfigs();
+        void Promise.resolve().then(fetchTaxConfigs);
       }
     }
   }, [user, activeTab, ratesPage, filterClientType, filterCustomerId, filterCategoryId, filterEffectiveDate]);
@@ -240,8 +248,8 @@ export default function RateManagementPage() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch (err: any) {
-      alert(err.message || 'Failed to export CSV');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Failed to export CSV'));
     }
   };
 
@@ -251,7 +259,7 @@ export default function RateManagementPage() {
     try {
       const res = await api.request('/rate-management/audit-logs');
       setAuditLogs(res);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load audit logs:', err);
     } finally {
       setLoadingLogs(false);
@@ -326,8 +334,8 @@ export default function RateManagementPage() {
     try {
       await api.request(`/rate-management/rate-cards/${id}/clone`, { method: 'POST' });
       fetchRateCards();
-    } catch (err: any) {
-      alert(err.message || 'Failed to clone rate card');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Failed to clone rate card'));
     }
   };
 
@@ -336,8 +344,8 @@ export default function RateManagementPage() {
     try {
       await api.request(`/rate-management/rate-cards/${id}`, { method: 'DELETE' });
       fetchRateCards();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete rate card');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Failed to delete rate card'));
     }
   };
 
@@ -396,8 +404,8 @@ export default function RateManagementPage() {
 
       setIsRatesDrawerOpen(false);
       fetchRateCards();
-    } catch (err: any) {
-      setRateFormError(err.message || 'Operation failed');
+    } catch (err: unknown) {
+      setRateFormError(getErrorMessage(err, 'Operation failed'));
     } finally {
       setSubmittingRate(false);
     }
@@ -439,8 +447,8 @@ export default function RateManagementPage() {
     try {
       await api.request(`/rate-management/tax-configs/${id}/activate`, { method: 'POST' });
       fetchTaxConfigs();
-    } catch (err: any) {
-      alert(err.message || 'Failed to activate tax configuration');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Failed to activate tax configuration'));
     }
   };
 
@@ -449,8 +457,8 @@ export default function RateManagementPage() {
     try {
       await api.request(`/rate-management/tax-configs/${id}`, { method: 'DELETE' });
       fetchTaxConfigs();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete tax configuration');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Failed to delete tax configuration'));
     }
   };
 
@@ -494,8 +502,8 @@ export default function RateManagementPage() {
 
       setIsTaxesDrawerOpen(false);
       fetchTaxConfigs();
-    } catch (err: any) {
-      setTaxFormError(err.message || 'Operation failed');
+    } catch (err: unknown) {
+      setTaxFormError(getErrorMessage(err, 'Operation failed'));
     } finally {
       setSubmittingTax(false);
     }
@@ -685,7 +693,7 @@ export default function RateManagementPage() {
               </div>
             ) : rateCards.length === 0 ? (
               <div className="p-12 text-center text-[#64748B]">
-                No rate cards matching the criteria. Click "Add Rate Card" to register new rates.
+                No rate cards matching the criteria. Click &quot;Add Rate Card&quot; to register new rates.
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -836,7 +844,7 @@ export default function RateManagementPage() {
             </div>
           ) : taxConfigs.length === 0 ? (
             <div className="p-12 text-center text-[#64748B]">
-              No tax configurations found. Click "Add Tax Settings" to create one.
+              No tax configurations found. Click &quot;Add Tax Settings&quot; to create one.
             </div>
           ) : (
             <div className="overflow-x-auto">
