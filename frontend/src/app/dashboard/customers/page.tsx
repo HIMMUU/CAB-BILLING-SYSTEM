@@ -1,15 +1,15 @@
-'use strict';
-'use client';
+"use strict";
+"use client";
 
-import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { useRouter } from 'next/navigation';
-import api from '@/lib/api';
+import React, { useEffect, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
+import api from "@/lib/api";
 
 interface Customer {
   id: string;
   name: string;
   companyName: string | null;
-  type: 'CORPORATE' | 'INDIVIDUAL';
+  type: "CORPORATE" | "INDIVIDUAL";
   gstNumber: string | null;
   email: string | null;
   phone: string;
@@ -56,10 +56,10 @@ interface CustomerRateCard extends Partial<RateGridRow> {
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+  typeof value === "object" && value !== null;
 
 const isAuthUser = (value: unknown): value is AuthUser =>
-  isRecord(value) && typeof value.role === 'string';
+  isRecord(value) && typeof value.role === "string";
 
 const readAuthUser = (snapshot: string | null): AuthUser | null => {
   if (!snapshot) return null;
@@ -72,7 +72,9 @@ const readAuthUser = (snapshot: string | null): AuthUser | null => {
 };
 
 const isVehicleCategory = (value: unknown): value is VehicleCategory =>
-  isRecord(value) && typeof value.id === 'string' && typeof value.name === 'string';
+  isRecord(value) &&
+  typeof value.id === "string" &&
+  typeof value.name === "string";
 
 const getVehicleCategories = (value: unknown): VehicleCategory[] =>
   Array.isArray(value) ? value.filter(isVehicleCategory) : [];
@@ -80,20 +82,20 @@ const getVehicleCategories = (value: unknown): VehicleCategory[] =>
 const isCustomerRateCard = (value: unknown): value is CustomerRateCard =>
   isRecord(value) &&
   isRecord(value.vehicleCategory) &&
-  typeof value.vehicleCategory.id === 'string' &&
-  typeof value.vehicleCategory.name === 'string';
+  typeof value.vehicleCategory.id === "string" &&
+  typeof value.vehicleCategory.name === "string";
 
 const getCustomerRateCards = (value: unknown): CustomerRateCard[] =>
   Array.isArray(value) ? value.filter(isCustomerRateCard) : [];
 
 const subscribeToUser = (callback: () => void) => {
-  if (typeof window === 'undefined') return () => {};
-  window.addEventListener('storage', callback);
-  return () => window.removeEventListener('storage', callback);
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
 };
 
 const getUserSnapshot = () =>
-  typeof window === 'undefined' ? null : window.localStorage.getItem('user');
+  typeof window === "undefined" ? null : window.localStorage.getItem("user");
 
 const getServerUserSnapshot = () => null;
 
@@ -113,8 +115,8 @@ export default function CustomersPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Search & Filter state
-  const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState<string>('ALL');
+  const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState<string>("ALL");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -128,21 +130,21 @@ export default function CustomersPage() {
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [gridRows, setGridRows] = useState<RateGridRow[]>([]);
   const [copiedRow, setCopiedRow] = useState<RateGridRow | null>(null);
-  const [bulkColumn, setBulkColumn] = useState<string>('halfDayRate');
-  const [bulkValue, setBulkValue] = useState<string>('');
+  const [bulkColumn, setBulkColumn] = useState<string>("halfDayRate");
+  const [bulkValue, setBulkValue] = useState<string>("");
 
   // Form inputs
   const [formData, setFormData] = useState({
-    name: '',
-    companyName: '',
-    type: 'INDIVIDUAL' as 'INDIVIDUAL' | 'CORPORATE',
-    gstNumber: '',
-    email: '',
-    phone: '',
-    billingAddress: '',
+    name: "",
+    companyName: "",
+    type: "INDIVIDUAL" as "INDIVIDUAL" | "CORPORATE",
+    gstNumber: "",
+    email: "",
+    phone: "",
+    billingAddress: "",
     creditLimit: 0,
-    paymentTerms: '',
-    clientType: 'Individual',
+    paymentTerms: "",
+    clientType: "Individual",
     cgstRate: 0,
     sgstRate: 0,
     igstRate: 0,
@@ -151,20 +153,22 @@ export default function CustomersPage() {
 
   const fetchCategories = async () => {
     try {
-      const res = await api.request('/rate-management/categories');
+      const res = await api.request("/rate-management/categories");
       setCategories(getVehicleCategories(res));
     } catch (err) {
-      console.error('Failed to load categories', err);
+      console.error("Failed to load categories", err);
     }
   };
 
   useEffect(() => {
     if (!api.getToken() || !userSnapshot) {
-      router.push('/login');
+      router.push("/login");
     }
   }, [router, userSnapshot]);
 
-  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
+  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(
+    null,
+  );
   const [isDeletingCustomer, setIsDeletingCustomer] = useState(false);
 
   useEffect(() => {
@@ -178,14 +182,14 @@ export default function CustomersPage() {
     try {
       let url = `/customers?page=${page}&limit=10`;
       if (search) url += `&search=${encodeURIComponent(search)}`;
-      if (filterType !== 'ALL') url += `&type=${filterType}`;
+      if (filterType !== "ALL") url += `&type=${filterType}`;
 
       const res = await api.request(url);
       setCustomers(res.data);
       setTotalPages(res.meta.totalPages);
       setError(null);
     } catch (err) {
-      setError(getErrorMessage(err, 'Failed to load customers'));
+      setError(getErrorMessage(err, "Failed to load customers"));
     } finally {
       setLoading(false);
     }
@@ -206,16 +210,16 @@ export default function CustomersPage() {
   const handleOpenCreate = () => {
     setEditingId(null);
     setFormData({
-      name: '',
-      companyName: '',
-      type: 'INDIVIDUAL',
-      gstNumber: '',
-      email: '',
-      phone: '',
-      billingAddress: '',
+      name: "",
+      companyName: "",
+      type: "INDIVIDUAL",
+      gstNumber: "",
+      email: "",
+      phone: "",
+      billingAddress: "",
       creditLimit: 0,
-      paymentTerms: 'Immediate',
-      clientType: 'Individual',
+      paymentTerms: "Immediate",
+      clientType: "Individual",
       cgstRate: 2.5,
       sgstRate: 2.5,
       igstRate: 5.0,
@@ -237,8 +241,8 @@ export default function CustomersPage() {
       outstationRatePerKm: 0,
       driverAllowance: 250,
       nightCharge: 200,
-      nightStartTime: '23:00',
-      nightEndTime: '05:00',
+      nightStartTime: "23:00",
+      nightEndTime: "05:00",
       outstationNightCharge: 0,
     }));
     setGridRows(defaultRows);
@@ -253,15 +257,15 @@ export default function CustomersPage() {
       const fullCust = await api.request(`/customers/${customer.id}`);
       setFormData({
         name: fullCust.name,
-        companyName: fullCust.companyName || '',
+        companyName: fullCust.companyName || "",
         type: fullCust.type,
-        gstNumber: fullCust.gstNumber || '',
-        email: fullCust.email || '',
+        gstNumber: fullCust.gstNumber || "",
+        email: fullCust.email || "",
         phone: fullCust.phone,
         billingAddress: fullCust.billingAddress,
         creditLimit: Number(fullCust.creditLimit),
-        paymentTerms: fullCust.paymentTerms || 'Immediate',
-        clientType: fullCust.clientType || 'Individual',
+        paymentTerms: fullCust.paymentTerms || "Immediate",
+        clientType: fullCust.clientType || "Individual",
         cgstRate: Number(fullCust.cgstRate || 0),
         sgstRate: Number(fullCust.sgstRate || 0),
         igstRate: Number(fullCust.igstRate || 0),
@@ -270,72 +274,86 @@ export default function CustomersPage() {
 
       const rateCards = getCustomerRateCards(fullCust.rateCards);
       if (rateCards.length > 0) {
-        setGridRows(rateCards.map((rc) => ({
-          id: rc.id,
-          vehicleCategoryId: rc.vehicleCategoryId,
-          vehicleCategoryName: rc.vehicleCategory.name,
-          halfDayRate: Number(rc.halfDayRate),
-          fullDayRate: Number(rc.fullDayRate),
-          minKm: Number(rc.minKm || rc.includedKm || 40),
-          minHr: Number(rc.minHr || 4),
-          fullKm: Number(rc.fullKm || rc.includedKm || 80),
-          fullHr: Number(rc.fullHr || 8),
-          extraKmRate: Number(rc.extraKmRate),
-          extraHourRate: Number(rc.extraHourRate),
-          minKmPerDay: Number(rc.minKmPerDay),
-          outstationRatePerKm: Number(rc.outstationRatePerKm),
-          driverAllowance: Number(rc.driverAllowance),
-          nightCharge: Number(rc.nightCharge),
-          nightStartTime: rc.nightStartTime || '23:00',
-          nightEndTime: rc.nightEndTime || '05:00',
-          outstationNightCharge: Number(rc.outstationNightCharge || 0),
-        })));
+        setGridRows(
+          rateCards.map((rc) => ({
+            id: rc.id,
+            vehicleCategoryId: rc.vehicleCategoryId,
+            vehicleCategoryName: rc.vehicleCategory.name,
+            halfDayRate: Number(rc.halfDayRate),
+            fullDayRate: Number(rc.fullDayRate),
+            minKm: Number(rc.minKm || rc.includedKm || 40),
+            minHr: Number(rc.minHr || 4),
+            fullKm: Number(rc.fullKm || rc.includedKm || 80),
+            fullHr: Number(rc.fullHr || 8),
+            extraKmRate: Number(rc.extraKmRate),
+            extraHourRate: Number(rc.extraHourRate),
+            minKmPerDay: Number(rc.minKmPerDay),
+            outstationRatePerKm: Number(rc.outstationRatePerKm),
+            driverAllowance: Number(rc.driverAllowance),
+            nightCharge: Number(rc.nightCharge),
+            nightStartTime: rc.nightStartTime || "23:00",
+            nightEndTime: rc.nightEndTime || "05:00",
+            outstationNightCharge: Number(rc.outstationNightCharge || 0),
+          })),
+        );
       } else {
-        setGridRows(categories.map((cat) => ({
-          vehicleCategoryId: cat.id,
-          vehicleCategoryName: cat.name,
-          halfDayRate: 0,
-          fullDayRate: 0,
-          minKm: 40,
-          minHr: 4,
-          fullKm: 80,
-          fullHr: 8,
-          extraKmRate: 0,
-          extraHourRate: 0,
-          minKmPerDay: 250,
-          outstationRatePerKm: 0,
-          driverAllowance: 250,
-          nightCharge: 200,
-          nightStartTime: '23:00',
-          nightEndTime: '05:00',
-          outstationNightCharge: 0,
-        })));
+        setGridRows(
+          categories.map((cat) => ({
+            vehicleCategoryId: cat.id,
+            vehicleCategoryName: cat.name,
+            halfDayRate: 0,
+            fullDayRate: 0,
+            minKm: 40,
+            minHr: 4,
+            fullKm: 80,
+            fullHr: 8,
+            extraKmRate: 0,
+            extraHourRate: 0,
+            minKmPerDay: 250,
+            outstationRatePerKm: 0,
+            driverAllowance: 250,
+            nightCharge: 200,
+            nightStartTime: "23:00",
+            nightEndTime: "05:00",
+            outstationNightCharge: 0,
+          })),
+        );
       }
       setIsFormOpen(true);
     } catch (err) {
-      alert(getErrorMessage(err, 'Failed to fetch customer details'));
+      alert(getErrorMessage(err, "Failed to fetch customer details"));
     }
   };
 
-  const handleCellChange = (rowIndex: number, field: keyof RateGridRow, value: string | number) => {
+  const handleCellChange = (
+    rowIndex: number,
+    field: keyof RateGridRow,
+    value: string | number,
+  ) => {
     setGridRows((prev) =>
-      prev.map((row, idx) => (idx === rowIndex ? { ...row, [field]: value } : row))
+      prev.map((row, idx) =>
+        idx === rowIndex ? { ...row, [field]: value } : row,
+      ),
     );
   };
 
-  const handleArrowNav = (e: React.KeyboardEvent, rowIndex: number, colIndex: number) => {
+  const handleArrowNav = (
+    e: React.KeyboardEvent,
+    rowIndex: number,
+    colIndex: number,
+  ) => {
     let nextRow = rowIndex;
     let nextCol = colIndex;
 
-    if (e.key === 'ArrowUp') {
+    if (e.key === "ArrowUp") {
       nextRow = Math.max(0, rowIndex - 1);
       e.preventDefault();
-    } else if (e.key === 'ArrowDown') {
+    } else if (e.key === "ArrowDown") {
       nextRow = Math.min(gridRows.length - 1, rowIndex + 1);
       e.preventDefault();
-    } else if (e.key === 'ArrowLeft') {
+    } else if (e.key === "ArrowLeft") {
       nextCol = Math.max(0, colIndex - 1);
-    } else if (e.key === 'ArrowRight') {
+    } else if (e.key === "ArrowRight") {
       nextCol = Math.min(15, colIndex + 1);
     } else {
       return;
@@ -353,7 +371,7 @@ export default function CustomersPage() {
     setGridRows((prev) => [
       ...prev,
       {
-        vehicleCategoryName: 'NEW CATEGORY',
+        vehicleCategoryName: "NEW CATEGORY",
         halfDayRate: 0,
         fullDayRate: 0,
         minKm: 40,
@@ -366,8 +384,8 @@ export default function CustomersPage() {
         outstationRatePerKm: 0,
         driverAllowance: 250,
         nightCharge: 200,
-        nightStartTime: '23:00',
-        nightEndTime: '05:00',
+        nightStartTime: "23:00",
+        nightEndTime: "05:00",
         outstationNightCharge: 0,
       },
     ]);
@@ -406,23 +424,27 @@ export default function CustomersPage() {
           };
         }
         return row;
-      })
+      }),
     );
   };
 
   const applyBulkUpdate = () => {
-    if (!bulkColumn || bulkValue === '') return;
-    const isNum = !['nightStartTime', 'nightEndTime', 'vehicleCategoryName'].includes(bulkColumn);
+    if (!bulkColumn || bulkValue === "") return;
+    const isNum = ![
+      "nightStartTime",
+      "nightEndTime",
+      "vehicleCategoryName",
+    ].includes(bulkColumn);
     const parsedVal = isNum ? Number(bulkValue) : bulkValue;
-    if (isNum && typeof parsedVal === 'number' && Number.isNaN(parsedVal)) {
-      alert('Bulk update value must be a valid number');
+    if (isNum && typeof parsedVal === "number" && Number.isNaN(parsedVal)) {
+      alert("Bulk update value must be a valid number");
       return;
     }
     setGridRows((prev) =>
       prev.map((row) => ({
         ...row,
         [bulkColumn]: parsedVal,
-      }))
+      })),
     );
   };
 
@@ -432,18 +454,19 @@ export default function CustomersPage() {
 
     // Basic Validation
     if (!formData.name || !formData.phone || !formData.billingAddress) {
-      setFormError('Name, Phone, and Billing Address are required.');
+      setFormError("Name, Phone, and Billing Address are required.");
       return;
     }
 
-    if (formData.type === 'CORPORATE') {
+    if (formData.type === "CORPORATE") {
       if (!formData.gstNumber) {
-        setFormError('GST number is required for corporate accounts.');
+        setFormError("GST number is required for corporate accounts.");
         return;
       }
-      const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+      const gstRegex =
+        /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
       if (!gstRegex.test(formData.gstNumber)) {
-        setFormError('Invalid Indian GSTIN format (e.g. 07AAAAA1111A1Z1).');
+        setFormError("Invalid Indian GSTIN format (e.g. 07AAAAA1111A1Z1).");
         return;
       }
     }
@@ -455,7 +478,7 @@ export default function CustomersPage() {
         ...formData,
         creditLimit: Number(formData.creditLimit),
         companyName: formData.companyName || null,
-        gstNumber: formData.type === 'CORPORATE' ? formData.gstNumber : null,
+        gstNumber: formData.type === "CORPORATE" ? formData.gstNumber : null,
         email: formData.email || null,
         paymentTerms: formData.paymentTerms || null,
         cgstRate: Number(formData.cgstRate || 0),
@@ -463,6 +486,7 @@ export default function CustomersPage() {
         igstRate: Number(formData.igstRate || 0),
         isRcm: !!formData.isRcm,
         rateCards: gridRows.map((row) => ({
+          rateCardId: row.id,
           vehicleCategoryId: row.vehicleCategoryId || undefined,
           vehicleCategoryName: row.vehicleCategoryName,
           halfDayRate: Number(row.halfDayRate),
@@ -481,19 +505,17 @@ export default function CustomersPage() {
           fullHr: Number(row.fullHr),
           fullKm: Number(row.fullKm),
           outstationNightCharge: Number(row.outstationNightCharge),
-          effectiveFrom: new Date().toISOString(),
-          status: 'ACTIVE',
         })),
       };
 
       if (editingId) {
         await api.request(`/customers/${editingId}`, {
-          method: 'PATCH',
+          method: "PATCH",
           body: JSON.stringify(payload),
         });
       } else {
-        await api.request('/customers', {
-          method: 'POST',
+        await api.request("/customers", {
+          method: "POST",
           body: JSON.stringify(payload),
         });
       }
@@ -501,38 +523,42 @@ export default function CustomersPage() {
       setIsFormOpen(false);
       fetchCustomers();
     } catch (err) {
-      setFormError(getErrorMessage(err, 'Operation failed.'));
+      setFormError(getErrorMessage(err, "Operation failed."));
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this customer?')) return;
+    if (!confirm("Are you sure you want to delete this customer?")) return;
     try {
-      const res = await api.request(`/customers/${id}`, { method: 'DELETE' });
-      if (res?.status === 'INACTIVE') {
+      const res = await api.request(`/customers/${id}`, { method: "DELETE" });
+      if (res?.status === "INACTIVE") {
         alert(
-          'Customer has historical billing/trip records and has been marked as INACTIVE to protect audit logs.',
+          "Customer has historical billing/trip records and has been marked as INACTIVE to protect audit logs.",
         );
       }
       fetchCustomers();
     } catch (err) {
-      alert(getErrorMessage(err, 'Failed to delete customer.'));
+      alert(getErrorMessage(err, "Failed to delete customer."));
     }
   };
 
   if (!user) return null;
 
-  const canEdit = user.role === 'SUPER_ADMIN' || user.role === 'OPERATOR_ADMIN';
+  const canEdit = user.role === "SUPER_ADMIN" || user.role === "OPERATOR_ADMIN";
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
       {/* Title */}
       <div className="flex items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-[#0F172A] tracking-tight">Customers</h1>
-          <p className="text-sm text-[#64748B] mt-1">Manage all client accounts, rates, and billing details</p>
+          <h1 className="text-2xl font-bold text-[#0F172A] tracking-tight">
+            Customers
+          </h1>
+          <p className="text-sm text-[#64748B] mt-1">
+            Manage all client accounts, rates, and billing details
+          </p>
         </div>
 
         {canEdit && (
@@ -540,8 +566,19 @@ export default function CustomersPage() {
             onClick={handleOpenCreate}
             className="py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm shadow-sm transition flex items-center gap-2"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2.5}
+              stroke="currentColor"
+              className="w-4 h-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 4.5v15m7.5-7.5h-15"
+              />
             </svg>
             <span>Add Customer</span>
           </button>
@@ -556,10 +593,24 @@ export default function CustomersPage() {
 
       {/* Toolbar Filters & Search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full mb-6">
-        <form onSubmit={handleSearchSubmit} className="relative w-full sm:max-w-xs">
+        <form
+          onSubmit={handleSearchSubmit}
+          className="relative w-full sm:max-w-xs"
+        >
           <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="w-4 h-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+              />
             </svg>
           </span>
           <input
@@ -572,7 +623,7 @@ export default function CustomersPage() {
         </form>
 
         <div className="flex bg-gray-100 p-0.5 border border-[#E2E8F0] rounded-lg self-start">
-          {['ALL', 'CORPORATE', 'INDIVIDUAL'].map((type) => (
+          {["ALL", "CORPORATE", "INDIVIDUAL"].map((type) => (
             <button
               key={type}
               onClick={() => {
@@ -581,8 +632,8 @@ export default function CustomersPage() {
               }}
               className={`px-3 py-1 rounded-md text-xs font-semibold uppercase tracking-wider transition-colors ${
                 filterType === type
-                  ? 'bg-white text-[#0F172A] shadow-sm'
-                  : 'text-[#64748B] hover:text-[#0F172A]'
+                  ? "bg-white text-[#0F172A] shadow-sm"
+                  : "text-[#64748B] hover:text-[#0F172A]"
               }`}
             >
               {type.toLowerCase()}
@@ -595,9 +646,25 @@ export default function CustomersPage() {
       <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden shadow-sm">
         {loading ? (
           <div className="p-12 flex justify-center">
-            <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <svg
+              className="animate-spin h-8 w-8 text-blue-600"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
             </svg>
           </div>
         ) : customers.length === 0 ? (
@@ -619,31 +686,51 @@ export default function CustomersPage() {
               </thead>
               <tbody className="divide-y divide-[#E2E8F0]/80 text-sm">
                 {customers.map((customer) => (
-                  <tr key={customer.id} className="hover:bg-[#F8FAFC] transition-colors">
-                    <td className="py-4 px-6 font-medium text-[#0F172A]">{customer.name}</td>
+                  <tr
+                    key={customer.id}
+                    className="hover:bg-[#F8FAFC] transition-colors"
+                  >
+                    <td className="py-4 px-6 font-medium text-[#0F172A]">
+                      {customer.name}
+                    </td>
                     <td className="py-4 px-6">
-                      <span className={`inline-block px-2.5 py-0.5 text-[10px] font-bold rounded uppercase ${
-                        customer.type === 'CORPORATE'
-                          ? 'text-purple-700 bg-purple-50 border border-purple-200'
-                          : 'text-cyan-700 bg-cyan-50 border border-cyan-200'
-                      }`}>
+                      <span
+                        className={`inline-block px-2.5 py-0.5 text-[10px] font-bold rounded uppercase ${
+                          customer.type === "CORPORATE"
+                            ? "text-purple-700 bg-purple-50 border border-purple-200"
+                            : "text-cyan-700 bg-cyan-50 border border-cyan-200"
+                        }`}
+                      >
                         {customer.type}
                       </span>
                     </td>
                     <td className="py-4 px-6">
                       <div className="text-[#0F172A]">{customer.phone}</div>
-                      <div className="text-xs text-[#64748B]">{customer.email || 'No email'}</div>
+                      <div className="text-xs text-[#64748B]">
+                        {customer.email || "No email"}
+                      </div>
                     </td>
                     <td className="py-4 px-6">
-                      <div className="text-[#0F172A]">{customer.companyName || '-'}</div>
-                      <div className="text-xs text-[#64748B]">{customer.gstNumber || 'No GST'}</div>
+                      <div className="text-[#0F172A]">
+                        {customer.companyName || "-"}
+                      </div>
+                      <div className="text-xs text-[#64748B]">
+                        {customer.gstNumber || "No GST"}
+                      </div>
                     </td>
                     <td className="py-4 px-6 font-mono text-[#0F172A]">
-                      ₹{Number(customer.creditLimit).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      ₹
+                      {Number(customer.creditLimit).toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                      })}
                     </td>
                     <td className="py-4 px-6 text-right space-x-2">
                       <button
-                        onClick={() => router.push(`/dashboard/customers/${customer.id}/history`)}
+                        onClick={() =>
+                          router.push(
+                            `/dashboard/customers/${customer.id}/history`,
+                          )
+                        }
                         className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 border border-blue-100 rounded-lg transition"
                       >
                         History
@@ -700,21 +787,36 @@ export default function CustomersPage() {
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-[95vw] max-h-[95vh] bg-white border border-[#E2E8F0] p-6 shadow-2xl rounded-xl flex flex-col justify-between overflow-hidden">
-            
             {/* Header */}
             <div className="flex items-center justify-between pb-4 border-b border-[#E2E8F0] mb-4 shrink-0">
               <div>
                 <h3 className="text-lg font-bold text-[#0F172A]">
-                  {editingId ? 'Edit Customer Settings & Rate Card Grid' : 'Create Customer & Rate Card Grid'}
+                  {editingId
+                    ? "Edit Customer Settings & Rate Card Grid"
+                    : "Create Customer & Rate Card Grid"}
                 </h3>
-                <p className="text-xs text-[#64748B] mt-0.5">Configure client details, custom GST, and inline vehicle rates card.</p>
+                <p className="text-xs text-[#64748B] mt-0.5">
+                  Configure client details, custom GST, and inline vehicle rates
+                  card.
+                </p>
               </div>
               <button
                 onClick={() => setIsFormOpen(false)}
                 className="p-1.5 text-gray-400 hover:text-gray-600 transition"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className="w-5 h-5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 18 18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -729,7 +831,9 @@ export default function CustomersPage() {
 
               {/* 1. Customer Details Fields */}
               <div className="bg-[#F8FAFC] p-4 rounded-xl border border-[#E2E8F0]">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-[#475569] mb-3">1. Client Profile & Billing Settings</h4>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#475569] mb-3">
+                  1. Client Profile & Billing Settings
+                </h4>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-[11px] font-semibold text-[#64748B] uppercase tracking-wider mb-1.5">
@@ -739,8 +843,13 @@ export default function CustomersPage() {
                       value={formData.clientType}
                       onChange={(e) => {
                         const val = e.target.value;
-                        const computedType = val === 'Individual' ? 'INDIVIDUAL' : 'CORPORATE';
-                        setFormData({ ...formData, clientType: val, type: computedType });
+                        const computedType =
+                          val === "Individual" ? "INDIVIDUAL" : "CORPORATE";
+                        setFormData({
+                          ...formData,
+                          clientType: val,
+                          type: computedType,
+                        });
                       }}
                       className="w-full px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-xs focus:outline-none focus:border-blue-600 transition"
                     >
@@ -758,7 +867,9 @@ export default function CustomersPage() {
                       type="text"
                       required
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
                       placeholder="e.g. John Doe / Aaron Tours"
                       className="w-full px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-xs focus:outline-none focus:border-blue-600 transition"
                     />
@@ -772,13 +883,15 @@ export default function CustomersPage() {
                       type="text"
                       required
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
                       placeholder="e.g. +919876543210"
                       className="w-full px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-xs focus:outline-none focus:border-blue-600 transition"
                     />
                   </div>
 
-                  {formData.type === 'CORPORATE' && (
+                  {formData.type === "CORPORATE" && (
                     <>
                       <div>
                         <label className="block text-[11px] font-semibold text-[#64748B] uppercase tracking-wider mb-1.5">
@@ -788,7 +901,12 @@ export default function CustomersPage() {
                           type="text"
                           required
                           value={formData.companyName}
-                          onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              companyName: e.target.value,
+                            })
+                          }
                           placeholder="e.g. Acme Cabs Ltd"
                           className="w-full px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-xs focus:outline-none focus:border-blue-600 transition"
                         />
@@ -802,7 +920,12 @@ export default function CustomersPage() {
                           type="text"
                           required
                           value={formData.gstNumber}
-                          onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value.toUpperCase() })}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              gstNumber: e.target.value.toUpperCase(),
+                            })
+                          }
                           placeholder="e.g. 07AAAAA1111A1Z1"
                           className="w-full px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-xs focus:outline-none focus:border-blue-600 transition"
                         />
@@ -817,7 +940,9 @@ export default function CustomersPage() {
                     <input
                       type="email"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, email: e.target.value })
+                      }
                       placeholder="e.g. billing@domain.com"
                       className="w-full px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-xs focus:outline-none focus:border-blue-600 transition"
                     />
@@ -830,7 +955,12 @@ export default function CustomersPage() {
                     <input
                       type="number"
                       value={formData.creditLimit}
-                      onChange={(e) => setFormData({ ...formData, creditLimit: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          creditLimit: Number(e.target.value),
+                        })
+                      }
                       placeholder="0.00"
                       className="w-full px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-xs focus:outline-none focus:border-blue-600 transition"
                     />
@@ -843,7 +973,12 @@ export default function CustomersPage() {
                     <input
                       type="text"
                       value={formData.paymentTerms}
-                      onChange={(e) => setFormData({ ...formData, paymentTerms: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          paymentTerms: e.target.value,
+                        })
+                      }
                       placeholder="e.g. Net 30, Immediate"
                       className="w-full px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-xs focus:outline-none focus:border-blue-600 transition"
                     />
@@ -857,7 +992,12 @@ export default function CustomersPage() {
                       type="text"
                       required
                       value={formData.billingAddress}
-                      onChange={(e) => setFormData({ ...formData, billingAddress: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          billingAddress: e.target.value,
+                        })
+                      }
                       placeholder="Complete billing address"
                       className="w-full px-3 py-1.5 bg-white border border-[#E2E8F0] rounded-lg text-[#0F172A] text-xs focus:outline-none focus:border-blue-600 transition"
                     />
@@ -867,7 +1007,9 @@ export default function CustomersPage() {
 
               {/* 2. Customer Specific GST Rates */}
               <div className="bg-[#EFF6FF] p-4 rounded-xl border border-[#BFDBFE]">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-[#1E40AF] mb-3">2. Customer-Specific GST Configuration</h4>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#1E40AF] mb-3">
+                  2. Customer-Specific GST Configuration
+                </h4>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-[11px] font-semibold text-[#1E40AF] uppercase tracking-wider mb-1.5">
@@ -877,7 +1019,12 @@ export default function CustomersPage() {
                       type="number"
                       step="0.01"
                       value={formData.cgstRate}
-                      onChange={(e) => setFormData({ ...formData, cgstRate: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          cgstRate: Number(e.target.value),
+                        })
+                      }
                       placeholder="e.g. 2.5"
                       className="w-full px-3 py-1.5 bg-white border border-[#BFDBFE] rounded-lg text-[#0F172A] text-xs focus:outline-none focus:border-blue-600 transition"
                     />
@@ -891,7 +1038,12 @@ export default function CustomersPage() {
                       type="number"
                       step="0.01"
                       value={formData.sgstRate}
-                      onChange={(e) => setFormData({ ...formData, sgstRate: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          sgstRate: Number(e.target.value),
+                        })
+                      }
                       placeholder="e.g. 2.5"
                       className="w-full px-3 py-1.5 bg-white border border-[#BFDBFE] rounded-lg text-[#0F172A] text-xs focus:outline-none focus:border-blue-600 transition"
                     />
@@ -905,7 +1057,12 @@ export default function CustomersPage() {
                       type="number"
                       step="0.01"
                       value={formData.igstRate}
-                      onChange={(e) => setFormData({ ...formData, igstRate: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          igstRate: Number(e.target.value),
+                        })
+                      }
                       placeholder="e.g. 5.0"
                       className="w-full px-3 py-1.5 bg-white border border-[#BFDBFE] rounded-lg text-[#0F172A] text-xs focus:outline-none focus:border-blue-600 transition"
                     />
@@ -917,15 +1074,21 @@ export default function CustomersPage() {
                         type="checkbox"
                         id="customerIsRcm"
                         checked={formData.isRcm}
-                        onChange={(e) => setFormData({ ...formData, isRcm: e.target.checked })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, isRcm: e.target.checked })
+                        }
                         className="w-4 h-4 rounded border-[#BFDBFE] text-blue-600 accent-blue-600 cursor-pointer"
                       />
-                      <label htmlFor="customerIsRcm" className="text-xs font-bold uppercase cursor-pointer select-none">
+                      <label
+                        htmlFor="customerIsRcm"
+                        className="text-xs font-bold uppercase cursor-pointer select-none"
+                      >
                         Reverse Charge (RCM)
                       </label>
                     </div>
                     <div className="text-[10px] font-medium leading-tight text-blue-700/80">
-                      * If configured, these rates override tenant active tax brackets on invoice generation.
+                      * If configured, these rates override tenant active tax
+                      brackets on invoice generation.
                     </div>
                   </div>
                 </div>
@@ -933,17 +1096,26 @@ export default function CustomersPage() {
 
               {/* 3. Excel-like Rate Editing Grid */}
               <div className="border border-[#E2E8F0] rounded-xl overflow-hidden shadow-sm flex flex-col bg-white">
-                
                 {/* Grid Toolbar */}
                 <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between p-3 bg-gray-50 border-b border-[#E2E8F0] gap-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-[#475569] uppercase tracking-wider">3. Local & Outstation Rates Grid</span>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 bg-[#F1F5F9] text-gray-500 rounded border">Excel Mode</span>
+                    <span className="text-xs font-bold text-[#475569] uppercase tracking-wider">
+                      3. Local & Outstation Rates Grid
+                    </span>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 bg-[#F1F5F9] text-gray-500 rounded border">
+                      Excel Mode
+                    </span>
                   </div>
+                  <p className="text-[11px] font-medium text-blue-700">
+                    Customer rate changes apply immediately; half-day, full-day,
+                    and outstation rates are saved per car group.
+                  </p>
 
                   {/* Bulk Update Controls */}
                   <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className="text-[#64748B] font-medium">Bulk set:</span>
+                    <span className="text-[#64748B] font-medium">
+                      Bulk set:
+                    </span>
                     <select
                       value={bulkColumn}
                       onChange={(e) => setBulkColumn(e.target.value)}
@@ -958,9 +1130,13 @@ export default function CustomersPage() {
                       <option value="extraKmRate">Extra KM Rate</option>
                       <option value="extraHourRate">Extra Hour Rate</option>
                       <option value="minKmPerDay">Outstation min KM</option>
-                      <option value="outstationRatePerKm">Outstation Rate/KM</option>
+                      <option value="outstationRatePerKm">
+                        Outstation Rate/KM
+                      </option>
                       <option value="driverAllowance">Driver Allowance</option>
-                      <option value="outstationNightCharge">Outstation Night Charge</option>
+                      <option value="outstationNightCharge">
+                        Outstation Night Charge
+                      </option>
                       <option value="nightCharge">Local Night Allowance</option>
                       <option value="nightStartTime">Night Start Time</option>
                       <option value="nightEndTime">Night End Time</option>
@@ -987,8 +1163,19 @@ export default function CustomersPage() {
                       onClick={addGridRow}
                       className="border border-[#E2E8F0] hover:bg-[#F8FAFC] text-[#0F172A] font-semibold rounded px-3 py-1 text-xs transition flex items-center gap-1.5"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2.5}
+                        stroke="currentColor"
+                        className="w-3 h-3"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M12 4.5v15m7.5-7.5h-15"
+                        />
                       </svg>
                       <span>Add Car Row</span>
                     </button>
@@ -1000,42 +1187,102 @@ export default function CustomersPage() {
                   <table className="w-full border-collapse border-spacing-0 text-left min-w-[1700px]">
                     <thead>
                       <tr className="border-b border-[#E2E8F0] text-[10px] font-bold text-[#64748B] uppercase bg-[#F8FAFC] text-center select-none">
-                        <th className="py-2.5 px-3 border-r border-[#E2E8F0] w-36 text-left shrink-0">Car Group</th>
-                        <th className="py-1 px-2 border-r border-[#E2E8F0]" colSpan={8}>Local / Inside City Rates (₹)</th>
-                        <th className="py-1 px-2 border-r border-[#E2E8F0]" colSpan={4}>Out of Station Rates (₹)</th>
-                        <th className="py-1 px-2 border-r border-[#E2E8F0]" colSpan={3}>Local Night Rules</th>
+                        <th className="py-2.5 px-3 border-r border-[#E2E8F0] w-36 text-left shrink-0">
+                          Car Group
+                        </th>
+                        <th
+                          className="py-1 px-2 border-r border-[#E2E8F0]"
+                          colSpan={8}
+                        >
+                          Local / Inside City Rates (₹)
+                        </th>
+                        <th
+                          className="py-1 px-2 border-r border-[#E2E8F0]"
+                          colSpan={4}
+                        >
+                          Out of Station Rates (₹)
+                        </th>
+                        <th
+                          className="py-1 px-2 border-r border-[#E2E8F0]"
+                          colSpan={3}
+                        >
+                          Local Night Rules
+                        </th>
                         <th className="py-2.5 px-3 w-32 shrink-0">Actions</th>
                       </tr>
                       <tr className="border-b border-[#E2E8F0] text-[9px] font-bold text-[#64748B] uppercase bg-[#F8FAFC] text-center select-none">
-                        <th className="py-2 px-3 border-r border-[#E2E8F0] text-left shrink-0">Car Group Name</th>
-                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">Half Day</th>
-                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">Full Day</th>
-                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">Extra KM</th>
-                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">Extra hr</th>
-                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">minhr</th>
-                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">minkm</th>
-                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">Fullhr</th>
-                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">FullKm</th>
-                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">Perkm</th>
-                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">Day (Allow.)</th>
-                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">Night (Allow.)</th>
-                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">Km UpTo</th>
-                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">Time From</th>
-                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">Time Upto</th>
-                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">Amount</th>
-                        <th className="py-2 px-3 w-32 shrink-0">Copy / Paste</th>
+                        <th className="py-2 px-3 border-r border-[#E2E8F0] text-left shrink-0">
+                          Car Group Name
+                        </th>
+                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
+                          Half Day
+                        </th>
+                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
+                          Full Day
+                        </th>
+                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
+                          Extra KM
+                        </th>
+                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
+                          Extra hr
+                        </th>
+                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
+                          minhr
+                        </th>
+                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
+                          minkm
+                        </th>
+                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
+                          Fullhr
+                        </th>
+                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
+                          FullKm
+                        </th>
+                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
+                          Perkm
+                        </th>
+                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
+                          Day (Allow.)
+                        </th>
+                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
+                          Night (Allow.)
+                        </th>
+                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
+                          Km UpTo
+                        </th>
+                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
+                          Time From
+                        </th>
+                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
+                          Time Upto
+                        </th>
+                        <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
+                          Amount
+                        </th>
+                        <th className="py-2 px-3 w-32 shrink-0">
+                          Copy / Paste
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E2E8F0]">
                       {gridRows.map((row, rIdx) => (
-                        <tr key={rIdx} className="hover:bg-gray-50/50 transition-colors focus-within:bg-[#EFF6FF]/40">
+                        <tr
+                          key={rIdx}
+                          className="hover:bg-gray-50/50 transition-colors focus-within:bg-[#EFF6FF]/40"
+                        >
                           {/* 0. Category Name */}
                           <td className="p-0 border-r border-[#E2E8F0] shrink-0 font-semibold">
                             <input
                               id={`cell-${rIdx}-0`}
                               type="text"
                               value={row.vehicleCategoryName}
-                              onChange={(e) => handleCellChange(rIdx, 'vehicleCategoryName', e.target.value)}
+                              onChange={(e) =>
+                                handleCellChange(
+                                  rIdx,
+                                  "vehicleCategoryName",
+                                  e.target.value,
+                                )
+                              }
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 0)}
                               className="w-full h-8 px-2.5 bg-transparent border-none text-xs font-bold text-gray-700 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
@@ -1046,7 +1293,13 @@ export default function CustomersPage() {
                               id={`cell-${rIdx}-1`}
                               type="number"
                               value={row.halfDayRate}
-                              onChange={(e) => handleCellChange(rIdx, 'halfDayRate', e.target.value)}
+                              onChange={(e) =>
+                                handleCellChange(
+                                  rIdx,
+                                  "halfDayRate",
+                                  e.target.value,
+                                )
+                              }
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 1)}
                               className="w-full h-8 bg-transparent border-none text-center text-xs font-mono text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
@@ -1057,7 +1310,13 @@ export default function CustomersPage() {
                               id={`cell-${rIdx}-2`}
                               type="number"
                               value={row.fullDayRate}
-                              onChange={(e) => handleCellChange(rIdx, 'fullDayRate', e.target.value)}
+                              onChange={(e) =>
+                                handleCellChange(
+                                  rIdx,
+                                  "fullDayRate",
+                                  e.target.value,
+                                )
+                              }
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 2)}
                               className="w-full h-8 bg-transparent border-none text-center text-xs font-mono text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
@@ -1068,7 +1327,13 @@ export default function CustomersPage() {
                               id={`cell-${rIdx}-3`}
                               type="number"
                               value={row.extraKmRate}
-                              onChange={(e) => handleCellChange(rIdx, 'extraKmRate', e.target.value)}
+                              onChange={(e) =>
+                                handleCellChange(
+                                  rIdx,
+                                  "extraKmRate",
+                                  e.target.value,
+                                )
+                              }
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 3)}
                               className="w-full h-8 bg-transparent border-none text-center text-xs font-mono text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
@@ -1079,7 +1344,13 @@ export default function CustomersPage() {
                               id={`cell-${rIdx}-4`}
                               type="number"
                               value={row.extraHourRate}
-                              onChange={(e) => handleCellChange(rIdx, 'extraHourRate', e.target.value)}
+                              onChange={(e) =>
+                                handleCellChange(
+                                  rIdx,
+                                  "extraHourRate",
+                                  e.target.value,
+                                )
+                              }
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 4)}
                               className="w-full h-8 bg-transparent border-none text-center text-xs font-mono text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
@@ -1090,7 +1361,9 @@ export default function CustomersPage() {
                               id={`cell-${rIdx}-5`}
                               type="number"
                               value={row.minHr}
-                              onChange={(e) => handleCellChange(rIdx, 'minHr', e.target.value)}
+                              onChange={(e) =>
+                                handleCellChange(rIdx, "minHr", e.target.value)
+                              }
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 5)}
                               className="w-full h-8 bg-transparent border-none text-center text-xs font-mono text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
@@ -1101,7 +1374,9 @@ export default function CustomersPage() {
                               id={`cell-${rIdx}-6`}
                               type="number"
                               value={row.minKm}
-                              onChange={(e) => handleCellChange(rIdx, 'minKm', e.target.value)}
+                              onChange={(e) =>
+                                handleCellChange(rIdx, "minKm", e.target.value)
+                              }
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 6)}
                               className="w-full h-8 bg-transparent border-none text-center text-xs font-mono text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
@@ -1112,7 +1387,9 @@ export default function CustomersPage() {
                               id={`cell-${rIdx}-7`}
                               type="number"
                               value={row.fullHr}
-                              onChange={(e) => handleCellChange(rIdx, 'fullHr', e.target.value)}
+                              onChange={(e) =>
+                                handleCellChange(rIdx, "fullHr", e.target.value)
+                              }
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 7)}
                               className="w-full h-8 bg-transparent border-none text-center text-xs font-mono text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
@@ -1123,7 +1400,9 @@ export default function CustomersPage() {
                               id={`cell-${rIdx}-8`}
                               type="number"
                               value={row.fullKm}
-                              onChange={(e) => handleCellChange(rIdx, 'fullKm', e.target.value)}
+                              onChange={(e) =>
+                                handleCellChange(rIdx, "fullKm", e.target.value)
+                              }
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 8)}
                               className="w-full h-8 bg-transparent border-none text-center text-xs font-mono text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
@@ -1134,7 +1413,13 @@ export default function CustomersPage() {
                               id={`cell-${rIdx}-9`}
                               type="number"
                               value={row.outstationRatePerKm}
-                              onChange={(e) => handleCellChange(rIdx, 'outstationRatePerKm', e.target.value)}
+                              onChange={(e) =>
+                                handleCellChange(
+                                  rIdx,
+                                  "outstationRatePerKm",
+                                  e.target.value,
+                                )
+                              }
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 9)}
                               className="w-full h-8 bg-transparent border-none text-center text-xs font-mono text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
@@ -1145,7 +1430,13 @@ export default function CustomersPage() {
                               id={`cell-${rIdx}-10`}
                               type="number"
                               value={row.driverAllowance}
-                              onChange={(e) => handleCellChange(rIdx, 'driverAllowance', e.target.value)}
+                              onChange={(e) =>
+                                handleCellChange(
+                                  rIdx,
+                                  "driverAllowance",
+                                  e.target.value,
+                                )
+                              }
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 10)}
                               className="w-full h-8 bg-transparent border-none text-center text-xs font-mono text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
@@ -1156,7 +1447,13 @@ export default function CustomersPage() {
                               id={`cell-${rIdx}-11`}
                               type="number"
                               value={row.outstationNightCharge}
-                              onChange={(e) => handleCellChange(rIdx, 'outstationNightCharge', e.target.value)}
+                              onChange={(e) =>
+                                handleCellChange(
+                                  rIdx,
+                                  "outstationNightCharge",
+                                  e.target.value,
+                                )
+                              }
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 11)}
                               className="w-full h-8 bg-transparent border-none text-center text-xs font-mono text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
@@ -1167,7 +1464,13 @@ export default function CustomersPage() {
                               id={`cell-${rIdx}-12`}
                               type="number"
                               value={row.minKmPerDay}
-                              onChange={(e) => handleCellChange(rIdx, 'minKmPerDay', e.target.value)}
+                              onChange={(e) =>
+                                handleCellChange(
+                                  rIdx,
+                                  "minKmPerDay",
+                                  e.target.value,
+                                )
+                              }
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 12)}
                               className="w-full h-8 bg-transparent border-none text-center text-xs font-mono text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
@@ -1178,7 +1481,13 @@ export default function CustomersPage() {
                               id={`cell-${rIdx}-13`}
                               type="text"
                               value={row.nightStartTime}
-                              onChange={(e) => handleCellChange(rIdx, 'nightStartTime', e.target.value)}
+                              onChange={(e) =>
+                                handleCellChange(
+                                  rIdx,
+                                  "nightStartTime",
+                                  e.target.value,
+                                )
+                              }
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 13)}
                               className="w-full h-8 bg-transparent border-none text-center text-xs text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
@@ -1189,7 +1498,13 @@ export default function CustomersPage() {
                               id={`cell-${rIdx}-14`}
                               type="text"
                               value={row.nightEndTime}
-                              onChange={(e) => handleCellChange(rIdx, 'nightEndTime', e.target.value)}
+                              onChange={(e) =>
+                                handleCellChange(
+                                  rIdx,
+                                  "nightEndTime",
+                                  e.target.value,
+                                )
+                              }
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 14)}
                               className="w-full h-8 bg-transparent border-none text-center text-xs text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
@@ -1200,7 +1515,13 @@ export default function CustomersPage() {
                               id={`cell-${rIdx}-15`}
                               type="number"
                               value={row.nightCharge}
-                              onChange={(e) => handleCellChange(rIdx, 'nightCharge', e.target.value)}
+                              onChange={(e) =>
+                                handleCellChange(
+                                  rIdx,
+                                  "nightCharge",
+                                  e.target.value,
+                                )
+                              }
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 15)}
                               className="w-full h-8 bg-transparent border-none text-center text-xs font-mono text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
@@ -1256,10 +1577,9 @@ export default function CustomersPage() {
                 disabled={submitting}
                 className="py-2 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center shadow-sm"
               >
-                {submitting ? 'Saving changes...' : 'Save Customer & Grid'}
+                {submitting ? "Saving changes..." : "Save Customer & Grid"}
               </button>
             </div>
-
           </div>
         </div>
       )}
@@ -1275,17 +1595,36 @@ export default function CustomersPage() {
           >
             <div className="flex items-center gap-3">
               <div className="p-3 bg-red-50 text-red-600 rounded-xl border border-red-100">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+                  />
                 </svg>
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-800">Delete Customer</h3>
-                <p className="text-xs text-slate-500 font-medium">{deletingCustomer.name}</p>
+                <h3 className="text-base font-bold text-slate-800">
+                  Delete Customer
+                </h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  {deletingCustomer.name}
+                </p>
               </div>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Are you sure you want to delete customer <strong className="text-slate-800">{deletingCustomer.name}</strong>? If customer has historical records, they will be archived as INACTIVE to protect audit logs.
+              Are you sure you want to delete customer{" "}
+              <strong className="text-slate-800">
+                {deletingCustomer.name}
+              </strong>
+              ? If customer has historical records, they will be archived as
+              INACTIVE to protect audit logs.
             </p>
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
@@ -1301,21 +1640,26 @@ export default function CustomersPage() {
                 onClick={async () => {
                   setIsDeletingCustomer(true);
                   try {
-                    const res = await api.request(`/customers/${deletingCustomer.id}`, { method: 'DELETE' });
+                    const res = await api.request(
+                      `/customers/${deletingCustomer.id}`,
+                      { method: "DELETE" },
+                    );
                     setDeletingCustomer(null);
-                    if (res?.status === 'INACTIVE') {
-                      alert('Customer has historical billing/trip records and has been archived as INACTIVE.');
+                    if (res?.status === "INACTIVE") {
+                      alert(
+                        "Customer has historical billing/trip records and has been archived as INACTIVE.",
+                      );
                     }
                     fetchCustomers();
                   } catch (err) {
-                    alert(getErrorMessage(err, 'Failed to delete customer.'));
+                    alert(getErrorMessage(err, "Failed to delete customer."));
                   } finally {
                     setIsDeletingCustomer(false);
                   }
                 }}
                 className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-sm"
               >
-                {isDeletingCustomer ? 'Deleting...' : 'Delete Customer'}
+                {isDeletingCustomer ? "Deleting..." : "Delete Customer"}
               </button>
             </div>
           </div>

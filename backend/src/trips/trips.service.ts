@@ -24,6 +24,57 @@ type DutySlipWithRateContext = Prisma.DutySlipGetPayload<{
   };
 }>;
 
+interface CustomRatePackage {
+  id: string;
+  includedKm: number;
+  includedHours: number;
+  rate: number;
+}
+
+const isJsonRecord = (
+  value: Prisma.JsonValue | undefined,
+): value is Prisma.JsonObject =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const getSelectedCustomPackage = (
+  packageValues: Prisma.JsonValue,
+  pricingSnapshot: Prisma.JsonValue,
+): CustomRatePackage | null => {
+  if (!Array.isArray(packageValues) || !isJsonRecord(pricingSnapshot)) {
+    return null;
+  }
+  const packageId = pricingSnapshot.customPackageId;
+  if (typeof packageId !== 'string') return null;
+
+  const value = packageValues.find(
+    (item) =>
+      isJsonRecord(item) &&
+      item.id === packageId &&
+      typeof item.includedKm === 'number' &&
+      typeof item.includedHours === 'number' &&
+      typeof item.rate === 'number',
+  );
+  if (!isJsonRecord(value)) return null;
+  const { id, includedKm, includedHours, rate } = value;
+  if (
+    typeof id !== 'string' ||
+    typeof includedKm !== 'number' ||
+    includedKm <= 0 ||
+    typeof includedHours !== 'number' ||
+    includedHours <= 0 ||
+    typeof rate !== 'number' ||
+    rate <= 0
+  ) {
+    return null;
+  }
+  return {
+    id,
+    includedKm,
+    includedHours,
+    rate,
+  };
+};
+
 @Injectable()
 export class TripsService {
   private readonly logger = new Logger(TripsService.name);
@@ -109,12 +160,23 @@ export class TripsService {
       booking.tripType === TripType.OUTSTATION
         ? Number(rateCard.minKmPerDay) > 0 &&
           Number(rateCard.outstationRatePerKm) > 0
-        : (Number(rateCard.fullDayRate) > 0 ||
+        : ((Number(rateCard.fullDayRate) > 0 ||
             Number(rateCard.halfDayRate) > 0) &&
-          (Number(rateCard.fullKm) ||
-            Number(rateCard.minKm) ||
-            Number(rateCard.includedKm)) > 0 &&
-          (Number(rateCard.fullHr) || Number(rateCard.minHr)) > 0;
+            (Number(rateCard.fullKm) ||
+              Number(rateCard.minKm) ||
+              Number(rateCard.includedKm)) > 0 &&
+            (Number(rateCard.fullHr) || Number(rateCard.minHr)) > 0) ||
+          (Array.isArray(rateCard.customPackages) &&
+            rateCard.customPackages.some(
+              (ratePackage) =>
+                isJsonRecord(ratePackage) &&
+                typeof ratePackage.includedKm === 'number' &&
+                ratePackage.includedKm > 0 &&
+                typeof ratePackage.includedHours === 'number' &&
+                ratePackage.includedHours > 0 &&
+                typeof ratePackage.rate === 'number' &&
+                ratePackage.rate > 0,
+            ));
 
     if (!hasValidBaseRate) {
       throw new BadRequestException(
@@ -217,12 +279,26 @@ export class TripsService {
       slip,
       effectiveAt,
     );
+    const selectedCustomPackage = getSelectedCustomPackage(
+      rateCard.customPackages,
+      slip.pricingSnapshot,
+    );
+    if (
+      slip.billingMode === 'C' &&
+      Array.isArray(rateCard.customPackages) &&
+      rateCard.customPackages.length > 0 &&
+      !selectedCustomPackage
+    ) {
+      throw new BadRequestException(
+        'Select a valid custom package from the current rate card before closing this trip.',
+      );
+    }
 
     // 3. Dynamic Rate Calculation based on Trip Type & Rate Card Fields
     let baseFare = 0;
     let baseKm = 0;
     let extraKmRate = Number(rateCard.extraKmRate);
-    let extraHourRate = Number(rateCard.extraHourRate);
+    const extraHourRate = Number(rateCard.extraHourRate);
     let driverAllowanceAmount = Number(rateCard.driverAllowance);
     let nightChargesAmount = Number(rateCard.nightCharge);
 
@@ -239,13 +315,17 @@ export class TripsService {
           Number(rateCard.nightCharge));
     } else {
       // Local hourly rental, local package, or airport transfer
-      const packageHr = Number(rateCard.fullHr) || Number(rateCard.minHr);
+      const packageHr =
+        selectedCustomPackage?.includedHours ??
+        (Number(rateCard.fullHr) || Number(rateCard.minHr));
       const packageKm =
-        Number(rateCard.fullKm) ||
-        Number(rateCard.minKm) ||
-        Number(rateCard.includedKm);
+        selectedCustomPackage?.includedKm ??
+        (Number(rateCard.fullKm) ||
+          Number(rateCard.minKm) ||
+          Number(rateCard.includedKm));
       const packageFare =
-        Number(rateCard.fullDayRate) || Number(rateCard.halfDayRate);
+        selectedCustomPackage?.rate ??
+        (Number(rateCard.fullDayRate) || Number(rateCard.halfDayRate));
 
       baseFare = packageFare;
       baseKm = packageKm;
@@ -576,13 +656,24 @@ export class TripsService {
           (currentBooking.tripType === TripType.OUTSTATION
             ? Number(rateCardStillValid.minKmPerDay) > 0 &&
               Number(rateCardStillValid.outstationRatePerKm) > 0
-            : (Number(rateCardStillValid.fullDayRate) > 0 ||
+            : ((Number(rateCardStillValid.fullDayRate) > 0 ||
                 Number(rateCardStillValid.halfDayRate) > 0) &&
-              (Number(rateCardStillValid.fullKm) ||
-                Number(rateCardStillValid.minKm) ||
-                Number(rateCardStillValid.includedKm)) > 0 &&
-              (Number(rateCardStillValid.fullHr) ||
-                Number(rateCardStillValid.minHr)) > 0);
+                (Number(rateCardStillValid.fullKm) ||
+                  Number(rateCardStillValid.minKm) ||
+                  Number(rateCardStillValid.includedKm)) > 0 &&
+                (Number(rateCardStillValid.fullHr) ||
+                  Number(rateCardStillValid.minHr)) > 0) ||
+              (Array.isArray(rateCardStillValid?.customPackages) &&
+                rateCardStillValid.customPackages.some(
+                  (ratePackage) =>
+                    isJsonRecord(ratePackage) &&
+                    typeof ratePackage.includedKm === 'number' &&
+                    ratePackage.includedKm > 0 &&
+                    typeof ratePackage.includedHours === 'number' &&
+                    ratePackage.includedHours > 0 &&
+                    typeof ratePackage.rate === 'number' &&
+                    ratePackage.rate > 0,
+                )));
         if (!hasValidCurrentBaseRate) {
           throw new BadRequestException(
             'The rate card changed or is no longer valid. Reload the duty slip and select an active, effective rate card before closing.',

@@ -10,6 +10,8 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcryptjs';
 
+const SESSION_DURATION_SECONDS = 7 * 24 * 60 * 60;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -141,6 +143,15 @@ export class AuthService {
       if (payload.type !== 'refresh') {
         throw new UnauthorizedException('Invalid token type');
       }
+      const sessionExpiresAt =
+        typeof payload.sessionExpiresAt === 'number'
+          ? payload.sessionExpiresAt
+          : typeof payload.exp === 'number'
+            ? payload.exp * 1000
+            : null;
+      if (sessionExpiresAt === null || sessionExpiresAt <= Date.now()) {
+        throw new UnauthorizedException('Session has expired');
+      }
 
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
@@ -153,13 +164,21 @@ export class AuthService {
         throw new UnauthorizedException('User no longer exists or is inactive');
       }
 
-      return this.generateTokensAndUser(user);
+      return this.generateTokensAndUser(user, sessionExpiresAt);
     } catch (e) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
   }
 
-  private generateTokensAndUser(user: any) {
+  private generateTokensAndUser(
+    user: any,
+    sessionExpiresAt = Date.now() + SESSION_DURATION_SECONDS * 1000,
+  ) {
+    const expiresIn = Math.floor((sessionExpiresAt - Date.now()) / 1000);
+    if (expiresIn <= 0) {
+      throw new UnauthorizedException('Session has expired');
+    }
+
     const accessPayload = {
       sub: user.id,
       userId: user.id,
@@ -167,23 +186,23 @@ export class AuthService {
       role: user.role,
       tenantId: user.tenantId,
       type: 'access',
+      sessionExpiresAt,
     };
 
     const refreshPayload = {
       sub: user.id,
       email: user.email,
       type: 'refresh',
+      sessionExpiresAt,
     };
 
-    const accessToken = this.jwtService.sign(accessPayload);
-    const refreshToken = this.jwtService.sign(refreshPayload, {
-      expiresIn: '7d',
-    });
+    const accessToken = this.jwtService.sign(accessPayload, { expiresIn });
+    const refreshToken = this.jwtService.sign(refreshPayload, { expiresIn });
 
     return {
       accessToken,
       refreshToken,
-      expiresIn: 900, // 15 minutes
+      expiresIn,
       user: {
         id: user.id,
         firstName: user.firstName,

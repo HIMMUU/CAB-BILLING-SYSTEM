@@ -33,7 +33,7 @@ export class AuthController {
       expiresIn: number;
       user: unknown;
     };
-    this.setCookie(response, result.refreshToken);
+    this.setCookie(response, result.refreshToken, result.expiresIn);
 
     return {
       accessToken: result.accessToken,
@@ -55,7 +55,7 @@ export class AuthController {
       expiresIn: number;
       user: unknown;
     };
-    this.setCookie(response, result.refreshToken);
+    this.setCookie(response, result.refreshToken, result.expiresIn);
 
     return {
       accessToken: result.accessToken,
@@ -85,7 +85,7 @@ export class AuthController {
       expiresIn: number;
       user: unknown;
     };
-    this.setCookie(response, result.refreshToken);
+    this.setCookie(response, result.refreshToken, result.expiresIn);
 
     return {
       accessToken: result.accessToken,
@@ -108,14 +108,14 @@ export class AuthController {
     return { message: 'Logged out successfully' };
   }
 
-  private setCookie(response: Response, token: string) {
+  private setCookie(response: Response, token: string, expiresIn: number) {
     const isProduction = process.env.NODE_ENV === 'production';
     response.cookie('refreshToken', token, {
       httpOnly: true,
       secure: isProduction,
       sameSite: isProduction ? 'none' : 'lax',
       path: '/',
-      maxAge: 14 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: expiresIn * 1000,
     });
   }
 }

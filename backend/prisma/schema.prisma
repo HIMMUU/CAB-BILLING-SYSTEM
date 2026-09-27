@@ -250,6 +250,7 @@ model RateCard {
   fullHr                Decimal         @default(8.00) @map("full_hr") @db.Decimal(5, 2)
   fullKm                Decimal         @default(80.00) @map("full_km") @db.Decimal(10, 2)
   outstationNightCharge Decimal         @default(0.00) @map("outstation_night_charge") @db.Decimal(10, 2)
+  customPackages        Json            @default("[]") @map("custom_packages") @db.JsonB
   createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz
   updatedAt             DateTime        @updatedAt @map("updated_at") @db.Timestamptz
 

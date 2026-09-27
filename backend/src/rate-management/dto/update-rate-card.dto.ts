@@ -1,10 +1,13 @@
+import { Type } from 'class-transformer';
 import {
-  IsDateString,
+  IsArray,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
+  ValidateNested,
 } from 'class-validator';
+import { RatePackageDto } from './rate-package.dto';
 
 export class UpdateRateCardDto {
   @IsUUID(4, { message: 'Customer ID must be a valid UUID' })
@@ -63,17 +66,6 @@ export class UpdateRateCardDto {
   @IsOptional()
   nightEndTime?: string;
 
-  @IsDateString(
-    {},
-    { message: 'Effective date must be a valid ISO date string' },
-  )
-  @IsOptional()
-  effectiveFrom?: string;
-
-  @IsString()
-  @IsOptional()
-  status?: string;
-
   @IsNumber()
   @IsOptional()
   minHr?: number;
@@ -93,4 +85,10 @@ export class UpdateRateCardDto {
   @IsNumber()
   @IsOptional()
   outstationNightCharge?: number;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RatePackageDto)
+  @IsOptional()
+  customPackages?: RatePackageDto[];
 }

@@ -82,15 +82,13 @@ export class CustomersService {
                 nightCharge: card.nightCharge ?? 0,
                 nightStartTime: card.nightStartTime || '23:00',
                 nightEndTime: card.nightEndTime || '05:00',
-                minHr: card.minHr ?? 12,
-                minKm: card.minKm ?? 120,
-                fullHr: card.fullHr ?? 12,
-                fullKm: card.fullKm ?? 120,
+                minHr: card.minHr ?? 4,
+                minKm: card.minKm ?? 40,
+                fullHr: card.fullHr ?? 8,
+                fullKm: card.fullKm ?? 80,
                 outstationNightCharge: card.outstationNightCharge ?? 0,
-                effectiveFrom: card.effectiveFrom
-                  ? new Date(card.effectiveFrom)
-                  : new Date(),
-                status: card.status || 'ACTIVE',
+                effectiveFrom: new Date(),
+                status: 'ACTIVE',
               },
             });
           }
@@ -209,12 +207,28 @@ export class CustomersService {
       });
 
       if (dto.rateCards && Array.isArray(dto.rateCards)) {
-        // Clear existing rate cards for this customer
-        await tx.rateCard.deleteMany({
+        const existingRateCards = await tx.rateCard.findMany({
           where: { customerId: id },
+          select: { id: true },
+        });
+        const existingRateCardIds = new Set(
+          existingRateCards.map((rateCard) => rateCard.id),
+        );
+        const retainedRateCardIds = dto.rateCards
+          .map((card) => card.rateCardId)
+          .filter(
+            (rateCardId): rateCardId is string =>
+              typeof rateCardId === 'string' &&
+              existingRateCardIds.has(rateCardId),
+          );
+
+        await tx.rateCard.deleteMany({
+          where: {
+            customerId: id,
+            id: { notIn: retainedRateCardIds },
+          },
         });
 
-        // Insert new ones
         for (const card of dto.rateCards) {
           let catId: string | null = null;
           if (card.vehicleCategoryName && card.vehicleCategoryName.trim()) {
@@ -235,35 +249,42 @@ export class CustomersService {
           }
 
           if (catId) {
-            await tx.rateCard.create({
-              data: {
-                tenantId: updated.tenantId,
-                customerId: updated.id,
-                clientType:
-                  dto.clientType || updated.clientType || 'Individual',
-                vehicleCategoryId: catId,
-                halfDayRate: card.halfDayRate ?? 0,
-                fullDayRate: card.fullDayRate ?? 0,
-                includedKm: card.includedKm ?? 0,
-                extraKmRate: card.extraKmRate ?? 0,
-                extraHourRate: card.extraHourRate ?? 0,
-                minKmPerDay: card.minKmPerDay ?? 0,
-                outstationRatePerKm: card.outstationRatePerKm ?? 0,
-                driverAllowance: card.driverAllowance ?? 0,
-                nightCharge: card.nightCharge ?? 0,
-                nightStartTime: card.nightStartTime || '23:00',
-                nightEndTime: card.nightEndTime || '05:00',
-                minHr: card.minHr ?? 12,
-                minKm: card.minKm ?? 120,
-                fullHr: card.fullHr ?? 12,
-                fullKm: card.fullKm ?? 120,
-                outstationNightCharge: card.outstationNightCharge ?? 0,
-                effectiveFrom: card.effectiveFrom
-                  ? new Date(card.effectiveFrom)
-                  : new Date(),
-                status: card.status || 'ACTIVE',
-              },
-            });
+            const rateCardData = {
+              clientType: dto.clientType || updated.clientType || 'Individual',
+              vehicleCategoryId: catId,
+              halfDayRate: card.halfDayRate ?? 0,
+              fullDayRate: card.fullDayRate ?? 0,
+              includedKm: card.includedKm ?? 0,
+              extraKmRate: card.extraKmRate ?? 0,
+              extraHourRate: card.extraHourRate ?? 0,
+              minKmPerDay: card.minKmPerDay ?? 0,
+              outstationRatePerKm: card.outstationRatePerKm ?? 0,
+              driverAllowance: card.driverAllowance ?? 0,
+              nightCharge: card.nightCharge ?? 0,
+              nightStartTime: card.nightStartTime || '23:00',
+              nightEndTime: card.nightEndTime || '05:00',
+              minHr: card.minHr ?? 4,
+              minKm: card.minKm ?? 40,
+              fullHr: card.fullHr ?? 8,
+              fullKm: card.fullKm ?? 80,
+              outstationNightCharge: card.outstationNightCharge ?? 0,
+            };
+            if (card.rateCardId && existingRateCardIds.has(card.rateCardId)) {
+              await tx.rateCard.update({
+                where: { id: card.rateCardId },
+                data: rateCardData,
+              });
+            } else {
+              await tx.rateCard.create({
+                data: {
+                  tenantId: updated.tenantId,
+                  customerId: updated.id,
+                  ...rateCardData,
+                  effectiveFrom: new Date(),
+                  status: 'ACTIVE',
+                },
+              });
+            }
           }
         }
       }

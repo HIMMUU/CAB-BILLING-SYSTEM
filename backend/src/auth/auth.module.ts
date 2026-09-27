@@ -15,7 +15,7 @@ import { AuthController } from './auth.controller';
           'super_secret_jwt_sign_key_987654321',
         ),
         signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRATION', '15m') as any,
+          expiresIn: configService.get<string>('JWT_EXPIRATION', '7d') as any,
         },
       }),
     }),

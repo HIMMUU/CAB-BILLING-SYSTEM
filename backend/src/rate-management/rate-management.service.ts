@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContextService } from '../common/context/tenant-context.service';
 import { CreateRateCardDto } from './dto/create-rate-card.dto';
@@ -73,6 +74,12 @@ export class RateManagementService {
   async createRateCard(dto: CreateRateCardDto) {
     const tenantId = this.getTenantId();
 
+    if (dto.customPackages?.length && !dto.customerId) {
+      throw new BadRequestException(
+        'Custom packages must be associated with a customer.',
+      );
+    }
+
     // Validate customer existence if customerId is provided
     if (dto.customerId) {
       const customer = await this.prisma.customer.findUnique({
@@ -83,19 +90,15 @@ export class RateManagementService {
       }
     }
 
-    const baseRate = dto.fullDayRate ?? dto.halfDayRate ?? 0;
-    const baseKm = dto.fullKm ?? dto.minKm ?? dto.includedKm ?? 80.0;
-    const baseHr = dto.fullHr ?? dto.minHr ?? 8.0;
-
     const rateCard = await this.prisma.rateCard.create({
       data: {
         tenantId,
         customerId: dto.customerId || null,
         clientType: dto.clientType,
         vehicleCategoryId: dto.vehicleCategoryId,
-        halfDayRate: dto.halfDayRate ?? baseRate,
-        fullDayRate: dto.fullDayRate ?? baseRate,
-        includedKm: dto.includedKm ?? baseKm,
+        halfDayRate: dto.halfDayRate ?? 0,
+        fullDayRate: dto.fullDayRate ?? 0,
+        includedKm: dto.includedKm ?? dto.fullKm ?? 80,
         extraKmRate: dto.extraKmRate ?? 0,
         extraHourRate: dto.extraHourRate ?? 0,
         minKmPerDay: dto.minKmPerDay ?? 0,
@@ -104,15 +107,21 @@ export class RateManagementService {
         nightCharge: dto.nightCharge ?? 0,
         nightStartTime: dto.nightStartTime || '23:00',
         nightEndTime: dto.nightEndTime || '05:00',
-        minHr: dto.minHr ?? baseHr,
-        minKm: dto.minKm ?? baseKm,
-        fullHr: dto.fullHr ?? baseHr,
-        fullKm: dto.fullKm ?? baseKm,
+        minHr: dto.minHr ?? 4,
+        minKm: dto.minKm ?? 40,
+        fullHr: dto.fullHr ?? 8,
+        fullKm: dto.fullKm ?? 80,
         outstationNightCharge: dto.outstationNightCharge ?? 0,
-        effectiveFrom: dto.effectiveFrom
-          ? new Date(dto.effectiveFrom)
-          : new Date(),
-        status: dto.status || 'ACTIVE',
+        customPackages: (dto.customPackages ?? []).map(
+          ({ id, includedKm, includedHours, rate }) => ({
+            id,
+            includedKm,
+            includedHours,
+            rate,
+          }),
+        ),
+        effectiveFrom: new Date(),
+        status: 'ACTIVE',
       },
       include: {
         customer: true,
@@ -217,6 +226,20 @@ export class RateManagementService {
 
   async updateRateCard(id: string, dto: UpdateRateCardDto) {
     const oldRateCard = await this.findOneRateCard(id);
+    const customerId =
+      dto.customerId !== undefined ? dto.customerId : oldRateCard.customerId;
+    const customPackages =
+      dto.customPackages !== undefined
+        ? dto.customPackages
+        : Array.isArray(oldRateCard.customPackages)
+          ? oldRateCard.customPackages
+          : [];
+
+    if (customPackages.length > 0 && !customerId) {
+      throw new BadRequestException(
+        'Custom packages must be associated with a customer.',
+      );
+    }
 
     const updateData: any = {};
     if (dto.customerId !== undefined)
@@ -246,10 +269,15 @@ export class RateManagementService {
     if (dto.fullKm !== undefined) updateData.fullKm = dto.fullKm;
     if (dto.outstationNightCharge !== undefined)
       updateData.outstationNightCharge = dto.outstationNightCharge;
-    if (dto.effectiveFrom !== undefined)
-      updateData.effectiveFrom = new Date(dto.effectiveFrom);
-    if (dto.status !== undefined) updateData.status = dto.status;
-
+    if (dto.customPackages !== undefined)
+      updateData.customPackages = dto.customPackages.map(
+        ({ id: packageId, includedKm, includedHours, rate }) => ({
+          id: packageId,
+          includedKm,
+          includedHours,
+          rate,
+        }),
+      );
     const rateCard = await this.prisma.rateCard.update({
       where: { id },
       data: updateData,
@@ -295,7 +323,10 @@ export class RateManagementService {
         fullHr: rateCard.fullHr,
         fullKm: rateCard.fullKm,
         outstationNightCharge: rateCard.outstationNightCharge,
-        effectiveFrom: new Date(), // Set effective from now for cloned version
+        customPackages: Array.isArray(rateCard.customPackages)
+          ? (rateCard.customPackages as Prisma.InputJsonArray)
+          : [],
+        effectiveFrom: new Date(),
         status: 'ACTIVE',
       },
       include: {
