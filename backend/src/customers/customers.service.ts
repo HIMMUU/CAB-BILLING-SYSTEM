@@ -86,7 +86,7 @@ export class CustomersService {
                 minKm: card.minKm ?? 40,
                 fullHr: card.fullHr ?? 8,
                 fullKm: card.fullKm ?? 80,
-                outstationNightCharge: card.outstationNightCharge ?? 0,
+                outstationNightCharge: 0,
                 effectiveFrom: new Date(),
                 status: 'ACTIVE',
               },
@@ -267,7 +267,7 @@ export class CustomersService {
               minKm: card.minKm ?? 40,
               fullHr: card.fullHr ?? 8,
               fullKm: card.fullKm ?? 80,
-              outstationNightCharge: card.outstationNightCharge ?? 0,
+              outstationNightCharge: 0,
             };
             if (card.rateCardId && existingRateCardIds.has(card.rateCardId)) {
               await tx.rateCard.update({

@@ -291,11 +291,9 @@ const filterApplicableRateCards = (
       return false;
     }
 
-    if (isOutstation) {
-      return (
-        Number(card.minKmPerDay) > 0 && Number(card.outstationRatePerKm) > 0
-      );
-    }
+    const hasOutstationRate =
+      Number(card.minKmPerDay) > 0 && Number(card.outstationRatePerKm) > 0;
+    if (isOutstation) return hasOutstationRate;
 
     const hasCustomPackage = card.customPackages?.some(
       (ratePackage) =>
@@ -303,13 +301,13 @@ const filterApplicableRateCards = (
         Number(ratePackage.includedHours) > 0 &&
         Number(ratePackage.rate) > 0,
     );
-    return (
+    const hasLocalRate =
       Boolean(hasCustomPackage) ||
       ((Number(card.fullDayRate) > 0 || Number(card.halfDayRate) > 0) &&
         (Number(card.fullKm) || Number(card.minKm) || Number(card.includedKm)) >
           0 &&
-        (Number(card.fullHr) || Number(card.minHr)) > 0)
-    );
+        (Number(card.fullHr) || Number(card.minHr)) > 0);
+    return hasLocalRate || (tripType === "ANY" && hasOutstationRate);
   });
 
   const categories = Array.from(
@@ -717,7 +715,19 @@ export default function DutySlipsPage() {
   const isOutstationBooking = editingSlip?.booking
     ? editingSlip.booking.tripType === "OUTSTATION"
     : df.dutyType === "O" || df.dutyType === "T";
-  const supportsOutstationRate =
+  const outstationRateCard =
+    (selectedRateCardIsAvailable &&
+    Number(selectedRateCard?.minKmPerDay) > 0 &&
+    Number(selectedRateCard?.outstationRatePerKm) > 0
+      ? selectedRateCard
+      : null) ||
+    cardsForSelectedCategory.find(
+      (card) =>
+        Number(card.minKmPerDay) > 0 && Number(card.outstationRatePerKm) > 0,
+    ) ||
+    null;
+  const supportsOutstationRate = !!outstationRateCard;
+  const selectedRateCardSupportsOutstation =
     selectedRateCardIsAvailable &&
     Number(selectedRateCard?.minKmPerDay) > 0 &&
     Number(selectedRateCard?.outstationRatePerKm) > 0;
@@ -849,7 +859,7 @@ export default function DutySlipsPage() {
       const bookingTripType = editingSlip?.booking?.tripType;
       const rateTripType =
         bookingTripType ||
-        (df.dutyType === "O" || df.dutyType === "T" ? "OUTSTATION" : "LOCAL");
+        (df.dutyType === "O" || df.dutyType === "T" ? "OUTSTATION" : "ANY");
       const relevantCards = filterApplicableRateCards(
         allCards,
         fullCustomer,
@@ -909,12 +919,11 @@ export default function DutySlipsPage() {
               Number(f.driverAllowance) > 0
                 ? f.driverAllowance
                 : Number(rc.driverAllowance) || 0,
-            nightChargesOnTime:
-              Number(f.nightChargesOnTime) > 0
+            nightChargesOnTime: isOutstationDuty
+              ? 0
+              : Number(f.nightChargesOnTime) > 0
                 ? f.nightChargesOnTime
-                : isOutstationDuty
-                  ? Number(rc.outstationNightCharge || rc.nightCharge) || 0
-                  : Number(rc.nightCharge) || 0,
+                : Number(rc.nightCharge) || 0,
           };
         });
       }
@@ -1162,7 +1171,8 @@ export default function DutySlipsPage() {
         ? f.extraHourRate
         : calculatedExtraHourRate;
 
-      const isOutstation = f.dutyType === "O" || f.dutyType === "T";
+      const isOutstation =
+        isOutstationBooking || f.dutyType === "O" || f.dutyType === "T";
       const autoIncludeDA = f.isManualDriverAllowance
         ? f.includeDriverAllowance
         : isOutstation;
@@ -1173,15 +1183,16 @@ export default function DutySlipsPage() {
           : calculatedDriverAllowance || 250
         : 0;
 
-      const autoIncludeNight = f.isManualNightCharges
-        ? f.includeNightCharges
-        : nightHrs > 0;
+      const autoIncludeNight =
+        !isOutstation &&
+        (f.isManualNightCharges ? f.includeNightCharges : nightHrs > 0);
 
-      const nightChargesVal = autoIncludeNight
-        ? f.isManualNightCharges && Number(f.nightChargesOnTime) > 0
-          ? f.nightChargesOnTime
-          : calculatedNightCharges || 200
-        : 0;
+      const nightChargesVal =
+        !isOutstation && autoIncludeNight
+          ? f.isManualNightCharges && Number(f.nightChargesOnTime) > 0
+            ? f.nightChargesOnTime
+            : calculatedNightCharges || 200
+          : 0;
 
       const extraKmChargedVal = f.isManualExtraKmCharged
         ? f.extraKmCharged
@@ -1222,6 +1233,7 @@ export default function DutySlipsPage() {
     df.customPackageId,
     df.includeDriverAllowance,
     df.includeNightCharges,
+    isOutstationBooking,
     selectedRateCard,
     selectedCustomPackage,
   ]);
@@ -1259,9 +1271,10 @@ export default function DutySlipsPage() {
     const driverAllowance = df.includeDriverAllowance
       ? Number(df.driverAllowance || 0)
       : 0;
-    const nightCharges = df.includeNightCharges
-      ? Number(df.nightChargesOnTime || 0)
-      : 0;
+    const nightCharges =
+      !isOutstationBooking && df.includeNightCharges
+        ? Number(df.nightChargesOnTime || 0)
+        : 0;
     const extraCharges = Number(df.extraCharges || 0);
 
     const subtotal =
@@ -1371,7 +1384,13 @@ export default function DutySlipsPage() {
       includedHours,
       packageType,
     };
-  }, [df, selectedRateCard, selectedCustomPackage, customParticulars]);
+  }, [
+    df,
+    selectedRateCard,
+    selectedCustomPackage,
+    customParticulars,
+    isOutstationBooking,
+  ]);
 
   /* ── fetchers ── */
   const fetchDutySlips = useCallback(async () => {
@@ -1605,8 +1624,11 @@ export default function DutySlipsPage() {
       baseFare: Number(df.baseFare) || 0,
       extraKmRate: Number(df.extraKmRate) || 0,
       extraHourRate: Number(df.extraHourRate) || 0,
-      includeNightCharges: Boolean(df.includeNightCharges),
-      nightChargesOnTime: Number(df.nightChargesOnTime) || 0,
+      includeNightCharges:
+        !isOutstationBooking && Boolean(df.includeNightCharges),
+      nightChargesOnTime: isOutstationBooking
+        ? 0
+        : Number(df.nightChargesOnTime) || 0,
       isManualNightCharges: Boolean(df.isManualNightCharges),
       includeDriverAllowance: Boolean(df.includeDriverAllowance),
       driverAllowance: Number(df.driverAllowance) || 0,
@@ -1650,11 +1672,12 @@ export default function DutySlipsPage() {
       : df.includeDriverAllowance
         ? Number(df.driverAllowance) || 0
         : 0;
-    const calcNightCharges = isFlexibleDuty
-      ? 0
-      : df.includeNightCharges
-        ? Number(df.nightChargesOnTime) || 0
-        : 0;
+    const calcNightCharges =
+      isFlexibleDuty || isOutstationBooking
+        ? 0
+        : df.includeNightCharges
+          ? Number(df.nightChargesOnTime) || 0
+          : 0;
     const calcBaseFare = isFlexibleDuty
       ? customSubtotal
       : Number(df.baseFare) || 0;
@@ -2136,19 +2159,17 @@ export default function DutySlipsPage() {
       slip.nightCharges || slip.trip?.nightChargesCharged || 0,
     );
     const resolvedIncludeNight =
-      savedIncludeNightCharges !== null
+      !isOutstation &&
+      (savedIncludeNightCharges !== null
         ? savedIncludeNightCharges
-        : rawNightCharge > 0;
-    const resolvedNightCharge =
-      savedNightChargesOnTime !== null
+        : rawNightCharge > 0);
+    const resolvedNightCharge = isOutstation
+      ? 0
+      : savedNightChargesOnTime !== null
         ? savedNightChargesOnTime
         : rawNightCharge > 0
           ? rawNightCharge
-          : isOutstation
-            ? Number(
-                matchedRc?.outstationNightCharge || matchedRc?.nightCharge,
-              ) || 200
-            : Number(matchedRc?.nightCharge) || 200;
+          : Number(matchedRc?.nightCharge) || 200;
     const resolvedIsManualNight =
       savedIsManualNightCharges !== null
         ? savedIsManualNightCharges
@@ -3730,9 +3751,9 @@ export default function DutySlipsPage() {
                           Number(selectedRateCard?.fullDayRate) || 0;
 
                         const outstationMinKm =
-                          Number(selectedRateCard?.minKmPerDay) || 0;
+                          Number(outstationRateCard?.minKmPerDay) || 0;
                         const outstationRate =
-                          Number(selectedRateCard?.outstationRatePerKm) || 0;
+                          Number(outstationRateCard?.outstationRatePerKm) || 0;
 
                         const currentOptionVal =
                           df.dutyType === "FLEXIBLE"
@@ -3762,7 +3783,7 @@ export default function DutySlipsPage() {
                             supportsHalfDay) ||
                           (currentOptionVal === "outstation" &&
                             isOutstationBooking &&
-                            supportsOutstationRate) ||
+                            selectedRateCardSupportsOutstation) ||
                           (currentOptionVal === "flexible_duty" &&
                             (isOutstationBooking
                               ? supportsOutstationRate
@@ -3776,6 +3797,12 @@ export default function DutySlipsPage() {
                               }
                               onChange={(e) => {
                                 const val = e.target.value;
+                                if (
+                                  val === "outstation" &&
+                                  outstationRateCard
+                                ) {
+                                  setSelectedRateCard(outstationRateCard);
+                                }
                                 setDf((f) => {
                                   const baseUpdates = {
                                     ...f,
@@ -3872,13 +3899,12 @@ export default function DutySlipsPage() {
                                   {halfDayFare.toLocaleString("en-IN")}
                                 </option>
                               )}
-                              {isOutstationBooking &&
-                                supportsOutstationRate && (
-                                  <option value="outstation">
-                                    Outstation ({outstationMinKm} KM/Day @ ₹
-                                    {outstationRate}/km)
-                                  </option>
-                                )}
+                              {supportsOutstationRate && (
+                                <option value="outstation">
+                                  Outstation ({outstationMinKm} KM/Day @ ₹
+                                  {outstationRate}/km)
+                                </option>
+                              )}
                               {(isOutstationBooking
                                 ? supportsOutstationRate
                                 : supportsLocalRate) && (
@@ -3889,7 +3915,8 @@ export default function DutySlipsPage() {
                             </select>
 
                             {/* Applied Rate Card Selector - ONLY shown below when Custom Rate Card is selected */}
-                            {currentOptionVal === "custom_package" &&
+                            {(currentOptionVal === "custom_package" ||
+                              currentOptionVal === "outstation") &&
                               cardsForSelectedCategory.length > 0 && (
                                 <div className="mt-4">
                                   <Field label="Applied Rate Card">
@@ -3902,30 +3929,39 @@ export default function DutySlipsPage() {
                                           );
                                         if (card) {
                                           setSelectedRateCard(card);
+                                          const isOutstationSelection =
+                                            currentOptionVal === "outstation";
                                           setDf((f) => ({
                                             ...f,
                                             carGroup:
                                               card.vehicleCategory?.name ||
                                               f.carGroup,
-                                            billingMode: "C",
+                                            billingMode: isOutstationSelection
+                                              ? "N"
+                                              : "C",
                                             customPackageId:
-                                              card.customPackages?.[0]?.id ||
-                                              "",
+                                              isOutstationSelection
+                                                ? ""
+                                                : card.customPackages?.[0]
+                                                    ?.id || "",
                                             baseFare: Number(
-                                              card.customPackages?.[0]?.rate ||
-                                                card.fullDayRate ||
-                                                card.halfDayRate ||
-                                                0,
+                                              isOutstationSelection
+                                                ? Number(card.minKmPerDay) *
+                                                    Number(
+                                                      card.outstationRatePerKm,
+                                                    )
+                                                : card.customPackages?.[0]
+                                                    ?.rate ||
+                                                    card.fullDayRate ||
+                                                    card.halfDayRate ||
+                                                    0,
                                             ),
                                             driverAllowance:
                                               Number(card.driverAllowance) || 0,
                                             nightChargesOnTime:
                                               df.dutyType === "O" ||
                                               df.dutyType === "T"
-                                                ? Number(
-                                                    card.outstationNightCharge ||
-                                                      card.nightCharge,
-                                                  ) || 0
+                                                ? 0
                                                 : Number(card.nightCharge) || 0,
                                             isManualBaseFare: false,
                                             isManualExtraKmCharged: false,
@@ -3939,9 +3975,11 @@ export default function DutySlipsPage() {
                                         const customPackages =
                                           rc.customPackages || [];
                                         const packageSummary =
-                                          customPackages.length > 0
-                                            ? `${customPackages.length} custom packages`
-                                            : `${Number(rc.fullKm) || Number(rc.minKm) || Number(rc.includedKm)}km / ${Number(rc.fullHr) || Number(rc.minHr)}hr @ ₹${Number(rc.fullDayRate || rc.halfDayRate).toLocaleString("en-IN")}`;
+                                          currentOptionVal === "outstation"
+                                            ? `${Number(rc.minKmPerDay)} KM/day @ ₹${Number(rc.outstationRatePerKm).toLocaleString("en-IN")}/km`
+                                            : customPackages.length > 0
+                                              ? `${customPackages.length} custom packages`
+                                              : `${Number(rc.fullKm) || Number(rc.minKm) || Number(rc.includedKm)}km / ${Number(rc.fullHr) || Number(rc.minHr)}hr @ ₹${Number(rc.fullDayRate || rc.halfDayRate).toLocaleString("en-IN")}`;
                                         const isCustomerCard = !!rc.customerId;
                                         return (
                                           <option key={rc.id} value={rc.id}>
@@ -3955,7 +3993,8 @@ export default function DutySlipsPage() {
                                       })}
                                     </select>
                                   </Field>
-                                  {selectedRateCard?.customPackages &&
+                                  {currentOptionVal !== "outstation" &&
+                                    selectedRateCard?.customPackages &&
                                     selectedRateCard.customPackages.length >
                                       0 && (
                                       <Field label="Custom Package">
@@ -4723,8 +4762,11 @@ export default function DutySlipsPage() {
                           )}
                         </div>
 
-                        {/* Night Allowance Row */}
-                        <div className="pt-3 border-t border-slate-100">
+                        {/* Night charges apply only to local trips. */}
+                        <div
+                          className="pt-3 border-t border-slate-100"
+                          hidden={isOutstationBooking}
+                        >
                           <div className="flex items-center justify-between">
                             <label className="flex items-center gap-2 cursor-pointer select-none">
                               <input
@@ -4733,19 +4775,10 @@ export default function DutySlipsPage() {
                                 onChange={(e) => {
                                   const checked = e.target.checked;
                                   setDf((f) => {
-                                    const fallbackRate =
-                                      f.dutyType === "O" || f.dutyType === "T"
-                                        ? selectedRateCard
-                                          ? Number(
-                                              selectedRateCard.outstationNightCharge ||
-                                                selectedRateCard.nightCharge,
-                                            ) || 200
-                                          : 200
-                                        : selectedRateCard
-                                          ? Number(
-                                              selectedRateCard.nightCharge,
-                                            ) || 200
-                                          : 200;
+                                    const fallbackRate = selectedRateCard
+                                      ? Number(selectedRateCard.nightCharge) ||
+                                        200
+                                      : 200;
                                     const units =
                                       f.nightUnits > 0 ? f.nightUnits : 1;
                                     const rate =

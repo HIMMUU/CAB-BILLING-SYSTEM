@@ -137,7 +137,7 @@ export default function RateManagementPage() {
     minKmPerDay: 250,
     outstationRatePerKm: 15,
     driverAllowance: 250,
-    outstationNightCharge: 200,
+    outstationNightCharge: 0,
     nightCharge: 200,
     nightStartTime: "23:00",
     nightEndTime: "05:00",
@@ -321,7 +321,7 @@ export default function RateManagementPage() {
       minKmPerDay: 250,
       outstationRatePerKm: 15,
       driverAllowance: 250,
-      outstationNightCharge: 200,
+      outstationNightCharge: 0,
       nightCharge: 200,
       nightStartTime: "23:00",
       nightEndTime: "05:00",
@@ -368,7 +368,7 @@ export default function RateManagementPage() {
       minKmPerDay: Number(rate.minKmPerDay || 250),
       outstationRatePerKm: Number(rate.outstationRatePerKm || 0),
       driverAllowance: Number(rate.driverAllowance || 250),
-      outstationNightCharge: Number(rate.outstationNightCharge || 200),
+      outstationNightCharge: 0,
       nightCharge: Number(rate.nightCharge || 200),
       nightStartTime: rate.nightStartTime || "23:00",
       nightEndTime: rate.nightEndTime || "05:00",
@@ -476,7 +476,7 @@ export default function RateManagementPage() {
         outstationRatePerKm: Number(rateFormData.outstationRatePerKm),
         driverAllowance: Number(rateFormData.driverAllowance),
         nightCharge: Number(rateFormData.nightCharge),
-        outstationNightCharge: Number(rateFormData.outstationNightCharge),
+        outstationNightCharge: 0,
         nightStartTime: rateFormData.nightStartTime,
         nightEndTime: rateFormData.nightEndTime,
         customPackages: rateFormData.customPackages,
@@ -918,7 +918,9 @@ export default function RateManagementPage() {
                       </th>
                       <th className="py-3 px-3 text-center">Extra KM</th>
                       <th className="py-3 px-3 text-center">Extra Hour</th>
-                      <th className="py-3 px-4 text-center">Night Allowance</th>
+                      <th className="py-3 px-4 text-center">
+                        Local Night Allowance
+                      </th>
                       <th className="py-3 px-4">Effective From</th>
                       <th className="py-3 px-4">Status</th>
                       <th className="py-3 px-4 text-right">Actions</th>
@@ -1699,15 +1701,15 @@ export default function RateManagementPage() {
                       />
                     </label>
                     <label className="text-[10px] font-bold uppercase text-[#64748B]">
-                      Night Allowance (₹)
+                      Driver Allowance (₹ / day)
                       <input
                         type="number"
                         min="0"
-                        value={rateFormData.outstationNightCharge}
+                        value={rateFormData.driverAllowance}
                         onChange={(e) =>
                           setRateFormData({
                             ...rateFormData,
-                            outstationNightCharge: Number(e.target.value),
+                            driverAllowance: Number(e.target.value),
                           })
                         }
                         className="mt-1 w-full rounded-lg border border-[#E2E8F0] px-3 py-2 text-sm font-normal text-[#0F172A]"
@@ -1719,7 +1721,7 @@ export default function RateManagementPage() {
                 {/* Night Charges */}
                 <div>
                   <h4 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-3 border-b pb-1">
-                    Night Allowance
+                    Local Night Allowance
                   </h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -1739,24 +1741,6 @@ export default function RateManagementPage() {
                         className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
                       />
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
-                        Driver Allowance (₹ / day)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={rateFormData.driverAllowance}
-                        onChange={(e) =>
-                          setRateFormData({
-                            ...rateFormData,
-                            driverAllowance: Number(e.target.value),
-                          })
-                        }
-                        className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-[#0F172A] text-sm focus:outline-none focus:border-blue-600 transition"
-                      />
-                    </div>
-
                     <div>
                       <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2">
                         Start Time

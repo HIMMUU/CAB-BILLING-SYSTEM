@@ -111,7 +111,7 @@ export class RateManagementService {
         minKm: dto.minKm ?? 40,
         fullHr: dto.fullHr ?? 8,
         fullKm: dto.fullKm ?? 80,
-        outstationNightCharge: dto.outstationNightCharge ?? 0,
+        outstationNightCharge: 0,
         customPackages: (dto.customPackages ?? []).map(
           ({ id, includedKm, includedHours, rate }) => ({
             id,
@@ -267,8 +267,7 @@ export class RateManagementService {
     if (dto.minKm !== undefined) updateData.minKm = dto.minKm;
     if (dto.fullHr !== undefined) updateData.fullHr = dto.fullHr;
     if (dto.fullKm !== undefined) updateData.fullKm = dto.fullKm;
-    if (dto.outstationNightCharge !== undefined)
-      updateData.outstationNightCharge = dto.outstationNightCharge;
+    updateData.outstationNightCharge = 0;
     if (dto.customPackages !== undefined)
       updateData.customPackages = dto.customPackages.map(
         ({ id: packageId, includedKm, includedHours, rate }) => ({
@@ -322,7 +321,7 @@ export class RateManagementService {
         minKm: rateCard.minKm,
         fullHr: rateCard.fullHr,
         fullKm: rateCard.fullKm,
-        outstationNightCharge: rateCard.outstationNightCharge,
+        outstationNightCharge: 0,
         customPackages: Array.isArray(rateCard.customPackages)
           ? (rateCard.customPackages as Prisma.InputJsonArray)
           : [],

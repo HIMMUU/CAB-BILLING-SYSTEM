@@ -504,7 +504,7 @@ export default function CustomersPage() {
           minKm: Number(row.minKm),
           fullHr: Number(row.fullHr),
           fullKm: Number(row.fullKm),
-          outstationNightCharge: Number(row.outstationNightCharge),
+          outstationNightCharge: 0,
         })),
       };
 
@@ -1134,9 +1134,6 @@ export default function CustomersPage() {
                         Outstation Rate/KM
                       </option>
                       <option value="driverAllowance">Driver Allowance</option>
-                      <option value="outstationNightCharge">
-                        Outstation Night Charge
-                      </option>
                       <option value="nightCharge">Local Night Allowance</option>
                       <option value="nightStartTime">Night Start Time</option>
                       <option value="nightEndTime">Night End Time</option>
@@ -1245,7 +1242,7 @@ export default function CustomersPage() {
                           Day (Allow.)
                         </th>
                         <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
-                          Night (Allow.)
+                          Night (N/A)
                         </th>
                         <th className="py-2 px-1.5 border-r border-[#E2E8F0]">
                           Km UpTo
@@ -1441,21 +1438,16 @@ export default function CustomersPage() {
                               className="w-full h-8 bg-transparent border-none text-center text-xs font-mono text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
                             />
                           </td>
-                          {/* 11. outstationNightCharge */}
+                          {/* Outstation night charges are not applicable. */}
                           <td className="p-0 border-r border-[#E2E8F0]">
                             <input
                               id={`cell-${rIdx}-11`}
-                              type="number"
-                              value={row.outstationNightCharge}
-                              onChange={(e) =>
-                                handleCellChange(
-                                  rIdx,
-                                  "outstationNightCharge",
-                                  e.target.value,
-                                )
-                              }
+                              type="text"
+                              readOnly
+                              value="—"
                               onKeyDown={(e) => handleArrowNav(e, rIdx, 11)}
-                              className="w-full h-8 bg-transparent border-none text-center text-xs font-mono text-gray-800 outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 rounded"
+                              aria-label="Outstation night charges are not applicable"
+                              className="w-full h-8 bg-transparent border-none text-center text-xs text-slate-400 outline-none"
                             />
                           </td>
                           {/* 12. minKmPerDay */}

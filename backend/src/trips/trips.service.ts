@@ -300,7 +300,7 @@ export class TripsService {
     let extraKmRate = Number(rateCard.extraKmRate);
     const extraHourRate = Number(rateCard.extraHourRate);
     let driverAllowanceAmount = Number(rateCard.driverAllowance);
-    let nightChargesAmount = Number(rateCard.nightCharge);
+    let nightChargesAmount = 0;
 
     if (slip.booking.tripType === TripType.OUTSTATION) {
       const minKm = Number(rateCard.minKmPerDay);
@@ -309,12 +309,9 @@ export class TripsService {
       baseFare = baseKm * ratePerKm;
       extraKmRate = ratePerKm;
       driverAllowanceAmount = calculatedDays * driverAllowanceAmount;
-      nightChargesAmount =
-        calculatedDays *
-        (Number(rateCard.outstationNightCharge) ||
-          Number(rateCard.nightCharge));
     } else {
       // Local hourly rental, local package, or airport transfer
+      nightChargesAmount = Number(rateCard.nightCharge);
       const packageHr =
         selectedCustomPackage?.includedHours ??
         (Number(rateCard.fullHr) || Number(rateCard.minHr));
@@ -354,7 +351,9 @@ export class TripsService {
         ? Number(slip.driverAllowance)
         : driverAllowanceAmount;
     const nightCharges =
-      slip.nightCharges !== null && slip.nightCharges !== undefined
+      slip.booking.tripType !== TripType.OUTSTATION &&
+      slip.nightCharges !== null &&
+      slip.nightCharges !== undefined
         ? Number(slip.nightCharges)
         : nightChargesAmount;
     const extraCharges = Number(slip.extraCharges);
@@ -560,21 +559,27 @@ export class TripsService {
       const mcd = dto.mcd ?? calculations.mcd;
       const driverAllowance =
         dto.driverAllowance ?? calculations.driverAllowance;
-      const nightChargesCharged = dto.nightCharges ?? calculations.nightCharges;
+      const nightChargesCharged =
+        slip.booking.tripType === TripType.OUTSTATION
+          ? 0
+          : (dto.nightCharges ?? calculations.nightCharges);
       const miscChargesCharged = dto.extraCharges ?? calculations.extraCharges;
 
-      const totalAmount =
-        dto.totalAmount ??
+      const calculatedTotalAmount =
         Number(baseFareCharged) +
-          Number(extraKmCharged) +
-          Number(extraHoursCharged) +
-          Number(toll) +
-          Number(parking) +
-          Number(stateTax) +
-          Number(mcd) +
-          Number(driverAllowance) +
-          Number(nightChargesCharged) +
-          Number(miscChargesCharged);
+        Number(extraKmCharged) +
+        Number(extraHoursCharged) +
+        Number(toll) +
+        Number(parking) +
+        Number(stateTax) +
+        Number(mcd) +
+        Number(driverAllowance) +
+        Number(nightChargesCharged) +
+        Number(miscChargesCharged);
+      const totalAmount =
+        slip.booking.tripType === TripType.OUTSTATION
+          ? calculatedTotalAmount
+          : (dto.totalAmount ?? calculatedTotalAmount);
 
       const existingTrip = await this.prisma.trip.findUnique({
         where: { dutySlipId: dto.dutySlipId },
