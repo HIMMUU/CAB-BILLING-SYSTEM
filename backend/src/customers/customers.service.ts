@@ -87,7 +87,6 @@ export class CustomersService {
                 fullHr: card.fullHr ?? 8,
                 fullKm: card.fullKm ?? 80,
                 outstationNightCharge: 0,
-                effectiveFrom: new Date(),
                 status: 'ACTIVE',
               },
             });
@@ -280,7 +279,6 @@ export class CustomersService {
                   tenantId: updated.tenantId,
                   customerId: updated.id,
                   ...rateCardData,
-                  effectiveFrom: new Date(),
                   status: 'ACTIVE',
                 },
               });

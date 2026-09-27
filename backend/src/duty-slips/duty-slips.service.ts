@@ -455,10 +455,7 @@ export class DutySlipsService {
             ],
             status: 'ACTIVE',
           },
-          orderBy: [
-            { customerId: 'desc' },
-            { effectiveFrom: 'desc' },
-          ],
+          orderBy: [{ customerId: 'desc' }, { updatedAt: 'desc' }],
         });
         if (rc) {
           resolvedRateCardId = rc.id;

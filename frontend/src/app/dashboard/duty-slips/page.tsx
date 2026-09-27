@@ -3839,7 +3839,7 @@ export default function DutySlipsPage() {
                             >
                               <option value="" disabled>
                                 {selectedRateCardIsAvailable
-                                  ? "Select an applicable rate"
+                                  ? "Select a rate"
                                   : "No active rate card for this customer and vehicle category"}
                               </option>
                               {!isOutstationBooking && supportsLocalRate && (

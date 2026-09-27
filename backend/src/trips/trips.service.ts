@@ -148,7 +148,7 @@ export class TripsService {
     }
     if (slip.rateCardId && slip.rateCardId !== rateCard.id) {
       throw new BadRequestException(
-        'The saved rate card is not the current applicable card for this booking. Reload the duty slip and select the latest matching card.',
+        'The selected rate card is no longer the latest active rate for this customer and category. Reload the duty slip and select the latest active rate.',
       );
     }
 
@@ -176,7 +176,7 @@ export class TripsService {
 
     if (!hasValidBaseRate) {
       throw new BadRequestException(
-        'The applicable rate card has no valid base fare for this trip type. Update the rate card before closing.',
+        'The selected rate card has no valid base fare for this trip type. Update the rate card before closing.',
       );
     }
 
@@ -266,9 +266,7 @@ export class TripsService {
       );
     }
 
-    const { rateCard, vehicleCategoryId } = await this.resolveRateCard(
-      slip,
-    );
+    const { rateCard, vehicleCategoryId } = await this.resolveRateCard(slip);
     const selectedCustomPackage = getSelectedCustomPackage(
       rateCard.customPackages,
       slip.pricingSnapshot,
