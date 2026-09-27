@@ -81,10 +81,7 @@ export class TripsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  private async resolveRateCard(
-    slip: DutySlipWithRateContext,
-    effectiveAt: Date,
-  ) {
+  private async resolveRateCard(slip: DutySlipWithRateContext) {
     const booking = slip.booking;
     const customer = booking?.customer;
     if (!booking || !customer) {
@@ -113,7 +110,7 @@ export class TripsService {
 
     if (!category) {
       throw new BadRequestException(
-        'No vehicle category matches this booking. Configure a vehicle category and an applicable rate card before closing.',
+        'No vehicle category matches this booking. Configure a vehicle category and a matching rate card before closing.',
       );
     }
 
@@ -127,12 +124,11 @@ export class TripsService {
       tenantId: slip.tenantId,
       vehicleCategoryId: category.id,
       status: 'ACTIVE',
-      effectiveFrom: { lte: effectiveAt },
     };
 
     const latestCustomerRateCard = await this.prisma.rateCard.findFirst({
       where: { ...applicableRateCardWhere, customerId: customer.id },
-      orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
     });
     const rateCard =
       latestCustomerRateCard ||
@@ -142,12 +138,12 @@ export class TripsService {
           customerId: null,
           clientType: mappedClientType,
         },
-        orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
       }));
 
     if (!rateCard) {
       throw new BadRequestException(
-        'No active and effective rate card is configured for this booking and vehicle category. Select or create a matching rate card before closing.',
+        'No active rate card is configured for this booking and vehicle category. Select or create a matching rate card before closing.',
       );
     }
     if (slip.rateCardId && slip.rateCardId !== rateCard.id) {
@@ -225,11 +221,6 @@ export class TripsService {
     // Resolve dates
     const startDateTime = overrideStartDateTime || slip.startDateTime;
     const endDateTime = overrideEndDateTime || slip.endDateTime;
-    const effectiveAt =
-      endDateTime && !isNaN(new Date(endDateTime).getTime())
-        ? new Date(endDateTime)
-        : new Date();
-
     if (
       (startDateTime && Number.isNaN(new Date(startDateTime).getTime())) ||
       (endDateTime && Number.isNaN(new Date(endDateTime).getTime()))
@@ -277,7 +268,6 @@ export class TripsService {
 
     const { rateCard, vehicleCategoryId } = await this.resolveRateCard(
       slip,
-      effectiveAt,
     );
     const selectedCustomPackage = getSelectedCustomPackage(
       rateCard.customPackages,
@@ -629,16 +619,13 @@ export class TripsService {
           tenantId: slip.tenantId,
           vehicleCategoryId: calculations.vehicleCategoryId,
           status: 'ACTIVE',
-          effectiveFrom: {
-            lte: endDateTime || new Date(),
-          },
         };
         const latestCustomerRateCard = await tx.rateCard.findFirst({
           where: {
             ...applicableRateCardWhere,
             customerId: currentBooking.customerId,
           },
-          orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+          orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
         });
         const currentRateCard =
           latestCustomerRateCard ||
@@ -648,7 +635,7 @@ export class TripsService {
               customerId: null,
               clientType: currentClientType,
             },
-            orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+            orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
           }));
         const rateCardStillValid =
           currentRateCard?.id === calculations.rateCardId &&
@@ -681,7 +668,7 @@ export class TripsService {
                 )));
         if (!hasValidCurrentBaseRate) {
           throw new BadRequestException(
-            'The rate card changed or is no longer valid. Reload the duty slip and select an active, effective rate card before closing.',
+            'The rate card changed or is no longer active. Reload the duty slip and select an active rate card before closing.',
           );
         }
 

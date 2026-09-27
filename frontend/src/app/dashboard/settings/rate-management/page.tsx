@@ -45,7 +45,6 @@ interface RateCard {
   outstationNightCharge?: string | number;
   nightStartTime: string | null;
   nightEndTime: string | null;
-  effectiveFrom: string;
   status: string;
   customer?: Customer | null;
   vehicleCategory: VehicleCategory;
@@ -103,7 +102,6 @@ export default function RateManagementPage() {
   const [filterClientType, setFilterClientType] = useState("ALL");
   const [filterCustomerId, setFilterCustomerId] = useState("ALL");
   const [filterCategoryId, setFilterCategoryId] = useState("ALL");
-  const [filterEffectiveDate, setFilterEffectiveDate] = useState("");
   const [ratesPage, setRatesPage] = useState(1);
   const [ratesTotalPages, setRatesTotalPages] = useState(1);
 
@@ -206,8 +204,6 @@ export default function RateManagementPage() {
         query += `&customerId=${filterCustomerId}`;
       if (filterCategoryId !== "ALL")
         query += `&vehicleCategoryId=${filterCategoryId}`;
-      if (filterEffectiveDate) query += `&effectiveDate=${filterEffectiveDate}`;
-
       const res = await api.request(query);
       setRateCards(res.data);
       setRatesTotalPages(res.meta.totalPages);
@@ -249,7 +245,6 @@ export default function RateManagementPage() {
     filterClientType,
     filterCustomerId,
     filterCategoryId,
-    filterEffectiveDate,
   ]);
 
   // Trigger search on submit
@@ -828,22 +823,10 @@ export default function RateManagementPage() {
                 ))}
               </select>
 
-              {/* Effective From Date Filter */}
-              <input
-                type="date"
-                value={filterEffectiveDate}
-                onChange={(e) => {
-                  setFilterEffectiveDate(e.target.value);
-                  setRatesPage(1);
-                }}
-                className="bg-white border border-[#E2E8F0] rounded-lg px-3 py-1.5 text-xs font-medium text-[#475569] focus:outline-none focus:border-blue-500 transition"
-              />
-
               {/* Reset button */}
               {(filterClientType !== "ALL" ||
                 filterCustomerId !== "ALL" ||
                 filterCategoryId !== "ALL" ||
-                filterEffectiveDate ||
                 ratesSearch) && (
                 <button
                   onClick={() => {
@@ -851,7 +834,6 @@ export default function RateManagementPage() {
                     setFilterClientType("ALL");
                     setFilterCustomerId("ALL");
                     setFilterCategoryId("ALL");
-                    setFilterEffectiveDate("");
                     setRatesPage(1);
                   }}
                   className="text-xs text-red-600 hover:text-red-700 bg-red-50 border border-red-100 hover:bg-red-100 font-semibold px-3 py-2 rounded-lg transition"
@@ -921,7 +903,6 @@ export default function RateManagementPage() {
                       <th className="py-3 px-4 text-center">
                         Local Night Allowance
                       </th>
-                      <th className="py-3 px-4">Effective From</th>
                       <th className="py-3 px-4">Status</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
@@ -1031,12 +1012,7 @@ export default function RateManagementPage() {
                               </span>
                             )}
                           </td>
-                          {/* Effective & Status */}
-                          <td className="py-4 px-4 text-xs text-[#475569]">
-                            {new Date(rc.effectiveFrom).toLocaleDateString(
-                              "en-GB",
-                            )}
-                          </td>
+                          {/* Status */}
                           <td className="py-4 px-4">
                             <span
                               className={`inline-flex items-center gap-1.5 text-xs font-semibold ${

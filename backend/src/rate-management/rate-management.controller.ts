@@ -50,7 +50,6 @@ export class RateManagementController {
     @Query('clientType') clientType?: string,
     @Query('customerId') customerId?: string,
     @Query('vehicleCategoryId') vehicleCategoryId?: string,
-    @Query('effectiveDate') effectiveDate?: string,
   ) {
     return this.rateManagementService.findAllRateCards({
       page,
@@ -59,7 +58,6 @@ export class RateManagementController {
       clientType,
       customerId,
       vehicleCategoryId,
-      effectiveDate,
     });
   }
 

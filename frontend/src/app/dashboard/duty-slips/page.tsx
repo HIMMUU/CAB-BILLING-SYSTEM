@@ -43,7 +43,6 @@ interface RateCard {
   customerId?: string | null;
   clientType: string;
   status: string;
-  effectiveFrom: string;
   createdAt?: string;
   updatedAt?: string;
   vehicleCategory: VehicleCategory;
@@ -218,32 +217,10 @@ const getRateClientType = (customer: Customer): string => {
     : "Company";
 };
 
-const getRateEffectiveAt = (
-  date?: string | null,
-  time?: string | null,
-  fallback?: string | null,
-): Date => {
-  const sourceDate = date || fallback;
-  if (!sourceDate) return new Date();
-  if (!date && sourceDate.includes("T")) {
-    const parsed = new Date(sourceDate);
-    if (!Number.isNaN(parsed.getTime())) return parsed;
-  }
-  const datePart = sourceDate.includes("T")
-    ? sourceDate.split("T")[0]
-    : sourceDate;
-  const timePart =
-    time ||
-    (sourceDate.includes("T") ? sourceDate.split("T")[1].slice(0, 5) : "23:59");
-  const merged = mergeDT(datePart, timePart);
-  return merged ? new Date(merged) : new Date();
-};
-
-const filterApplicableRateCards = (
+const filterAvailableRateCards = (
   cards: RateCard[],
   customer: Customer | null,
   tripType: string | undefined,
-  effectiveAt: Date,
   categoryName?: string | null,
 ) => {
   if (!Array.isArray(cards) || !customer?.id) return [];
@@ -274,14 +251,6 @@ const filterApplicableRateCards = (
         .trim()
         .toLowerCase() === clientType;
     if (!isCustomerCard && !isMatchingDefaultCard) return false;
-
-    const effectiveFrom = new Date(card.effectiveFrom).getTime();
-    if (
-      !Number.isFinite(effectiveFrom) ||
-      effectiveFrom > effectiveAt.getTime()
-    ) {
-      return false;
-    }
 
     if (
       categoryName &&
@@ -328,13 +297,9 @@ const filterApplicableRateCards = (
       ? customerCards
       : categoryCards.filter((card) => !card.customerId);
     preferredCards.sort((a, b) => {
-      const effectiveDate =
-        new Date(b.effectiveFrom).getTime() -
-        new Date(a.effectiveFrom).getTime();
-      if (effectiveDate !== 0) return effectiveDate;
       return (
-        new Date(b.createdAt || 0).getTime() -
-        new Date(a.createdAt || 0).getTime()
+        new Date(b.updatedAt || b.createdAt || 0).getTime() -
+        new Date(a.updatedAt || a.createdAt || 0).getTime()
       );
     });
     return preferredCards.length > 0 ? [preferredCards[0]] : [];
@@ -769,21 +734,13 @@ export default function DutySlipsPage() {
           Number(customer.cgstRate || 0) +
           Number(customer.sgstRate || 0) +
           Number(customer.igstRate || 0);
-        const effectiveAt = getRateEffectiveAt(
-          undefined,
-          undefined,
-          editingSlip?.endDateTime ||
-            editingSlip?.startDateTime ||
-            editingSlip?.reportingTime,
-        );
-        const customerRateCards = filterApplicableRateCards(
+        const customerRateCards = filterAvailableRateCards(
           customer.rateCards || [],
           customer,
           editingSlip?.booking?.tripType ||
             (df.dutyType === "O" || df.dutyType === "T"
               ? "OUTSTATION"
               : "LOCAL"),
-          effectiveAt,
         );
         const firstCategory =
           customerRateCards[0]?.vehicleCategory?.name || null;
@@ -851,20 +808,14 @@ export default function DutySlipsPage() {
 
       if (!isCurrentRequest) return;
 
-      const effectiveAt = getRateEffectiveAt(
-        df.dutyEndDate || df.dutyStartDate || df.reportingDate,
-        df.dutyEndTime || df.dutyStartTime || df.reportingTime,
-        editingSlip?.booking?.pickupDate,
-      );
       const bookingTripType = editingSlip?.booking?.tripType;
       const rateTripType =
         bookingTripType ||
         (df.dutyType === "O" || df.dutyType === "T" ? "OUTSTATION" : "ANY");
-      const relevantCards = filterApplicableRateCards(
+      const relevantCards = filterAvailableRateCards(
         allCards,
         fullCustomer,
         rateTripType,
-        effectiveAt,
       );
       setAvailableRateCards(relevantCards);
 
@@ -1596,10 +1547,6 @@ export default function DutySlipsPage() {
         return;
       }
 
-      const effectiveAt = getRateEffectiveAt(
-        df.dutyEndDate || df.dutyStartDate || df.reportingDate,
-        df.dutyEndTime || df.dutyStartTime || df.reportingTime,
-      ).getTime();
       const categoryName =
         booking?.vehicleTypeRequired ||
         editingSlip?.carGroup ||
@@ -1614,11 +1561,10 @@ export default function DutySlipsPage() {
             ? "HOURLY_RENTAL"
             : "LOCAL");
       const hasValidRateCard = closeCustomer
-        ? filterApplicableRateCards(
+        ? filterAvailableRateCards(
           selectedRateCard ? [selectedRateCard] : [],
           closeCustomer,
           tripType,
-          new Date(effectiveAt),
           categoryName,
         ).length > 0
         : false;
@@ -1629,7 +1575,7 @@ export default function DutySlipsPage() {
         cleanGuestName.length > 0;
       if (!hasValidRateCard && !directNewCustomer) {
         setFormError(
-          "This duty slip cannot be closed without an active, effective rate card with a valid base rate for this trip. Select or create a matching rate card first.",
+          "This duty slip cannot be closed without an active rate card with a valid base rate for this trip. Select or create a matching rate card first.",
         );
         return;
       }
@@ -1981,23 +1927,14 @@ export default function DutySlipsPage() {
     } catch (err) {
       console.error(err);
       setRateCardLoadError(
-        `Could not load applicable rate cards: ${getErrorMessage(err)}`,
+        `Could not load rate cards: ${getErrorMessage(err)}`,
       );
     }
 
-    const effectiveAt = getRateEffectiveAt(
-      undefined,
-      undefined,
-      slip.endDateTime ||
-        slip.startDateTime ||
-        slip.reportingTime ||
-        slip.booking?.pickupDate,
-    );
-    allCards = filterApplicableRateCards(
+    allCards = filterAvailableRateCards(
       allCards,
       customerObj,
       slip.booking?.tripType || "LOCAL",
-      effectiveAt,
     );
     setAvailableRateCards(allCards);
 
@@ -2131,11 +2068,10 @@ export default function DutySlipsPage() {
       slip.booking?.vehicleTypeRequired ||
       slip.vehicle?.vehicleType ||
       "";
-    const cardsForCategory = filterApplicableRateCards(
+    const cardsForCategory = filterAvailableRateCards(
       allCards,
       customerObj,
       slip.booking?.tripType || "LOCAL",
-      effectiveAt,
       targetCategory,
     );
     const matchedRc =
@@ -3332,7 +3268,7 @@ export default function DutySlipsPage() {
                           ) : df.customerId &&
                             availableRateCards.length === 0 ? (
                             <p className="mt-1 text-xs text-amber-700">
-                              No active, effective rate card is available for
+                              No active rate card is available for
                               this customer. Add a matching rate card before
                               closing.
                             </p>

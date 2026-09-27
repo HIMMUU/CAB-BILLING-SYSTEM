@@ -120,7 +120,6 @@ export class RateManagementService {
             rate,
           }),
         ),
-        effectiveFrom: new Date(),
         status: 'ACTIVE',
       },
       include: {
@@ -146,7 +145,6 @@ export class RateManagementService {
     clientType?: string;
     customerId?: string;
     vehicleCategoryId?: string;
-    effectiveDate?: string;
   }) {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 100;
@@ -164,12 +162,6 @@ export class RateManagementService {
 
     if (query.vehicleCategoryId && query.vehicleCategoryId !== 'ALL') {
       where.vehicleCategoryId = query.vehicleCategoryId;
-    }
-
-    if (query.effectiveDate) {
-      where.effectiveFrom = {
-        lte: new Date(query.effectiveDate),
-      };
     }
 
     if (query.search) {
@@ -191,7 +183,7 @@ export class RateManagementService {
         where,
         skip,
         take: limit,
-        orderBy: { effectiveFrom: 'desc' },
+        orderBy: { updatedAt: 'desc' },
         include: {
           customer: true,
           vehicleCategory: true,
@@ -325,7 +317,6 @@ export class RateManagementService {
         customPackages: Array.isArray(rateCard.customPackages)
           ? (rateCard.customPackages as Prisma.InputJsonArray)
           : [],
-        effectiveFrom: new Date(),
         status: 'ACTIVE',
       },
       include: {
@@ -367,7 +358,7 @@ export class RateManagementService {
         customer: true,
         vehicleCategory: true,
       },
-      orderBy: { effectiveFrom: 'desc' },
+      orderBy: { updatedAt: 'desc' },
     });
 
     const headers = [
@@ -383,7 +374,6 @@ export class RateManagementService {
       'Outstation Rate/KM',
       'Driver Allowance',
       'Night Charge',
-      'Effective From',
       'Status',
     ];
 
@@ -400,7 +390,6 @@ export class RateManagementService {
       rc.outstationRatePerKm.toString(),
       rc.driverAllowance.toString(),
       rc.nightCharge.toString(),
-      rc.effectiveFrom.toISOString().split('T')[0],
       rc.status,
     ]);
 
