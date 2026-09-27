@@ -120,21 +120,31 @@ export class TripsService {
         : /travel|holiday|resort|tour/i.test(customer.companyName || '')
           ? 'Travel Company'
           : 'Company';
-    const applicableRateCardWhere = {
+    const matchingRateCardWhere = {
       tenantId: slip.tenantId,
       vehicleCategoryId: category.id,
-      status: 'ACTIVE',
     };
 
-    const latestCustomerRateCard = await this.prisma.rateCard.findFirst({
-      where: { ...applicableRateCardWhere, customerId: customer.id },
-      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
-    });
+    const selectedRateCard = slip.rateCardId
+      ? await this.prisma.rateCard.findFirst({
+          where: {
+            id: slip.rateCardId,
+            ...matchingRateCardWhere,
+            OR: [{ customerId: customer.id }, { customerId: null }],
+          },
+        })
+      : null;
+    const customerRateCard =
+      selectedRateCard ||
+      (await this.prisma.rateCard.findFirst({
+        where: { ...matchingRateCardWhere, customerId: customer.id },
+        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+      }));
     const rateCard =
-      latestCustomerRateCard ||
+      customerRateCard ||
       (await this.prisma.rateCard.findFirst({
         where: {
-          ...applicableRateCardWhere,
+          ...matchingRateCardWhere,
           customerId: null,
           clientType: mappedClientType,
         },
@@ -143,40 +153,7 @@ export class TripsService {
 
     if (!rateCard) {
       throw new BadRequestException(
-        'No active rate card is configured for this booking and vehicle category. Select or create a matching rate card before closing.',
-      );
-    }
-    if (slip.rateCardId && slip.rateCardId !== rateCard.id) {
-      throw new BadRequestException(
-        'The selected rate card is no longer the latest active rate for this customer and category. Reload the duty slip and select the latest active rate.',
-      );
-    }
-
-    const hasValidBaseRate =
-      booking.tripType === TripType.OUTSTATION
-        ? Number(rateCard.minKmPerDay) > 0 &&
-          Number(rateCard.outstationRatePerKm) > 0
-        : ((Number(rateCard.fullDayRate) > 0 ||
-            Number(rateCard.halfDayRate) > 0) &&
-            (Number(rateCard.fullKm) ||
-              Number(rateCard.minKm) ||
-              Number(rateCard.includedKm)) > 0 &&
-            (Number(rateCard.fullHr) || Number(rateCard.minHr)) > 0) ||
-          (Array.isArray(rateCard.customPackages) &&
-            rateCard.customPackages.some(
-              (ratePackage) =>
-                isJsonRecord(ratePackage) &&
-                typeof ratePackage.includedKm === 'number' &&
-                ratePackage.includedKm > 0 &&
-                typeof ratePackage.includedHours === 'number' &&
-                ratePackage.includedHours > 0 &&
-                typeof ratePackage.rate === 'number' &&
-                ratePackage.rate > 0,
-            ));
-
-    if (!hasValidBaseRate) {
-      throw new BadRequestException(
-        'The selected rate card has no valid base fare for this trip type. Update the rate card before closing.',
+        'No rate card is available for this booking and vehicle category.',
       );
     }
 
@@ -605,68 +582,20 @@ export class TripsService {
           );
         }
 
-        const currentClientType =
-          currentBooking.customer.type === 'INDIVIDUAL'
-            ? 'Individual'
-            : /travel|holiday|resort|tour/i.test(
-                  currentBooking.customer.companyName || '',
-                )
-              ? 'Travel Company'
-              : 'Company';
-        const applicableRateCardWhere = {
-          tenantId: slip.tenantId,
-          vehicleCategoryId: calculations.vehicleCategoryId,
-          status: 'ACTIVE',
-        };
-        const latestCustomerRateCard = await tx.rateCard.findFirst({
+        const currentRateCard = await tx.rateCard.findFirst({
           where: {
-            ...applicableRateCardWhere,
-            customerId: currentBooking.customerId,
+            id: calculations.rateCardId,
+            tenantId: slip.tenantId,
+            vehicleCategoryId: calculations.vehicleCategoryId,
           },
-          orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
         });
-        const currentRateCard =
-          latestCustomerRateCard ||
-          (await tx.rateCard.findFirst({
-            where: {
-              ...applicableRateCardWhere,
-              customerId: null,
-              clientType: currentClientType,
-            },
-            orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
-          }));
-        const rateCardStillValid =
-          currentRateCard?.id === calculations.rateCardId &&
-          currentRateCard.updatedAt.getTime() ===
+        if (
+          !currentRateCard ||
+          currentRateCard.updatedAt.getTime() !==
             calculations.rateCardUpdatedAt.getTime()
-            ? currentRateCard
-            : null;
-        const hasValidCurrentBaseRate =
-          rateCardStillValid &&
-          (currentBooking.tripType === TripType.OUTSTATION
-            ? Number(rateCardStillValid.minKmPerDay) > 0 &&
-              Number(rateCardStillValid.outstationRatePerKm) > 0
-            : ((Number(rateCardStillValid.fullDayRate) > 0 ||
-                Number(rateCardStillValid.halfDayRate) > 0) &&
-                (Number(rateCardStillValid.fullKm) ||
-                  Number(rateCardStillValid.minKm) ||
-                  Number(rateCardStillValid.includedKm)) > 0 &&
-                (Number(rateCardStillValid.fullHr) ||
-                  Number(rateCardStillValid.minHr)) > 0) ||
-              (Array.isArray(rateCardStillValid?.customPackages) &&
-                rateCardStillValid.customPackages.some(
-                  (ratePackage) =>
-                    isJsonRecord(ratePackage) &&
-                    typeof ratePackage.includedKm === 'number' &&
-                    ratePackage.includedKm > 0 &&
-                    typeof ratePackage.includedHours === 'number' &&
-                    ratePackage.includedHours > 0 &&
-                    typeof ratePackage.rate === 'number' &&
-                    ratePackage.rate > 0,
-                )));
-        if (!hasValidCurrentBaseRate) {
+        ) {
           throw new BadRequestException(
-            'The rate card changed or is no longer active. Reload the duty slip and select an active rate card before closing.',
+            'The selected rate card changed while closing the trip. Reload the duty slip and try again.',
           );
         }
 

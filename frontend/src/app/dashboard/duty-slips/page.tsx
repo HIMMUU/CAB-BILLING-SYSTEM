@@ -235,7 +235,7 @@ const filterAvailableRateCards = (
   );
 
   const eligibleCards = uniqueCards.filter((card) => {
-    if (!card?.id || card.status !== "ACTIVE") return false;
+    if (!card?.id) return false;
     if (customer.tenantId && card.tenantId !== customer.tenantId) return false;
     if (
       typeof card.vehicleCategory?.name !== "string" ||
@@ -1521,11 +1521,6 @@ export default function DutySlipsPage() {
         return;
       }
       const booking = editingSlip?.booking;
-      const closeCustomer =
-        booking?.customer ||
-        fullCustomer ||
-        customers.find((customer) => customer.id === df.customerId) ||
-        null;
       if (
         editingSlip?.id &&
         (!editingSlip.bookingId || !booking?.customer?.id)
@@ -1536,49 +1531,6 @@ export default function DutySlipsPage() {
         return;
       }
 
-      if (
-        !editingSlip &&
-        df.customerType !== "new" &&
-        !closeCustomer?.id
-      ) {
-        setFormError(
-          "Select a customer before closing this duty slip. A booking will be created automatically.",
-        );
-        return;
-      }
-
-      const categoryName =
-        booking?.vehicleTypeRequired ||
-        editingSlip?.carGroup ||
-        editingSlip?.vehicle?.vehicleType ||
-        df.carGroup ||
-        selectedRateCard?.vehicleCategory?.name;
-      const tripType =
-        booking?.tripType ||
-        (df.dutyType === "O" || df.dutyType === "T"
-          ? "OUTSTATION"
-          : isFlexibleDuty
-            ? "HOURLY_RENTAL"
-            : "LOCAL");
-      const hasValidRateCard = closeCustomer
-        ? filterAvailableRateCards(
-          selectedRateCard ? [selectedRateCard] : [],
-          closeCustomer,
-          tripType,
-          categoryName,
-        ).length > 0
-        : false;
-
-      const directNewCustomer =
-        !editingSlip &&
-        df.customerType === "new" &&
-        cleanGuestName.length > 0;
-      if (!hasValidRateCard && !directNewCustomer) {
-        setFormError(
-          "This duty slip cannot be closed without an active rate card with a valid base rate for this trip. Select or create a matching rate card first.",
-        );
-        return;
-      }
     }
 
     const patchStatus = targetStatus === "CLOSED" ? "FILLED" : targetStatus;
