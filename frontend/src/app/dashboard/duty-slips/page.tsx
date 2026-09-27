@@ -1548,6 +1548,8 @@ export default function DutySlipsPage() {
     const rdt = mergeDT(repD, repT);
     const startDateTime = mergeDT(startD, startT);
     const endDateTime = mergeDT(df.dutyEndDate, df.dutyEndTime);
+    const isFlexibleDuty = df.dutyType === "FLEXIBLE";
+    const cleanGuestName = (df.guestName || "").trim();
 
     let targetStatus: "DRAFT" | "FILLED" | "CLOSED" = "DRAFT";
     if (closeStatus) {
@@ -1574,7 +1576,7 @@ export default function DutySlipsPage() {
         customers.find((customer) => customer.id === df.customerId) ||
         null;
       if (
-        editingSlip &&
+        editingSlip?.id &&
         (!editingSlip.bookingId || !booking?.customer?.id)
       ) {
         setFormError(
@@ -1599,7 +1601,7 @@ export default function DutySlipsPage() {
         df.dutyEndTime || df.dutyStartTime || df.reportingTime,
       ).getTime();
       const categoryName =
-        booking.vehicleTypeRequired ||
+        booking?.vehicleTypeRequired ||
         editingSlip?.carGroup ||
         editingSlip?.vehicle?.vehicleType ||
         df.carGroup ||
@@ -1635,12 +1637,10 @@ export default function DutySlipsPage() {
 
     const patchStatus = targetStatus === "CLOSED" ? "FILLED" : targetStatus;
 
-    const isFlexibleDuty = df.dutyType === "FLEXIBLE";
     const customSubtotal = isFlexibleDuty
       ? customParticulars.reduce((sum, p) => sum + Number(p.amount || 0), 0)
       : 0;
 
-    const cleanGuestName = (df.guestName || "").trim();
     const cleanGuestSalutation = cleanGuestName
       ? (df.guestSalutation || "").trim()
       : "";
