@@ -1568,9 +1568,28 @@ export default function DutySlipsPage() {
         return;
       }
       const booking = editingSlip?.booking;
-      if (!editingSlip?.bookingId || !booking?.customer?.id) {
+      const closeCustomer =
+        booking?.customer ||
+        fullCustomer ||
+        customers.find((customer) => customer.id === df.customerId) ||
+        null;
+      if (
+        editingSlip &&
+        (!editingSlip.bookingId || !booking?.customer?.id)
+      ) {
         setFormError(
           "This duty slip cannot be closed without a valid booking and customer. Link it to an assigned booking first.",
+        );
+        return;
+      }
+
+      if (
+        !editingSlip &&
+        df.customerType !== "new" &&
+        !closeCustomer?.id
+      ) {
+        setFormError(
+          "Select a customer before closing this duty slip. A booking will be created automatically.",
         );
         return;
       }
@@ -1581,18 +1600,32 @@ export default function DutySlipsPage() {
       ).getTime();
       const categoryName =
         booking.vehicleTypeRequired ||
-        editingSlip.carGroup ||
-        editingSlip.vehicle?.vehicleType;
-      const hasValidRateCard =
-        filterApplicableRateCards(
+        editingSlip?.carGroup ||
+        editingSlip?.vehicle?.vehicleType ||
+        df.carGroup ||
+        selectedRateCard?.vehicleCategory?.name;
+      const tripType =
+        booking?.tripType ||
+        (df.dutyType === "O" || df.dutyType === "T"
+          ? "OUTSTATION"
+          : isFlexibleDuty
+            ? "HOURLY_RENTAL"
+            : "LOCAL");
+      const hasValidRateCard = closeCustomer
+        ? filterApplicableRateCards(
           selectedRateCard ? [selectedRateCard] : [],
-          booking.customer,
-          booking.tripType,
+          closeCustomer,
+          tripType,
           new Date(effectiveAt),
           categoryName,
-        ).length > 0;
+        ).length > 0
+        : false;
 
-      if (!hasValidRateCard) {
+      const directNewCustomer =
+        !editingSlip &&
+        df.customerType === "new" &&
+        cleanGuestName.length > 0;
+      if (!hasValidRateCard && !directNewCustomer) {
         setFormError(
           "This duty slip cannot be closed without an active, effective rate card with a valid base rate for this trip. Select or create a matching rate card first.",
         );
