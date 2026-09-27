@@ -90,11 +90,17 @@ export class TripsService {
       );
     }
 
+    const mappedClientType =
+      customer.type === 'INDIVIDUAL'
+        ? 'Individual'
+        : /travel|holiday|resort|tour/i.test(customer.companyName || '')
+          ? 'Travel Company'
+          : 'Company';
     const modelFirstWord = slip.vehicle?.model.split(' ')[0];
     const categoryNames = [
-      booking.vehicleTypeRequired,
-      slip.vehicle?.vehicleType,
       slip.carGroup,
+      slip.vehicle?.vehicleType,
+      booking.vehicleTypeRequired,
       slip.vehicle?.model,
       modelFirstWord,
     ].filter((name): name is string => !!name?.trim());
@@ -110,34 +116,35 @@ export class TripsService {
 
     if (!category) {
       throw new BadRequestException(
-        'No vehicle category matches this booking. Configure a vehicle category and a matching rate card before closing.',
+        'No vehicle category matches this duty slip. Select a vehicle category before closing.',
       );
     }
 
-    const mappedClientType =
-      customer.type === 'INDIVIDUAL'
-        ? 'Individual'
-        : /travel|holiday|resort|tour/i.test(customer.companyName || '')
-          ? 'Travel Company'
-          : 'Company';
     const matchingRateCardWhere = {
       tenantId: slip.tenantId,
       vehicleCategoryId: category.id,
     };
-
+    const customerRateCardScope = [
+      { customerId: customer.id },
+      { customerId: null, clientType: mappedClientType },
+    ];
     const selectedRateCard = slip.rateCardId
       ? await this.prisma.rateCard.findFirst({
           where: {
             id: slip.rateCardId,
             ...matchingRateCardWhere,
-            OR: [{ customerId: customer.id }, { customerId: null }],
+            OR: customerRateCardScope,
           },
         })
       : null;
+
     const customerRateCard =
       selectedRateCard ||
       (await this.prisma.rateCard.findFirst({
-        where: { ...matchingRateCardWhere, customerId: customer.id },
+        where: {
+          ...matchingRateCardWhere,
+          customerId: customer.id,
+        },
         orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
       }));
     const rateCard =
